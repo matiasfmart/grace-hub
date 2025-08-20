@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useCallback, useTransition } from 'react';
+import { useState, useMemo, useCallback, useTransition, useEffect } from 'react';
 import type { Member, GDI, MinistryArea, AddMemberFormValues, MemberWriteData, MemberRoleType, Meeting, MeetingSeries, AttendanceRecord, TitheRecord } from '@/lib/types';
 import { NO_ROLE_FILTER_VALUE, NO_GDI_FILTER_VALUE, NO_AREA_FILTER_VALUE } from '@/lib/types';
 import { Input } from "@/components/ui/input";
@@ -110,6 +110,9 @@ export default function MembersListView({
   const pathname = usePathname();
   const searchParamsHook = useSearchParams();
 
+  useEffect(() => {
+    setMembers(initialMembers);
+  }, [initialMembers]);
 
   const gdiGuidesForFilter = useMemo(() => {
     const guideIds = new Set(allGDIs.map(gdi => gdi.guideId).filter(Boolean));

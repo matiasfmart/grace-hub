@@ -102,16 +102,6 @@ export default function MemberAttendanceLineChart({
       if (foundSeries) currentSeriesName = foundSeries.name;
     }
 
-    if (startDate || endDate) {
-        meetingsToProcess = meetingsToProcess.filter(meeting => {
-            const meetingDateObj = parseISO(meeting.date);
-            if (!isValid(meetingDateObj)) return false;
-            const isAfterStart = startDate ? meetingDateObj >= startOfDay(startDate) : true;
-            const isBeforeEnd = endDate ? meetingDateObj <= endOfDay(endDate) : true;
-            return isAfterStart && isBeforeEnd;
-        });
-    }
-
     interface MonthlyAggregation {
       attended: number;
       convocated: number;

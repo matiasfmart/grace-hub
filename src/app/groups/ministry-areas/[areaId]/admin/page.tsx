@@ -28,7 +28,7 @@ import AddOccasionalMeetingDialog from '@/components/events/add-occasional-meeti
 import PageSpecificAddMeetingDialog from '@/components/events/page-specific-add-meeting-dialog';
 import AttendanceLineChart from '@/components/events/AttendanceFrequencySummaryTable';
 import MeetingTypeAttendanceTable from '@/components/events/meeting-type-attendance-table';
-import { getSeriesByIdForGroup, getGroupMeetingInstances } from '@/services/groupMeetingService';
+import { getSeriesForGroup, getGroupMeetingInstances } from '@/services/groupMeetingService';
 import { getAllAttendanceRecords, getResolvedAttendees } from '@/services/attendanceService';
 import { getAllGdis } from '@/services/gdiService'; 
 import { getAllMinistryAreas as getAllMinistryAreasSvc } from '@/services/ministryAreaService'; 
@@ -84,7 +84,7 @@ async function getData(
   ] = await Promise.all([
     getAllMembersNonPaginated(),
     getAllAttendanceRecords(),
-    getSeriesByIdForGroup('ministryArea', areaId),
+    getSeriesForGroup('ministryArea', areaId),
   ]);
   
   const sortedGroupSeries = groupSeriesData.sort((a, b) => a.name.localeCompare(b.name));
@@ -398,6 +398,7 @@ export default function MinistryAreaAdminPage({}: MinistryAreaAdminPageProps) {
                   seriesName={selectedSeriesObject?.name || "Todas las Series del Área"}
                   filterStartDate={appliedStartDate}
                   filterEndDate={appliedEndDate}
+                  expectedAttendeesMap={expectedAttendeesMapForTable}
                 />
               )}
               

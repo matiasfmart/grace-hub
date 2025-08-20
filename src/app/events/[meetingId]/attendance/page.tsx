@@ -57,7 +57,7 @@ async function handleSaveAttendance(
 async function handleUpdateMinuteAction(meetingId: string, minute: string) {
   'use server';
   try {
-    await updateMeetingMinute(meetingId, minute.trim() === '' ? null : minute.trim());
+    await updateMeetingMinute(meetingId, minute.trim() === '' ? null : minute.trim())
     revalidatePath(`/events/${meetingId}/attendance`);
     return { success: true, message: "Minuta actualizada exitosamente." };
   } catch (error: any) {

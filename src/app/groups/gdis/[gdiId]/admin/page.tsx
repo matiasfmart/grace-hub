@@ -28,7 +28,7 @@ import AddOccasionalMeetingDialog from '@/components/events/add-occasional-meeti
 import PageSpecificAddMeetingDialog from '@/components/events/page-specific-add-meeting-dialog';
 import AttendanceLineChart from '@/components/events/AttendanceFrequencySummaryTable';
 import MeetingTypeAttendanceTable from '@/components/events/meeting-type-attendance-table';
-import { getSeriesByIdForGroup, getGroupMeetingInstances } from '@/services/groupMeetingService';
+import { getSeriesForGroup, getGroupMeetingInstances } from '@/services/groupMeetingService';
 import { getAllAttendanceRecords, getResolvedAttendees } from '@/services/attendanceService';
 import { parseISO, format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -85,7 +85,7 @@ async function getData(
     getAllMembersNonPaginated(),
     getAllGdis(),
     getAllAttendanceRecords(),
-    getSeriesByIdForGroup('gdi', gdiId) 
+    getSeriesForGroup('gdi', gdiId) 
   ]);
 
   const sortedGroupSeries = groupSeriesData.sort((a, b) => a.name.localeCompare(b.name));
@@ -396,6 +396,7 @@ export default function GdiAdminPage({}: GdiAdminPageProps) {
                   seriesName={selectedSeriesObject?.name || "Todas las Series del GDI"}
                   filterStartDate={appliedStartDate}
                   filterEndDate={appliedEndDate}
+                  expectedAttendeesMap={expectedAttendeesMapForTable}
                 />
               )}
               

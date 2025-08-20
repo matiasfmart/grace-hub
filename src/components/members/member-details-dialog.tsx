@@ -136,6 +136,14 @@ export default function MemberDetailsDialog({
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [allMeetings, allMeetingSeries, member]);
 
+  const expectedAttendeesMap = useMemo(() => {
+    const map: Record<string, Set<string>> = {};
+    allMeetings.forEach(meeting => {
+      map[meeting.id] = new Set(meeting.attendeeUids || []);
+    });
+    return map;
+  }, [allMeetings]);
+
 
   const handleEditToggle = () => {
     setIsEditing(!isEditing);
@@ -391,6 +399,7 @@ export default function MemberDetailsDialog({
                             selectedSeriesId={attendanceSelectedSeriesId}
                             startDate={attendanceStartDate}
                             endDate={attendanceEndDate}
+                            expectedAttendeesMap={expectedAttendeesMap}
                         />
                         <MemberAttendanceSummary
                             memberId={member.id}
