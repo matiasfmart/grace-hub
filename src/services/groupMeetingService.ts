@@ -14,6 +14,7 @@ import {
   getFilteredMeetingInstances as getCoreFilteredMeetingInstances,
 } from './meetingService';
 import { findDocuments, deleteOneDocument } from '@/lib/db-utils';
+import { ObjectId } from 'mongodb';
 
 // --- Group Meeting Series Actions ---
 
@@ -55,7 +56,7 @@ export async function addMeetingSeriesForGroup(
     monthlyDayOfWeek: seriesData.frequency === "Monthly" && seriesData.monthlyRuleType === "DayOfWeekOfMonth" ? seriesData.monthlyDayOfWeek : undefined,
   };
 
-  const { series, newInstances } = await addCoreMeetingSeries(seriesDataForCore as any);
+  const { series, newInstances } = await addCoreMeetingSeries(seriesDataForCore as MeetingSeriesWriteData);
   const message = `Serie de reuniones "${series.name}" agregada exitosamente.`;
   return { series, message, newInstances };
 }
@@ -97,18 +98,18 @@ export async function getGroupMeetingInstances(
     const groupSeriesList = await getSeriesForGroup(groupType, groupId);
     const groupSeriesIds = groupSeriesList.map(s => s.id);
 
-    let targetSeriesId = filterSeriesId;
-    if (filterSeriesId && !groupSeriesIds.includes(filterSeriesId)) {
-        // If a specific series is requested but doesn't belong to the group, return empty.
-        return { instances: [], totalCount: 0, totalPages: 0 };
-    }
-    if (!filterSeriesId || filterSeriesId === 'all') {
-        // If no specific series is filtered, get instances from all series of the group.
-        // We pass an array of IDs to the core function.
-        targetSeriesId = groupSeriesIds as any; // Hacky, but works with the new core function
+    let targetSeriesIds: string[] = [];
+    if (filterSeriesId && filterSeriesId !== 'all') {
+        if (groupSeriesIds.includes(filterSeriesId)) {
+            targetSeriesIds = [filterSeriesId];
+        } else {
+            return { instances: [], totalCount: 0, totalPages: 0 };
+        }
+    } else {
+        targetSeriesIds = groupSeriesIds;
     }
 
-    return getCoreFilteredMeetingInstances(targetSeriesId as any, startDate, endDate, page, pageSize);
+    return getCoreFilteredMeetingInstances(targetSeriesIds, startDate, endDate, page, pageSize);
 }
 
 export async function addMeetingInstanceForGroup(

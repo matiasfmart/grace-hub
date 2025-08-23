@@ -79,7 +79,7 @@ export default function DeleteMeetingSeriesAlert({
       {triggerButton && TriggerComponent}
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>¿Está seguro de que desea eliminar la serie "{seriesName}"?</AlertDialogTitle>
+          <AlertDialogTitle>¿Está seguro de que desea eliminar la serie &quot;{seriesName}&quot;?</AlertDialogTitle>
           <AlertDialogDescription>
             Esta acción no se puede deshacer. Se eliminará permanentemente la serie de reuniones, todas sus instancias programadas y todos los registros de asistencia asociados.
           </AlertDialogDescription>

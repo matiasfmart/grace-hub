@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 
 export const MemberRoleEnum = z.enum(['Leader', 'Worker', 'GeneralAttendee']);
@@ -287,3 +286,8 @@ export interface MinistryAreaMeeting extends MeetingBase {
 export type AnyMeeting = GeneralMeeting | GdiMeeting | MinistryAreaMeeting;
 export type AnyMeetingWriteData = Omit<AnyMeeting, 'id' | 'attendeeUids'> & { attendeeUids?: string[] };
 export type AnyMeetingInstanceUpdateData = Partial<Omit<AnyMeeting, 'id' | 'seriesId' | 'attendeeUids' | 'seriesType' | 'ownerGroupId'>>;
+
+export interface PageProps {
+  params: { [key: string]: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+}

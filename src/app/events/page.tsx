@@ -1,6 +1,5 @@
-
 'use server';
-import type { Meeting, DefineMeetingSeriesFormValues, MeetingSeries, Member, GDI, MinistryArea, AttendanceRecord, AddOccasionalMeetingFormValues, MemberRoleType } from '@/lib/types';
+import type { Meeting, DefineMeetingSeriesFormValues, MeetingSeries, Member, GDI, MinistryArea, AttendanceRecord, AddOccasionalMeetingFormValues, MemberRoleType, MeetingSeriesWriteData } from '@/lib/types';
 import { NO_ROLE_FILTER_VALUE, NO_GDI_FILTER_VALUE, NO_AREA_FILTER_VALUE } from '@/lib/types';
 import { Button } from "@/components/ui/button";
 import { CalendarDays, Filter, Settings, PlusSquare, LayoutGrid, ListFilter, ShieldCheck, Users as UsersIcon, Activity, X } from 'lucide-react';
@@ -35,20 +34,16 @@ export async function defineMeetingSeriesAction(
   newSeriesData: DefineMeetingSeriesFormValues
 ): Promise<{ success: boolean; message: string; newSeries?: MeetingSeries, newInstances?: Meeting[] }> {
   try {
-    const dataForService: DefineMeetingSeriesFormValues = {
+    const dataForService: MeetingSeriesWriteData = {
       ...newSeriesData,
       seriesType: 'general',
       ownerGroupId: null,
       oneTimeDate: newSeriesData.oneTimeDate instanceof Date && isValid(newSeriesData.oneTimeDate)
-        ? newSeriesData.oneTimeDate
+        ? format(newSeriesData.oneTimeDate, 'yyyy-MM-dd')
         : undefined,
     };
-    if (newSeriesData.oneTimeDate instanceof Date && isValid(newSeriesData.oneTimeDate)) {
-        (dataForService as any).oneTimeDate = format(newSeriesData.oneTimeDate, 'yyyy-MM-dd');
-    }
 
-
-    const result = await addMeetingSeries(dataForService as any);
+    const result = await addMeetingSeries(dataForService);
 
     revalidatePath('/events');
     let message = `Serie de reuniones "${result.series.name}" agregada exitosamente.`;
@@ -75,7 +70,7 @@ export async function updateMeetingSeriesAction(
   updatedData: DefineMeetingSeriesFormValues
 ): Promise<{ success: boolean; message: string; updatedSeries?: MeetingSeries, newlyGeneratedInstances?: Meeting[] }> {
   try {
-    const seriesToWrite = {
+    const seriesToWrite: Partial<MeetingSeriesWriteData> = {
         name: updatedData.name,
         description: updatedData.description,
         defaultTime: updatedData.defaultTime,
@@ -228,7 +223,7 @@ async function getEventsPageData(
 
   if (actualSelectedSeriesId) {
     const result = await getFilteredMeetingInstances(
-      actualSelectedSeriesId,
+      [actualSelectedSeriesId],
       startDateParam,
       endDateParam,
       meetingCurrentPage,
@@ -245,13 +240,11 @@ async function getEventsPageData(
   
   if (selectedSeriesObject) {
       // Create a dummy meeting to resolve all potential attendees for the SERIES based on CURRENT roles.
-      const dummyMeetingForSeries: Meeting = { 
-          id: 'dummy-series-resolver', 
+      const dummyMeetingForSeries: Pick<Meeting, 'seriesId' | 'attendeeUids'> = { 
           seriesId: selectedSeriesObject.id, 
           attendeeUids: [], // Not used for dynamic resolution
-          name: '', date: '', time: '', location: '' 
       };
-      initialRowMembers = await getResolvedAttendees(dummyMeetingForSeries, allMembersData, allSeriesData);
+      initialRowMembers = await getResolvedAttendees(dummyMeetingForSeries);
   }
 
   const expectedAttendeesMap: Record<string, Set<string>> = {};
@@ -346,7 +339,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
   const selectedSeriesObject = selectedSeriesId ? allSeries.find(s => s.id === selectedSeriesId) : undefined;
 
   const createPageURL = (newPageNumber: number) => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams as any);
     if (newPageNumber > 1) {
       params.set('page', newPageNumber.toString());
     } else {
@@ -356,7 +349,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
   };
 
   const createSeriesLink = (seriesIdToLink: string) => {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams(searchParams as any);
       params.set('series', seriesIdToLink);
       if (appliedStartDate) params.set('startDate', appliedStartDate);
       if (appliedEndDate) params.set('endDate', appliedEndDate);
@@ -571,7 +564,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
                 {allSeries.length > 0 ? "Elija una serie de la lista de la izquierda para ver sus instancias y gestionar la asistencia." :
                   (appliedStartDate && appliedEndDate && appliedStartDate === appliedEndDate ? `(${format(parseISO(appliedStartDate), 'dd/MM/yy', { locale: es })})` :
                    appliedStartDate && appliedEndDate ? `(${format(parseISO(appliedStartDate), 'dd/MM/yy', { locale: es })} - ${format(parseISO(appliedEndDate), 'dd/MM/yy', { locale: es })})` :
-                  "Defina una nueva serie de reuniones generales o ajuste los filtros de fecha para comenzar.")
+                  "Defina una nueva serie de reuniones generales o ajuste los filtros de fecha.")
                 }
               </p>
             </div>

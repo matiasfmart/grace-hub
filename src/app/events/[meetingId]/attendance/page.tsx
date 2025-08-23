@@ -1,4 +1,4 @@
-
+'use server';
 import type { Meeting, Member, GDI, MinistryArea, AttendanceRecord, MeetingInstanceFormValues, MeetingSeries } from '@/lib/types';
 import { notFound } from 'next/navigation';
 import { getMeetingById, updateMeetingMinute, getMeetingSeriesById, updateMeeting, deleteMeetingInstance } from '@/services/meetingService';
@@ -36,7 +36,7 @@ async function getPageData(meetingId: string) {
     getAttendanceForMeeting(meetingId),
   ]);
 
-  const resolvedAttendees = await getResolvedAttendees(meetingInstance, allMembers, allMeetingSeriesData);
+  const resolvedAttendees = await getResolvedAttendees(meetingInstance);
   return { meetingInstance, meetingSeries, resolvedAttendees, currentAttendance, allMembers };
 }
 
@@ -79,6 +79,9 @@ async function handleUpdateMeetingInstanceAction(
       description: data.description,
     };
     const updatedInstance = await updateMeeting(instanceId, instanceDataToUpdate);
+    if(!updatedInstance) {
+        return { success: false, message: `Error: Instancia con ID ${instanceId} no encontrada.` };
+    }
     revalidatePath(`/events/${instanceId}/attendance`);
     
     const series = await getMeetingSeriesById(updatedInstance.seriesId);
@@ -102,7 +105,20 @@ async function handleDeleteMeetingInstanceAction(
 ): Promise<{ success: boolean; message: string }> {
   'use server';
   try {
+    const instance = await getMeetingById(instanceId);
+    if(!instance) {
+        return { success: false, message: `Error: Instancia con ID ${instanceId} no encontrada.` };
+    }
     await deleteMeetingInstance(instanceId); 
+    revalidatePath(`/events/${instanceId}/attendance`);
+    const series = await getMeetingSeriesById(instance.seriesId);
+    if (series?.seriesType === 'gdi' && series.ownerGroupId) {
+      revalidatePath(`/groups/gdis/${series.ownerGroupId}/admin`);
+    } else if (series?.seriesType === 'ministryArea' && series.ownerGroupId) {
+      revalidatePath(`/groups/ministry-areas/${series.ownerGroupId}/admin`);
+    } else {
+      revalidatePath(`/events`); 
+    }
     return { success: true, message: "Instancia de reunión eliminada exitosamente." };
   } catch (error: any) {
     console.error("Error deleting meeting instance:", error);

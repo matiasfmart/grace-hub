@@ -1,9 +1,9 @@
 'use server';
 import type { Meeting, MeetingWriteData, MeetingSeries, MeetingSeriesWriteData, Member, GDI, MinistryArea, MeetingTargetRoleType, DayOfWeekType, WeekOrdinalType, AnyMeetingInstanceUpdateData } from '@/lib/types';
-import { findDocuments, findOneDocument, insertOneDocument, updateOneDocument, deleteOneDocument, countDocuments, updateManyDocuments } from '@/lib/db-utils';
+import { findDocuments, findOneDocument, insertOneDocument, updateOneDocument, deleteOneDocument, countDocuments, updateManyDocuments, getCollection as getCollectionDb } from '@/lib/db-utils';
 import { format, parseISO, addWeeks, setDay, addMonths, setDate, getDate, getDaysInMonth, lastDayOfMonth, startOfDay, isSameDay, nextDay, getDay, isValid as isValidDateFn, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Collection, Filter } from 'mongodb';
+import { Collection, Filter, ObjectId } from 'mongodb';
 
 const MEETINGS_COLLECTION = 'meetings';
 const MEETING_SERIES_COLLECTION = 'meeting-series';
@@ -14,8 +14,7 @@ const ATTENDANCE_COLLECTION = 'attendance';
 
 // --- Helper to get a collection instance ---
 async function getCollection(name: string): Promise<Collection> {
-    const { getCollection: get } = await import('@/lib/db-utils');
-    return get(name);
+    return getCollectionDb(name);
 }
 
 // --- Date Calculation Helpers (preserved from original) ---
@@ -30,9 +29,9 @@ function getNextWeeklyOccurrences(series: MeetingSeries, startDate: Date, count:
     while (occurrences.length < count) {
         for (const dayStr of series.weeklyDays) {
             const targetDayNumber = dayOfWeekMapping[dayStr];
-            let nextOccurrence = nextDay(currentDate, targetDayNumber);
+            let nextOccurrence = nextDay(currentDate, targetDayNumber as Day);
             if (isSameDay(nextOccurrence, currentDate) || nextOccurrence < currentDate) {
-                 nextOccurrence = nextDay(addWeeks(currentDate,1), targetDayNumber);
+                 nextOccurrence = nextDay(addWeeks(currentDate,1), targetDayNumber as Day);
             }
             if (occurrences.length < count && !occurrences.some(d => isSameDay(d, nextOccurrence)) && nextOccurrence >= startDate) {
                  if(nextOccurrence > startDate || (isSameDay(nextOccurrence, startDate) && !occurrences.some(d => isSameDay(d,nextOccurrence)))) {
@@ -102,25 +101,18 @@ export async function getAllMeetingSeries(): Promise<MeetingSeries[]> {
 }
 
 export async function getMeetingSeriesById(id: string): Promise<MeetingSeries | null> {
-  return findOneDocument<MeetingSeries>(MEETING_SERIES_COLLECTION, { id });
+  return findOneDocument<MeetingSeries>(MEETING_SERIES_COLLECTION, { _id: new ObjectId(id) });
 }
 
 export async function addMeetingSeries(seriesData: MeetingSeriesWriteData): Promise<{ series: MeetingSeries; newInstances?: Meeting[] }> {
-  const newSeriesId = `series-${Date.now()}`;
-  const newSeries: MeetingSeries = {
-    id: newSeriesId,
-    ...seriesData,
-    cancelledDates: [],
-  };
+  const newSeries = await insertOneDocument<MeetingSeries>(MEETING_SERIES_COLLECTION, seriesData);
+  const newInstances = await ensureFutureInstances(newSeries.id);
 
-  const insertedSeries = await insertOneDocument<MeetingSeries>(MEETING_SERIES_COLLECTION, newSeries);
-  const newInstances = await ensureFutureInstances(insertedSeries.id);
-
-  return { series: insertedSeries, newInstances };
+  return { series: newSeries, newInstances };
 }
 
 export async function updateMeetingSeries(seriesId: string, updates: Partial<MeetingSeriesWriteData>): Promise<{ updatedSeries: MeetingSeries; newlyGeneratedInstances?: Meeting[] }> {
-  const updatedSeries = await updateOneDocument<MeetingSeries>(MEETING_SERIES_COLLECTION, { id: seriesId }, { $set: updates });
+  const updatedSeries = await updateOneDocument<MeetingSeries>(MEETING_SERIES_COLLECTION, { _id: new ObjectId(seriesId) }, { $set: updates });
   if (!updatedSeries) throw new Error(`MeetingSeries with ID ${seriesId} not found.`);
 
   const newlyGeneratedInstances = await ensureFutureInstances(updatedSeries.id);
@@ -129,7 +121,7 @@ export async function updateMeetingSeries(seriesId: string, updates: Partial<Mee
 
 export async function deleteMeetingSeries(seriesId: string): Promise<boolean> {
   const meetings = await findDocuments<Meeting>(MEETINGS_COLLECTION, { seriesId });
-  const meetingIds = meetings.map(m => m.id);
+  const meetingIds = meetings.map(m => new ObjectId(m.id));
 
   if (meetingIds.length > 0) {
     const attendanceCollection = await getCollection(ATTENDANCE_COLLECTION);
@@ -137,9 +129,9 @@ export async function deleteMeetingSeries(seriesId: string): Promise<boolean> {
   }
 
   const meetingsCollection = await getCollection(MEETINGS_COLLECTION);
-  await meetingsCollection.deleteMany({ seriesId });
+  await meetingsCollection.deleteMany({ seriesId: new ObjectId(seriesId) });
 
-  return deleteOneDocument(MEETING_SERIES_COLLECTION, { id: seriesId });
+  return deleteOneDocument(MEETING_SERIES_COLLECTION, { _id: new ObjectId(seriesId) });
 }
 
 // --- Meeting Instance CRUD ---
@@ -149,18 +141,22 @@ export async function getAllMeetings(): Promise<Meeting[]> {
 }
 
 export async function getMeetingById(id: string): Promise<Meeting | null> {
-  return findOneDocument<Meeting>(MEETINGS_COLLECTION, { id });
+  return findOneDocument<Meeting>(MEETINGS_COLLECTION, { _id: new ObjectId(id) });
 }
 
 export async function getMeetingsBySeriesId(seriesId: string): Promise<Meeting[]> {
     await ensureFutureInstances(seriesId);
-    return findDocuments<Meeting>(MEETINGS_COLLECTION, { seriesId }, { sort: { date: -1 } });
+    return findDocuments<Meeting>(MEETINGS_COLLECTION, { seriesId: new ObjectId(seriesId) }, { sort: { date: -1 } });
 }
 
-export async function getFilteredMeetingInstances(seriesId: string, startDate?: string, endDate?: string, page: number = 1, pageSize: number = 10): Promise<{ instances: Meeting[]; totalCount: number; totalPages: number }> {
-    if (seriesId) await ensureFutureInstances(seriesId);
+export async function getFilteredMeetingInstances(seriesIds: string[], startDate?: string, endDate?: string, page: number = 1, pageSize: number = 10): Promise<{ instances: Meeting[]; totalCount: number; totalPages: number }> {
+    if (seriesIds && seriesIds.length > 0) {
+        for (const seriesId of seriesIds) {
+            await ensureFutureInstances(seriesId);
+        }
+    }
 
-    const query: Filter<Meeting> = { seriesId };
+    const query: Filter<Meeting> = { seriesId: { $in: seriesIds.map(id => new ObjectId(id)) } };
     if (startDate) query.date = { ...query.date, $gte: startDate };
     if (endDate) query.date = { ...query.date, $lte: endDate };
 
@@ -177,20 +173,20 @@ export async function addMeetingInstance(seriesId: string, instanceDetails: Pick
     const series = await getMeetingSeriesById(seriesId);
     if (!series) throw new Error(`MeetingSeries with ID ${seriesId} not found.`);
 
-    const attendeeUids = await getResolvedAttendeesForMeeting({ seriesId } as Meeting);
+    const attendeeUids = (await getResolvedAttendeesForMeeting({ seriesId } as Meeting)).map(m => m.id);
 
-    const newInstanceData: Omit<Meeting, 'id' | '_id'> = {
+    const newInstanceData: MeetingWriteData = {
         seriesId,
         ...instanceDetails,
-        attendeeUids: attendeeUids.map(m => m.id),
+        attendeeUids,
         minute: null,
     };
 
-    return insertOneDocument<Meeting>(MEETINGS_COLLECTION, { id: `instance-${Date.now()}`, ...newInstanceData });
+    return insertOneDocument<Meeting>(MEETINGS_COLLECTION, newInstanceData);
 }
 
 export async function updateMeeting(meetingId: string, updates: AnyMeetingInstanceUpdateData): Promise<Meeting | null> {
-  return updateOneDocument<Meeting>(MEETINGS_COLLECTION, { id: meetingId }, { $set: updates });
+  return updateOneDocument<Meeting>(MEETINGS_COLLECTION, { _id: new ObjectId(meetingId) }, { $set: updates });
 }
 
 export async function updateMeetingMinute(meetingId: string, minute: string | null): Promise<Meeting | null> {
@@ -203,12 +199,12 @@ export async function deleteMeetingInstance(instanceId: string): Promise<void> {
 
     await updateOneDocument(
         MEETING_SERIES_COLLECTION, 
-        { id: instance.seriesId }, 
-        { $addToSet: { cancelledDates: instance.date } }
+        { _id: new ObjectId(instance.seriesId) }, 
+        { $addToSet: { cancelledDates: instance.date } as any }
     );
 
-    await deleteOneDocument(MEETINGS_COLLECTION, { id: instanceId });
-    await (await getCollection(ATTENDANCE_COLLECTION)).deleteMany({ meetingId: instanceId });
+    await deleteOneDocument(MEETINGS_COLLECTION, { _id: new ObjectId(instanceId) });
+    await (await getCollection(ATTENDANCE_COLLECTION)).deleteMany({ meetingId: new ObjectId(instanceId) });
 }
 
 // --- Core Logic for Recurring Meetings & Attendee Resolution ---
@@ -218,7 +214,7 @@ export async function ensureFutureInstances(seriesId: string): Promise<Meeting[]
     if (!series || series.frequency === "OneTime") return [];
 
     const today = startOfDay(new Date());
-    const instances = await findDocuments<Meeting>(MEETINGS_COLLECTION, { seriesId, date: { $gte: format(today, 'yyyy-MM-dd') } }, { sort: { date: 1 } });
+    const instances = await findDocuments<Meeting>(MEETINGS_COLLECTION, { seriesId: new ObjectId(seriesId), date: { $gte: format(today, 'yyyy-MM-dd') } }, { sort: { date: 1 } });
 
     let instancesToGenerateCount = 0;
     if (series.frequency === "Weekly") instancesToGenerateCount = 4 - instances.length;
@@ -240,7 +236,7 @@ export async function ensureFutureInstances(seriesId: string): Promise<Meeting[]
 
     const attendeeUids = (await getResolvedAttendeesForMeeting({ seriesId } as Meeting)).map(m => m.id);
     
-    const newInstances: Omit<Meeting, 'id' | '_id'>[] = validDates.map(date => ({
+    const newInstances: MeetingWriteData[] = validDates.map(date => ({
         seriesId: series.id,
         name: `${series.name} (${format(date, 'd MMM', { locale: es })})`,
         date: format(date, 'yyyy-MM-dd'),
@@ -251,11 +247,10 @@ export async function ensureFutureInstances(seriesId: string): Promise<Meeting[]
         minute: null,
     }));
 
-    const instancesWithIds = newInstances.map(inst => ({ id: `instance-${Date.now()}-${Math.random()}`, ...inst }));
     const meetingsCollection = await getCollection(MEETINGS_COLLECTION);
-    await meetingsCollection.insertMany(instancesWithIds);
+    await meetingsCollection.insertMany(newInstances as any[]);
 
-    return findDocuments<Meeting>(MEETINGS_COLLECTION, { id: { $in: instancesWithIds.map(i => i.id) } });
+    return findDocuments<Meeting>(MEETINGS_COLLECTION, { seriesId: new ObjectId(seriesId), date: { $in: validDates.map(d => format(d, 'yyyy-MM-dd')) } });
 }
 
 export async function getResolvedAttendeesForMeeting(meeting: Pick<Meeting, 'seriesId' | 'attendeeUids'>): Promise<Member[]> {
@@ -271,13 +266,13 @@ export async function getResolvedAttendeesForMeeting(meeting: Pick<Meeting, 'ser
         leaders.forEach(l => memberIds.add(l.id));
 
     } else if (series.seriesType === 'gdi' && series.ownerGroupId) {
-        const gdi = await findOneDocument<GDI>(GDIS_COLLECTION, { id: series.ownerGroupId });
+        const gdi = await findOneDocument<GDI>(GDIS_COLLECTION, { _id: new ObjectId(series.ownerGroupId) });
         if (gdi) {
             if (gdi.guideId) memberIds.add(gdi.guideId);
             gdi.memberIds.forEach(id => memberIds.add(id));
         }
     } else if (series.seriesType === 'ministryArea' && series.ownerGroupId) {
-        const area = await findOneDocument<MinistryArea>(MINISTRY_AREAS_COLLECTION, { id: series.ownerGroupId });
+        const area = await findOneDocument<MinistryArea>(MINISTRY_AREAS_COLLECTION, { _id: new ObjectId(series.ownerGroupId) });
         if (area) {
             if (area.leaderId) memberIds.add(area.leaderId);
             area.memberIds.forEach(id => memberIds.add(id));
@@ -287,5 +282,5 @@ export async function getResolvedAttendeesForMeeting(meeting: Pick<Meeting, 'ser
     }
 
     if (memberIds.size === 0) return [];
-    return findDocuments<Member>(MEMBERS_COLLECTION, { id: { $in: Array.from(memberIds) } });
+    return findDocuments<Member>(MEMBERS_COLLECTION, { _id: { $in: Array.from(memberIds).map(id => new ObjectId(id)) } });
 }

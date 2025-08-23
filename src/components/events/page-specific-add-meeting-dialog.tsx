@@ -60,7 +60,7 @@ export default function PageSpecificAddMeetingDialog({
           <DialogTitle>Definir Nueva Serie de Reunión {seriesTypeContext !== 'general' ? `para ${seriesTypeContext === 'gdi' ? 'GDI' : 'Área'}` : ''}</DialogTitle>
           <DialogDescription>
             Complete los detalles para la nueva serie. 
-            Si la frecuencia es "Única Vez", también se creará la instancia de reunión.
+            Si la frecuencia es &quot;Única Vez&quot;, también se creará la instancia de reunión.
           </DialogDescription>
         </DialogHeader>
         <div className="flex-grow overflow-y-auto p-6">

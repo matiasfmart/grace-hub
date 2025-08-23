@@ -51,7 +51,7 @@ export default function DeleteMeetingInstanceAlert({
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>¿Está seguro de que desea eliminar la instancia "{instanceName}"?</AlertDialogTitle>
+          <AlertDialogTitle>¿Está seguro de que desea eliminar la instancia &quot;{instanceName}&quot;?</AlertDialogTitle>
           <AlertDialogDescription>
             Esta acción no se puede deshacer. Se eliminará permanentemente la instancia de la reunión y todos sus registros de asistencia asociados.
           </AlertDialogDescription>

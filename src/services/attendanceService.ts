@@ -1,15 +1,13 @@
-
 'use server';
 import type { AttendanceRecord, Meeting, Member } from '@/lib/types';
-import { findDocuments, findOneDocument } from '@/lib/db-utils';
+import { findDocuments, deleteManyDocuments, getCollection as getCollectionDb } from '@/lib/db-utils';
 import { getResolvedAttendeesForMeeting } from './meetingService';
 import { Collection } from 'mongodb';
 
 const ATTENDANCE_COLLECTION = 'attendance';
 
 async function getCollection(): Promise<Collection<AttendanceRecord>> {
-    const { getCollection: get } = await import('@/lib/db-utils');
-    return get(ATTENDANCE_COLLECTION);
+    return getCollectionDb(ATTENDANCE_COLLECTION);
 }
 
 export async function getAllAttendanceRecords(): Promise<AttendanceRecord[]> {
@@ -34,7 +32,6 @@ export async function saveMeetingAttendance(
         notes: att.notes || ''
       },
       $setOnInsert: {
-        id: `${meetingId}-${att.memberId}`,
         ...filter
       }
     };
@@ -48,7 +45,7 @@ export async function saveMeetingAttendance(
   });
 
   if (bulkOps.length > 0) {
-    await collection.bulkWrite(bulkOps as any);
+    await collection.bulkWrite(bulkOps);
   }
 }
 
@@ -60,4 +57,33 @@ export async function saveMeetingAttendance(
  */
 export async function getResolvedAttendees(meeting: Meeting): Promise<Member[]> {
     return getResolvedAttendeesForMeeting(meeting);
+}
+
+
+/**
+ * Deletes all attendance records associated with a specific meeting.
+ * @param meetingId The ID of the meeting whose attendance records should be deleted.
+ * @returns The number of deleted records.
+ */
+export async function deleteAttendanceForMeeting(meetingId: string): Promise<number> {
+    return deleteManyDocuments(ATTENDANCE_COLLECTION, { meetingId });
+}
+
+/**
+ * Deletes all attendance records associated with a list of meeting IDs.
+ * @param meetingIds An array of meeting IDs.
+ * @returns The number of deleted records.
+ */
+export async function deleteAttendanceForMeetings(meetingIds: string[]): Promise<number> {
+    return deleteManyDocuments(ATTENDANCE_COLLECTION, { meetingId: { $in: meetingIds } });
+}
+
+/**
+ * Deletes all attendance records for a specific member.
+ * @param memberId The ID of the member.
+ * @returns The number of deleted records.
+ */
+export async function deleteAttendanceForMember(memberId: string): Promise<number> {
+    const result = await deleteManyDocuments(ATTENDANCE_COLLECTION, { memberId });
+    return result.deletedCount || 0;
 }

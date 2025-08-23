@@ -1,8 +1,8 @@
-
 'use server';
-import type { GDI, GdiWriteData } from '@/lib/types';
+import type { GDI, GDIWriteData } from '@/lib/types';
 import { findDocuments, findOneDocument, insertOneDocument, updateOneDocument, updateManyDocuments, deleteOneDocument } from '@/lib/db-utils';
 import { deleteMeetingSeriesForGroup } from './groupMeetingService';
+import { ObjectId } from 'mongodb';
 
 const GDIS_COLLECTION = 'gdis';
 const MEMBERS_COLLECTION = 'members';
@@ -14,17 +14,15 @@ export async function getAllGdis(): Promise<GDI[]> {
 }
 
 export async function getGdiById(id: string): Promise<GDI | null> {
-  return findOneDocument<GDI>(GDIS_COLLECTION, { id: id });
+  return findOneDocument<GDI>(GDIS_COLLECTION, { _id: new ObjectId(id) });
 }
 
 // --- Write Operations ---
 
-export async function addGdi(gdiData: GdiWriteData): Promise<GDI> {
-  const newGdiId = `${Date.now().toString()}-${Math.random().toString(36).substring(2, 9)}`;
+export async function addGdi(gdiData: GDIWriteData): Promise<GDI> {
   
-  const newGdi: GDI = {
+  const newGdi: Omit<GDI, 'id'> = {
     ...gdiData,
-    id: newGdiId,
     memberIds: gdiData.memberIds || [],
   };
 
@@ -33,10 +31,10 @@ export async function addGdi(gdiData: GdiWriteData): Promise<GDI> {
 
   // Atomically update the new guide and members to assign them to this GDI
   if (gdiData.guideId) {
-    await updateOneDocument(MEMBERS_COLLECTION, { id: gdiData.guideId }, { $set: { assignedGDIId: newGdiId } });
+    await updateOneDocument(MEMBERS_COLLECTION, { _id: new ObjectId(gdiData.guideId) }, { $set: { assignedGDIId: insertedGdi.id } });
   }
   if (gdiData.memberIds && gdiData.memberIds.length > 0) {
-    await updateManyDocuments(MEMBERS_COLLECTION, { id: { $in: gdiData.memberIds } }, { $set: { assignedGDIId: newGdiId } });
+    await updateManyDocuments(MEMBERS_COLLECTION, { _id: { $in: gdiData.memberIds.map(id => new ObjectId(id)) } }, { $set: { assignedGDIId: insertedGdi.id } });
   }
 
   return insertedGdi;
@@ -58,11 +56,11 @@ export async function updateGdiAndSyncMembers(
   if (newGuideId !== undefined && newGuideId !== originalGdi.guideId) {
     // Demote old guide (if any)
     if (originalGdi.guideId) {
-      await updateOneDocument(MEMBERS_COLLECTION, { id: originalGdi.guideId }, { $set: { assignedGDIId: null } });
+      await updateOneDocument(MEMBERS_COLLECTION, { _id: new ObjectId(originalGdi.guideId) }, { $set: { assignedGDIId: null } });
     }
     // Promote new guide
     if (newGuideId) {
-      await updateOneDocument(MEMBERS_COLLECTION, { id: newGuideId }, { $set: { assignedGDIId: gdiId } });
+      await updateOneDocument(MEMBERS_COLLECTION, { _id: new ObjectId(newGuideId) }, { $set: { assignedGDIId: gdiId } });
     }
   }
 
@@ -71,10 +69,10 @@ export async function updateGdiAndSyncMembers(
   const membersRemoved = [...originalMemberIds].filter(id => !newMemberIds.has(id));
 
   if (membersAdded.length > 0) {
-    await updateManyDocuments(MEMBERS_COLLECTION, { id: { $in: membersAdded } }, { $set: { assignedGDIId: gdiId } });
+    await updateManyDocuments(MEMBERS_COLLECTION, { _id: { $in: membersAdded.map(id => new ObjectId(id)) } }, { $set: { assignedGDIId: gdiId } });
   }
   if (membersRemoved.length > 0) {
-    await updateManyDocuments(MEMBERS_COLLECTION, { id: { $in: membersRemoved } }, { $set: { assignedGDIId: null } });
+    await updateManyDocuments(MEMBERS_COLLECTION, { _id: { $in: membersRemoved.map(id => new ObjectId(id)) } }, { $set: { assignedGDIId: null } });
   }
 
   // --- Update GDI Document ---
@@ -83,7 +81,7 @@ export async function updateGdiAndSyncMembers(
   if (updates.guideId !== undefined) finalUpdateData.guideId = updates.guideId;
   if (updates.memberIds !== undefined) finalUpdateData.memberIds = updates.memberIds;
 
-  return updateOneDocument<GDI>(GDIS_COLLECTION, { id: gdiId }, { $set: finalUpdateData });
+  return updateOneDocument<GDI>(GDIS_COLLECTION, { _id: new ObjectId(gdiId) }, { $set: finalUpdateData });
 }
 
 export async function deleteGdi(gdiId: string): Promise<boolean> {
@@ -93,12 +91,12 @@ export async function deleteGdi(gdiId: string): Promise<boolean> {
   // 1. Unassign all members and the guide from this GDI
   const allAssignedIds = [gdiToDelete.guideId, ...gdiToDelete.memberIds].filter(Boolean);
   if (allAssignedIds.length > 0) {
-    await updateManyDocuments(MEMBERS_COLLECTION, { id: { $in: allAssignedIds } }, { $set: { assignedGDIId: null } });
+    await updateManyDocuments(MEMBERS_COLLECTION, { _id: { $in: allAssignedIds.map(id => new ObjectId(id)) } }, { $set: { assignedGDIId: null } });
   }
 
   // 2. Delete associated meeting series for this group
   await deleteMeetingSeriesForGroup(gdiId);
 
   // 3. Delete the GDI itself
-  return deleteOneDocument(GDIS_COLLECTION, { id: gdiId });
+  return deleteOneDocument(GDIS_COLLECTION, { _id: new ObjectId(gdiId) });
 }

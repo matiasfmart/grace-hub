@@ -1,4 +1,3 @@
-
 'use server';
 import {
   addMeetingSeriesForGroup,
@@ -15,6 +14,7 @@ import { revalidatePath } from 'next/cache';
 import { format } from 'date-fns';
 import { updateGdiAndSyncMembers } from '@/services/gdiService'; // For GDI details
 import { bulkRecalculateAndUpdateRoles } from '@/services/memberService';
+import { findDocuments } from '@/lib/db-utils';
 
 // --- GDI Detail Actions ---
 export async function updateGdiDetailsAction(
@@ -29,17 +29,20 @@ export async function updateGdiDetailsAction(
       memberIds: finalMemberIds,
     };
     
-    const { updatedGdi, affectedMemberIds } = await updateGdiAndSyncMembers(gdiIdToUpdate, finalDataToUpdate);
+    const updatedGdi = await updateGdiAndSyncMembers(gdiIdToUpdate, finalDataToUpdate);
 
-    if (affectedMemberIds && affectedMemberIds.length > 0) {
-      await bulkRecalculateAndUpdateRoles(affectedMemberIds);
+    if (updatedGdi) {
+        const affectedMemberIds = [updatedGdi.guideId, ...updatedGdi.memberIds].filter(Boolean);
+        if (affectedMemberIds && affectedMemberIds.length > 0) {
+          await bulkRecalculateAndUpdateRoles(affectedMemberIds);
+        }
     }
 
     revalidatePath(`/groups/gdis/${gdiIdToUpdate}/admin`);
     revalidatePath('/groups');
     revalidatePath('/members');
 
-    return { success: true, message: `GDI "${updatedGdi.name}" actualizado exitosamente. Roles actualizados.`, updatedGdi };
+    return { success: true, message: `GDI "${updatedGdi?.name}" actualizado exitosamente. Roles actualizados.`, updatedGdi: updatedGdi || undefined };
   } catch (error: any) {
     console.error("Error actualizando GDI y asignaciones de miembros:", error);
     return { success: false, message: `Error actualizando GDI: ${error.message}` };
@@ -80,7 +83,7 @@ export async function handleDeleteGdiMeetingSeriesAction(
   seriesId: string
 ): Promise<{ success: boolean; message: string }> {
   try {
-    await deleteMeetingSeriesForGroup('gdi', gdiId, seriesId);
+    await deleteMeetingSeriesForGroup(seriesId);
     revalidatePath(`/groups/gdis/${gdiId}/admin`);
     return { success: true, message: "Serie de reuniones del GDI eliminada exitosamente." };
   } catch (error: any) {
@@ -115,9 +118,6 @@ export async function handleUpdateGdiMeetingInstanceAction(
     return { success: false, message: "Formato de hora proporcionado es inválido o está vacío." };
   }
   try {
-    const series = await getSeriesForInstance(instanceId, 'gdi', gdiId);
-    if (!series) throw new Error("Serie padre no encontrada para la instancia.");
-
     const instanceDataToUpdate = {
       name: data.name,
       date: format(data.date, 'yyyy-MM-dd'),
@@ -125,10 +125,10 @@ export async function handleUpdateGdiMeetingInstanceAction(
       location: data.location,
       description: data.description,
     };
-    const updatedInstance = await updateMeetingInstanceForGroup('gdi', gdiId, series.id, instanceId, instanceDataToUpdate);
+    const updatedInstance = await updateMeetingInstanceForGroup(instanceId, instanceDataToUpdate);
     revalidatePath(`/groups/gdis/${gdiId}/admin`);
     revalidatePath(`/events/${instanceId}/attendance`);
-    return { success: true, message: "Instancia de reunión del GDI actualizada.", updatedInstance };
+    return { success: true, message: "Instancia de reunión del GDI actualizada.", updatedInstance: updatedInstance || undefined };
   } catch (error: any) {
     return { success: false, message: `Error al actualizar instancia del GDI: ${error.message}` };
   }
@@ -139,9 +139,7 @@ export async function handleDeleteGdiMeetingInstanceAction(
   instanceId: string
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const series = await getSeriesForInstance(instanceId, 'gdi', gdiId);
-     if (!series) throw new Error("Serie padre no encontrada para la instancia.");
-    await deleteMeetingInstanceForGroup('gdi', gdiId, series.id, instanceId);
+    await deleteMeetingInstanceForGroup(instanceId);
     revalidatePath(`/groups/gdis/${gdiId}/admin`);
     return { success: true, message: "Instancia de reunión del GDI eliminada." };
   } catch (error: any) {
@@ -155,7 +153,7 @@ export async function handleUpdateGdiMeetingMinuteAction(
   minute: string
 ): Promise<{ success: boolean; message: string }> {
   try {
-    await updateMeetingInstanceMinuteForGroup('gdi', gdiId, instanceId, minute);
+    await updateMeetingInstanceMinuteForGroup(instanceId, minute);
     revalidatePath(`/groups/gdis/${gdiId}/admin`);
     revalidatePath(`/events/${instanceId}/attendance`);
     return { success: true, message: "Minuta de reunión del GDI actualizada." };
@@ -165,12 +163,10 @@ export async function handleUpdateGdiMeetingMinuteAction(
 }
 
 // Helper to find the series an instance belongs to (needed for some operations)
-async function getSeriesForInstance(instanceId: string, groupType: 'gdi' | 'ministryArea', groupId: string): Promise<MeetingSeries | undefined> {
-    // This helper might need access to readDbFile directly if not available in groupMeetingService
-    // For now, assuming getSeriesByIdForGroup can fetch all for the group
-    const allSeries = await getSeriesByIdForGroup(groupType, groupId, undefined);
-    const allMeetings = await readDbFile<Meeting>('meetings-db.json'); // Assuming readDbFile is accessible
+async function getSeriesForInstance(instanceId: string): Promise<MeetingSeries | undefined> {
+    const allMeetings = await findDocuments<Meeting>('meetings'); // Assuming readDbFile is accessible
     const meetingInstance = allMeetings.find(m => m.id === instanceId);
     if (!meetingInstance) return undefined;
+    const allSeries = await findDocuments<MeetingSeries>('meeting-series');
     return allSeries.find(s => s.id === meetingInstance.seriesId);
 }

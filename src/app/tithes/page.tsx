@@ -34,14 +34,8 @@ async function getTithesPageData(searchParams: TithesPageProps['searchParams']) 
   const pageSize = Number(searchParams.pageSize) || 25;
   const searchTerm = searchParams.search || '';
   const memberStatusFilterString = searchParams.status || '';
-  const roleFilterString = searchParams.role || '';
-  const guideFilterString = searchParams.guide || '';
-  const areaFilterString = searchParams.area || ''; 
 
   const currentMemberStatusFiltersArray = memberStatusFilterString ? memberStatusFilterString.split(',') : [];
-  const currentRoleFiltersArray = roleFilterString ? roleFilterString.split(',') : [];
-  const currentGuideFiltersArray = guideFilterString ? guideFilterString.split(',') : [];
-  const currentAreaFiltersArray = areaFilterString ? areaFilterString.split(',') : []; 
   
   const [
     { members, totalMembers, totalPages },
@@ -54,10 +48,7 @@ async function getTithesPageData(searchParams: TithesPageProps['searchParams']) 
       currentPage,
       pageSize,
       searchTerm,
-      currentMemberStatusFiltersArray,
-      currentRoleFiltersArray,
-      currentGuideFiltersArray,
-      currentAreaFiltersArray
+      currentMemberStatusFiltersArray
     ),
     getAllMembersNonPaginated(),
     getAllGdis(),
@@ -96,10 +87,10 @@ async function getTithesPageData(searchParams: TithesPageProps['searchParams']) 
       gdiFilterOptions,
       areaFilterOptions,
       currentSearchTerm: searchTerm,
-      currentRoleFilters: currentRoleFiltersArray,
+      currentRoleFilters: [],
       currentStatusFilters: currentMemberStatusFiltersArray,
-      currentGdiFilters: currentGuideFiltersArray,
-      currentAreaFilters: currentAreaFiltersArray,
+      currentGdiFilters: [],
+      currentAreaFilters: [],
     },
     absoluteTotalMembers
   };

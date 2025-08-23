@@ -57,7 +57,7 @@ export default function DeleteGroupAlert({
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>¿Está seguro de que desea eliminar el {groupTypeLabel.toLowerCase()} "{groupName}"?</AlertDialogTitle>
+          <AlertDialogTitle>¿Está seguro de que desea eliminar el {groupTypeLabel.toLowerCase()} &quot;{groupName}&quot;?</AlertDialogTitle>
           <AlertDialogDescription>
             Esta acción no se puede deshacer. Se eliminará permanentemente el {groupTypeLabel.toLowerCase()} y se desasignarán todos sus miembros.
             Cualquier serie de reuniones, instancias y registros de asistencia asociados a este {groupTypeLabel.toLowerCase()} también serán eliminados.

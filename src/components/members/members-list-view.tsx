@@ -34,6 +34,7 @@ interface MembersListViewProps {
   allTitheRecords: TitheRecord[];
   addSingleMemberAction: (newMemberData: MemberWriteData) => Promise<{ success: boolean; message: string; newMember?: Member }>;
   updateMemberAction: (memberData: Member) => Promise<{ success: boolean; message: string; updatedMember?: Member }>;
+  deleteMemberAction: (memberId: string) => Promise<{ success: boolean; message: string }>;
   currentPage: number;
   totalPages: number;
   pageSize: number;
@@ -80,6 +81,7 @@ export default function MembersListView({
   allTitheRecords,
   addSingleMemberAction,
   updateMemberAction,
+  deleteMemberAction,
   currentPage,
   totalPages,
   pageSize,
@@ -631,6 +633,7 @@ export default function MembersListView({
           onClose={handleCloseDetailsDialog}
           onMemberUpdated={handleMemberUpdated}
           updateMemberAction={updateMemberAction}
+          deleteMemberAction={deleteMemberAction}
         />
       )}
       <Dialog open={isAddMemberDialogOpen} onOpenChange={setIsAddMemberDialogOpen}>
@@ -638,7 +641,7 @@ export default function MembersListView({
           <DialogHeader className="p-6 border-b sticky top-0 bg-background z-10">
             <DialogTitle>Agregar Nuevo Miembro</DialogTitle>
             <DialogDescription>
-              Complete los detalles del nuevo miembro de la iglesia. Haga clic en "Agregar Miembro" cuando haya terminado.
+              Complete los detalles del nuevo miembro de la iglesia. Haga clic en &quot;Agregar Miembro&quot; cuando haya terminado.
             </DialogDescription>
           </DialogHeader>
           <div className="flex-grow overflow-y-auto">

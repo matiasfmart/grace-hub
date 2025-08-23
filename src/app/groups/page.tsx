@@ -1,6 +1,5 @@
-
 'use server';
-import type { MinistryArea, Member, GDI, MinistryAreaWriteData, GdiWriteData } from '@/lib/types';
+import type { MinistryArea, Member, GDI, MinistryAreaWriteData, GDIWriteData } from '@/lib/types';
 import ManageGroupsTabs from '@/components/groups/manage-groups-tabs';
 import { revalidatePath } from 'next/cache';
 import { 
@@ -14,7 +13,6 @@ import {
     deleteGdi as deleteGdiService, // Added delete service
 } from '@/services/gdiService';
 import { getAllMembersNonPaginated, bulkRecalculateAndUpdateRoles } from '@/services/memberService'; 
-import { writeDbFile, readDbFile } from '@/lib/db-utils'; 
 
 const MEMBERS_DB_FILE = 'members-db.json';
 
@@ -52,7 +50,7 @@ export async function addGdiActionSvc(
   newGdiData: Partial<Omit<GDI, 'id'>> & { name: string; guideId: string; memberIds?: string[] } 
 ): Promise<{ success: boolean; message: string; newGdi?: GDI }> {
   try {
-    const gdiToWrite: GdiWriteData = {
+    const gdiToWrite: GDIWriteData = {
         name: newGdiData.name,
         guideId: newGdiData.guideId,
         memberIds: newGdiData.memberIds || [] 
@@ -78,10 +76,7 @@ export async function addGdiActionSvc(
 
 export async function deleteGdiActionSvc(gdiId: string): Promise<{ success: boolean; message: string }> {
   try {
-    const affectedMemberIds = await deleteGdiService(gdiId);
-    if (affectedMemberIds.length > 0) {
-      await bulkRecalculateAndUpdateRoles(affectedMemberIds);
-    }
+    await deleteGdiService(gdiId);
     revalidatePath('/groups');
     revalidatePath('/members');
     // Revalidate paths for individual GDI admin pages if they exist and are relevant
@@ -98,10 +93,7 @@ export async function deleteGdiActionSvc(gdiId: string): Promise<{ success: bool
 
 export async function deleteMinistryAreaActionSvc(areaId: string): Promise<{ success: boolean; message: string }> {
   try {
-    const affectedMemberIds = await deleteMinistryAreaService(areaId);
-    if (affectedMemberIds.length > 0) {
-      await bulkRecalculateAndUpdateRoles(affectedMemberIds);
-    }
+    await deleteMinistryAreaService(areaId);
     revalidatePath('/groups');
     revalidatePath('/members');
     // Revalidate paths for individual area admin pages

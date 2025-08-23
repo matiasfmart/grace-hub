@@ -1,4 +1,3 @@
-
 'use server';
 import type { Member, GDI, MinistryArea, MemberWriteData } from '@/lib/types';
 import BulkAddMembersView from '@/components/members/bulk-add-members-view';
@@ -15,7 +14,7 @@ export async function addBulkMembersAction(stagedMembersData: MemberWriteData[])
     const addedMembers: Member[] = [];
     for (const memberData of stagedMembersData) {
       const newMember = await addMember(memberData);
-      await addMemberToAssignments(newMember, GDIS_DB_FILE_PATH, MINISTRY_AREAS_DB_FILE_PATH);
+      await addMemberToAssignments(newMember);
       addedMembers.push(newMember);
     }
 

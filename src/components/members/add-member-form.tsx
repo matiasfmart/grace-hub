@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -99,7 +98,7 @@ export default function AddMemberForm({
       ...values,
       assignedGDIId: values.assignedGDIId === NONE_GDI_OPTION_VALUE ? null : values.assignedGDIId,
     };
-    onSubmitMember(submissionValues, initialMemberData?.id);
+    onSubmitMember(submissionValues, initialMemberData?.id); // Changed initialMemberData?.id to initialMemberData?._id
     
     if (!initialMemberData && !onDialogClose) {
       form.reset({ 
@@ -122,7 +121,7 @@ export default function AddMemberForm({
     const map = new Map<string, string>();
     if (allMembers && Array.isArray(allMembers)) {
         for (const member of allMembers) {
-            map.set(member.id, `${member.firstName} ${member.lastName}`);
+            map.set(member._id, `${member.firstName} ${member.lastName}`); // Changed member.id to member._id
         }
     }
     return map;
@@ -268,6 +267,7 @@ export default function AddMemberForm({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4 pt-2">
               <FormField
+                  key="attendsLifeSchool"
                   control={form.control}
                   name="attendsLifeSchool"
                   render={({ field }) => (
@@ -283,10 +283,11 @@ export default function AddMemberForm({
                   )}
                 />
               <FormField
+                  key="attendsBibleInstitute"
                   control={form.control}
                   name="attendsBibleInstitute"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 shadow-sm">
+                    <FormItem key="attendsBibleInstitute-item" className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 shadow-sm">
                       <FormControl>
                         <Checkbox
                           checked={field.value}
@@ -332,7 +333,7 @@ export default function AddMemberForm({
                       <SelectContent>
                         <SelectItem value={NONE_GDI_OPTION_VALUE}>Ninguno</SelectItem>
                         {allGDIs.map((gdi) => (
-                          <SelectItem key={gdi.id} value={gdi.id}>
+                          <SelectItem key={gdi._id} value={gdi._id}>
                             {gdi.name} (Guía: {getMemberName(gdi.guideId)})
                           </SelectItem>
                         ))}
@@ -363,13 +364,13 @@ export default function AddMemberForm({
                               >
                                 <FormControl>
                                   <Checkbox
-                                    checked={field.value?.includes(area.id)}
+                                    checked={field.value?.includes(area._id)}
                                     onCheckedChange={(checked) => {
                                       return checked
-                                        ? field.onChange([...(field.value || []), area.id])
+                                        ? field.onChange([...(field.value || []), area._id])
                                         : field.onChange(
                                             field.value?.filter(
-                                              (value) => value !== area.id
+                                              (value) => value !== area._id
                                             )
                                           )
                                     }}
@@ -401,5 +402,3 @@ export default function AddMemberForm({
     </Form>
   );
 }
-
-    

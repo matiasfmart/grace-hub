@@ -176,7 +176,7 @@ export default function MeetingTypeAttendanceTable({
      const dateRangeInfo = filterStartDate && filterEndDate ?
       ` para el rango de ${format(parseISO(filterStartDate), 'dd/MM/yy', {locale: es})} a ${format(parseISO(filterEndDate), 'dd/MM/yy', {locale: es})}` :
       "";
-    return <p className="text-muted-foreground py-4 text-center">No hay instancias de reunión para la serie "{seriesName}"{dateRangeInfo}.</p>;
+    return <p className="text-muted-foreground py-4 text-center">No hay instancias de reunión para la serie &quot;{seriesName}&quot;{dateRangeInfo}.</p>;
   }
 
   // Sort meeting instances by date ascending (oldest first) for column display

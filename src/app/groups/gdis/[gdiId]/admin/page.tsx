@@ -1,6 +1,5 @@
-
 'use client';
-import { getGdiById, getAllGdis } from '@/services/gdiService';
+import { getGdiById, getAllGdis, updateGdiAndSyncMembers } from '@/services/gdiService';
 import { getAllMembersNonPaginated } from '@/services/memberService';
 import { notFound, useRouter, useSearchParams as useNextSearchParams, useParams as useNextParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,6 @@ import ManageSingleGdiView from '@/components/groups/manage-single-gdi-view';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { 
-  updateGdiDetailsAction,
   handleAddGdiMeetingSeriesAction,
   handleUpdateGdiMeetingSeriesAction,
   handleDeleteGdiMeetingSeriesAction,
@@ -215,7 +213,7 @@ export default function GdiAdminPage({}: GdiAdminPageProps) {
   };
 
   const createSeriesLink = (seriesIdToLink: string) => {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams(currentHookSearchParams.toString());
       params.set('activeSeriesId', seriesIdToLink);
       if (spStartDate) params.set('startDate', spStartDate);
       if (spEndDate) params.set('endDate', spEndDate);
@@ -293,7 +291,7 @@ export default function GdiAdminPage({}: GdiAdminPageProps) {
                   allMembers={allMembers}
                   activeMembers={activeMembers}
                   allGdis={allGdis}
-                  updateGdiAction={updateGdiDetailsAction}
+                  updateGdiAction={updateGdiAndSyncMembers}
                   onSuccess={() => {
                       setIsEditGdiDetailsOpen(false);
                       router.refresh();
@@ -412,6 +410,9 @@ export default function GdiAdminPage({}: GdiAdminPageProps) {
                   filterEndDate={appliedEndDate}
                   memberCurrentPage={memberCurrentPageForTable}
                   memberPageSize={memberPageSizeForTable}
+                  allMembers={allMembers}
+                  allGdis={allGdis}
+                  allAreas={[]}
                 />
               ) : (
                 <div className="text-center py-10">
@@ -419,8 +420,8 @@ export default function GdiAdminPage({}: GdiAdminPageProps) {
                   <h2 className="text-xl font-semibold text-muted-foreground">
                     {groupMeetingSeries.length === 0 ? "No hay series de reuniones definidas para este GDI." :
                      appliedStartDate && appliedEndDate
-                      ? `No hay instancias para "${selectedSeriesObject?.name || 'la selección actual'}" en el rango de fechas`
-                      : `No hay instancias programadas para "${selectedSeriesObject?.name || 'la selección actual'}"`}
+                      ? `No hay instancias para &quot;${selectedSeriesObject?.name || 'la selección actual'}&quot; en el rango de fechas`
+                      : `No hay instancias programadas para &quot;${selectedSeriesObject?.name || 'la selección actual'}&quot;`}
                   </h2>
                   <p className="text-muted-foreground mt-2">
                     {groupMeetingSeries.length === 0 ? "Defina una nueva serie para comenzar." : 

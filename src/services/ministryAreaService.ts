@@ -1,8 +1,8 @@
-
 'use server';
 import type { MinistryArea, MinistryAreaWriteData } from '@/lib/types';
 import { findDocuments, findOneDocument, insertOneDocument, updateOneDocument, updateManyDocuments, deleteOneDocument } from '@/lib/db-utils';
 import { deleteMeetingSeriesForGroup } from './groupMeetingService';
+import { ObjectId } from 'mongodb';
 
 const MINISTRY_AREAS_COLLECTION = 'ministry-areas';
 const MEMBERS_COLLECTION = 'members';
@@ -14,17 +14,14 @@ export async function getAllMinistryAreas(): Promise<MinistryArea[]> {
 }
 
 export async function getMinistryAreaById(id: string): Promise<MinistryArea | null> {
-  return findOneDocument<MinistryArea>(MINISTRY_AREAS_COLLECTION, { id: id });
+  return findOneDocument<MinistryArea>(MINISTRY_AREAS_COLLECTION, { _id: new ObjectId(id) });
 }
 
 // --- Write Operations ---
 
 export async function addMinistryArea(areaData: MinistryAreaWriteData): Promise<MinistryArea> {
-  const newAreaId = `${Date.now().toString()}-${Math.random().toString(36).substring(2, 9)}`;
-  
-  const newArea: MinistryArea = {
+  const newArea: Omit<MinistryArea, 'id'> = {
     ...areaData,
-    id: newAreaId,
     memberIds: areaData.memberIds || [],
   };
 
@@ -32,11 +29,11 @@ export async function addMinistryArea(areaData: MinistryAreaWriteData): Promise<
 
   // Atomically assign this area to the new leader and members
   if (areaData.leaderId) {
-    await updateOneDocument(MEMBERS_COLLECTION, { id: areaData.leaderId }, { $addToSet: { assignedAreaIds: newAreaId } });
+    await updateOneDocument(MEMBERS_COLLECTION, { _id: new ObjectId(areaData.leaderId) }, { $addToSet: { assignedAreaIds: insertedArea.id } as any });
   }
   const memberIdsToAssign = (areaData.memberIds || []).filter(id => id !== areaData.leaderId);
   if (memberIdsToAssign.length > 0) {
-    await updateManyDocuments(MEMBERS_COLLECTION, { id: { $in: memberIdsToAssign } }, { $addToSet: { assignedAreaIds: newAreaId } });
+    await updateManyDocuments(MEMBERS_COLLECTION, { _id: { $in: memberIdsToAssign.map(id => new ObjectId(id)) } }, { $addToSet: { assignedAreaIds: insertedArea.id } as any });
   }
 
   return insertedArea;
@@ -58,11 +55,11 @@ export async function updateMinistryAreaAndSyncMembers(
   if (newLeaderId !== undefined && newLeaderId !== originalArea.leaderId) {
     // Demote old leader
     if (originalArea.leaderId) {
-      await updateOneDocument(MEMBERS_COLLECTION, { id: originalArea.leaderId }, { $pull: { assignedAreaIds: areaId } });
+      await updateOneDocument(MEMBERS_COLLECTION, { _id: new ObjectId(originalArea.leaderId) }, { $pull: { assignedAreaIds: areaId } as any });
     }
     // Promote new leader
     if (newLeaderId) {
-      await updateOneDocument(MEMBERS_COLLECTION, { id: newLeaderId }, { $addToSet: { assignedAreaIds: areaId } });
+      await updateOneDocument(MEMBERS_COLLECTION, { _id: new ObjectId(newLeaderId) }, { $addToSet: { assignedAreaIds: areaId } as any });
     }
   }
 
@@ -71,10 +68,10 @@ export async function updateMinistryAreaAndSyncMembers(
   const membersRemoved = [...originalMemberIds].filter(id => !newMemberIds.has(id));
 
   if (membersAdded.length > 0) {
-    await updateManyDocuments(MEMBERS_COLLECTION, { id: { $in: membersAdded } }, { $addToSet: { assignedAreaIds: areaId } });
+    await updateManyDocuments(MEMBERS_COLLECTION, { _id: { $in: membersAdded.map(id => new ObjectId(id)) } }, { $addToSet: { assignedAreaIds: areaId } as any });
   }
   if (membersRemoved.length > 0) {
-    await updateManyDocuments(MEMBERS_COLLECTION, { id: { $in: membersRemoved } }, { $pull: { assignedAreaIds: areaId } });
+    await updateManyDocuments(MEMBERS_COLLECTION, { _id: { $in: membersRemoved.map(id => new ObjectId(id)) } }, { $pull: { assignedAreaIds: areaId } as any });
   }
 
   // --- Update Ministry Area Document ---
@@ -85,7 +82,7 @@ export async function updateMinistryAreaAndSyncMembers(
   // Ensure the final member list doesn't include the leader
   if (updates.memberIds !== undefined) finalUpdateData.memberIds = updates.memberIds.filter(id => id !== newLeaderId);
 
-  return updateOneDocument<MinistryArea>(MINISTRY_AREAS_COLLECTION, { id: areaId }, { $set: finalUpdateData });
+  return updateOneDocument<MinistryArea>(MINISTRY_AREAS_COLLECTION, { _id: new ObjectId(areaId) }, { $set: finalUpdateData });
 }
 
 export async function deleteMinistryArea(areaId: string): Promise<boolean> {
@@ -95,12 +92,12 @@ export async function deleteMinistryArea(areaId: string): Promise<boolean> {
   // 1. Unassign all members and the leader from this area
   const allAssignedIds = [areaToDelete.leaderId, ...areaToDelete.memberIds].filter(Boolean);
   if (allAssignedIds.length > 0) {
-    await updateManyDocuments(MEMBERS_COLLECTION, { id: { $in: allAssignedIds } }, { $pull: { assignedAreaIds: areaId } });
+    await updateManyDocuments(MEMBERS_COLLECTION, { _id: { $in: allAssignedIds.map(id => new ObjectId(id)) } }, { $pull: { assignedAreaIds: areaId } as any });
   }
 
   // 2. Delete associated meeting series for this group
   await deleteMeetingSeriesForGroup(areaId);
 
   // 3. Delete the Ministry Area itself
-  return deleteOneDocument(MINISTRY_AREAS_COLLECTION, { id: areaId });
+  return deleteOneDocument(MINISTRY_AREAS_COLLECTION, { _id: new ObjectId(areaId) });
 }

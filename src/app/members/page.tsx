@@ -1,5 +1,3 @@
-
-'use server';
 import type { Member, GDI, MinistryArea, Meeting, MeetingSeries, AttendanceRecord, MemberWriteData, TitheRecord } from '@/lib/types';
 import MembersListView from '@/components/members/members-list-view';
 import { revalidatePath } from 'next/cache';
@@ -10,16 +8,19 @@ import {
     updateMember,
     updateMemberAssignments,
     getAllMembersNonPaginated,
-    bulkRecalculateAndUpdateRoles
+    bulkRecalculateAndUpdateRoles,
+    deleteMember
 } from '@/services/memberService';
 import { getAllGdis } from '@/services/gdiService';
 import { getAllMinistryAreas } from '@/services/ministryAreaService';
 import { getAllMeetings, getAllMeetingSeries } from '@/services/meetingService';
 import { getAllAttendanceRecords } from '@/services/attendanceService';
 import { getAllTitheRecords } from '@/services/titheService';
+import { Suspense } from 'react';
 
 
-export async function addSingleMemberAction(newMemberData: Omit<Member, 'id' | 'roles'>): Promise<{ success: boolean; message: string; newMember?: Member }> {
+export async function addSingleMemberAction(newMemberData: MemberWriteData): Promise<{ success: boolean; message: string; newMember?: Member }> {
+  'use server';
   try {
     const newMember = await addMember(newMemberData);
 
@@ -42,6 +43,7 @@ export async function addSingleMemberAction(newMemberData: Omit<Member, 'id' | '
 }
 
 export async function updateMemberAction(updatedMemberData: Member): Promise<{ success: boolean; message: string; updatedMember?: Member }> {
+  'use server';
   if (!updatedMemberData.id) {
     return { success: false, message: "Error: ID de miembro es requerido para actualizar." };
   }
@@ -52,14 +54,17 @@ export async function updateMemberAction(updatedMemberData: Member): Promise<{ s
     }
 
     const memberToUpdate = await updateMember(updatedMemberData.id, updatedMemberData);
+    if(!memberToUpdate) {
+        return { success: false, message: `Error: Miembro con ID ${updatedMemberData.id} no encontrado.` };
+    }
 
-    const affectedIdsFromAssignments = await updateMemberAssignments(
+    await updateMemberAssignments(
       memberToUpdate.id,
       originalMemberData,
       memberToUpdate
     );
 
-    const allAffectedIds = Array.from(new Set([memberToUpdate.id, ...affectedIdsFromAssignments]));
+    const allAffectedIds = Array.from(new Set([memberToUpdate.id, originalMemberData.id]));
     if (allAffectedIds.length > 0) {
         await bulkRecalculateAndUpdateRoles(allAffectedIds);
     }
@@ -67,16 +72,41 @@ export async function updateMemberAction(updatedMemberData: Member): Promise<{ s
     revalidatePath('/members');
     revalidatePath('/groups');
     const allPotentiallyAffectedAreaIds = new Set([...(originalMemberData.assignedAreaIds || []), ...(memberToUpdate.assignedAreaIds || [])]);
-    allPotentiallyAffectedAreaIds.forEach(areaId => revalidatePath(`/groups/ministry-areas/${areaId}/manage`));
-    if (originalMemberData.assignedGDIId) revalidatePath(`/groups/gdis/${originalMemberData.assignedGDIId}/manage`);
-    if (memberToUpdate.assignedGDIId && memberToUpdate.assignedGDIId !== originalMemberData.assignedGDIId) revalidatePath(`/groups/gdis/${memberToUpdate.assignedGDIId}/manage`);
+    allPotentiallyAffectedAreaIds.forEach(areaId => revalidatePath(`/groups/ministry-areas/${areaId}/admin`));
+    if (originalMemberData.assignedGDIId) revalidatePath(`/groups/gdis/${originalMemberData.assignedGDIId}/admin`);
+    if (memberToUpdate.assignedGDIId && memberToUpdate.assignedGDIId !== originalMemberData.assignedGDIId) revalidatePath(`/groups/gdis/${memberToUpdate.assignedGDIId}/admin`);
 
     const finalUpdatedMember = await getMemberById(memberToUpdate.id);
 
-    return { success: true, message: `Miembro ${memberToUpdate.firstName} ${memberToUpdate.lastName} actualizado exitosamente. Roles actualizados.`, updatedMember: finalUpdatedMember };
+    return { success: true, message: `Miembro ${memberToUpdate.firstName} ${memberToUpdate.lastName} actualizado exitosamente. Roles actualizados.`, updatedMember: finalUpdatedMember || undefined };
   } catch (error: any) {
     console.error("Error actualizando miembro:", error);
     return { success: false, message: `Error al actualizar miembro: ${error.message}` };
+  }
+}
+
+export async function deleteMemberAction(memberId: string): Promise<{ success: boolean; message: string }> {
+  'use server';
+  if (!memberId) {
+    return { success: false, message: "Error: ID de miembro es requerido para eliminar." };
+  }
+  try {
+    const deletedMember = await deleteMember(memberId);
+    if (!deletedMember) {
+      return { success: false, message: `Error: Miembro con ID ${memberId} no encontrado.` };
+    }
+
+    // Revalida las rutas para refrescar los datos en toda la aplicación.
+    revalidatePath('/members');
+    revalidatePath('/groups');
+    // Revalida las páginas de administración de los grupos afectados.
+    if (deletedMember.assignedGDIId) revalidatePath(`/groups/gdis/${deletedMember.assignedGDIId}/admin`);
+    deletedMember.assignedAreaIds?.forEach(areaId => revalidatePath(`/groups/ministry-areas/${areaId}/admin`));
+
+    return { success: true, message: `Miembro ${deletedMember.firstName} ${deletedMember.lastName} eliminado exitosamente.` };
+  } catch (error: any) {
+    console.error("Error eliminando miembro:", error);
+    return { success: false, message: `Error al eliminar miembro: ${error.message}` };
   }
 }
 
@@ -93,10 +123,7 @@ async function getMembersPageData(
     currentPageParam,
     pageSizeParam,
     searchTermParam,
-    memberStatusFiltersParam,
-    roleFiltersParam,
-    guideFiltersParam,
-    areaFiltersParam 
+    memberStatusFiltersParam
   );
   const allMembersForDropdowns = await getAllMembersNonPaginated();
   const allGDIsData = await getAllGdis();
@@ -134,19 +161,34 @@ interface MembersPageProps {
   };
 }
 
-export default async function MembersPage({ searchParams }: MembersPageProps) {
-  const currentPage = Number(searchParams.page) || 1;
-  const pageSize = Number(searchParams.pageSize) || 10;
-  const searchTerm = searchParams.search || '';
-  const memberStatusFilterString = searchParams.memberStatus || '';
-  const roleFilterString = searchParams.role || '';
-  const guideFilterString = searchParams.guide || '';
-  const areaFilterString = searchParams.area || ''; 
-  
-  const currentMemberStatusFiltersArray = memberStatusFilterString ? memberStatusFilterString.split(',') : [];
-  const currentRoleFiltersArray = roleFilterString ? roleFilterString.split(',') : [];
-  const currentGuideFiltersArray = guideFilterString ? guideFilterString.split(',') : [];
-  const currentAreaFiltersArray = areaFilterString ? areaFilterString.split(',') : []; 
+interface MembersPageContentProps {
+  currentPage: number;
+  pageSize: number;
+  searchTerm: string;
+  memberStatusFilterString: string;
+  roleFilterString: string;
+  guideFilterString: string;
+  areaFilterString: string;
+  currentMemberStatusFiltersArray: string[];
+  currentRoleFiltersArray: string[];
+  currentGuideFiltersArray: string[];
+  currentAreaFiltersArray: string[];
+}
+
+async function MembersPageContent({
+  currentPage,
+  pageSize,
+  searchTerm,
+  memberStatusFilterString,
+  roleFilterString,
+  guideFilterString,
+  areaFilterString,
+  currentMemberStatusFiltersArray,
+  currentRoleFiltersArray,
+  currentGuideFiltersArray,
+  currentAreaFiltersArray,
+}: MembersPageContentProps) {
+  const viewKey = `${currentPage}-${pageSize}-${searchTerm}-${memberStatusFilterString}-${roleFilterString}-${guideFilterString}-${areaFilterString}`; 
 
   const {
     members,
@@ -170,8 +212,6 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
     currentAreaFiltersArray 
   );
 
-  const viewKey = `${currentPage}-${pageSize}-${searchTerm}-${memberStatusFilterString}-${roleFilterString}-${guideFilterString}-${areaFilterString}`; 
-
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8 text-center">
@@ -192,6 +232,7 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
         allTitheRecords={allTitheRecords}
         addSingleMemberAction={addSingleMemberAction}
         updateMemberAction={updateMemberAction}
+        deleteMemberAction={deleteMemberAction}
         currentPage={currentPage}
         totalPages={totalPages}
         pageSize={pageSize}
@@ -204,5 +245,39 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
         absoluteTotalMembers={absoluteTotalMembers}
       />
     </div>
+  );
+}
+
+export default async function MembersPage({ searchParams }: MembersPageProps) {
+  const params = new URLSearchParams(searchParams as any); // Cast to any to avoid type errors
+  const currentPage = Number(params.get('page')) || 1;
+  const pageSize = Number(params.get('pageSize')) || 10;
+  const searchTerm = params.get('search') || '';
+  const memberStatusFilterString = params.get('memberStatus') || '';
+  const roleFilterString = params.get('role') || '';
+  const guideFilterString = params.get('guide') || '';
+  const areaFilterString = params.get('area') || ''; 
+  
+  const currentMemberStatusFiltersArray = memberStatusFilterString ? memberStatusFilterString.split(',') : [];
+  const currentRoleFiltersArray = roleFilterString ? roleFilterString.split(',') : [];
+  const currentGuideFiltersArray = guideFilterString ? guideFilterString.split(',') : [];
+  const currentAreaFiltersArray = areaFilterString ? areaFilterString.split(',') : []; 
+
+  return (
+    <Suspense fallback={<div className="container mx-auto py-8 px-4 text-center"><p>Cargando...</p></div>}>
+      <MembersPageContent
+        currentPage={currentPage}
+        pageSize={pageSize}
+        searchTerm={searchTerm}
+        memberStatusFilterString={memberStatusFilterString}
+        roleFilterString={roleFilterString}
+        guideFilterString={guideFilterString}
+        areaFilterString={areaFilterString}
+        currentMemberStatusFiltersArray={currentMemberStatusFiltersArray}
+        currentRoleFiltersArray={currentRoleFiltersArray}
+        currentGuideFiltersArray={currentGuideFiltersArray}
+        currentAreaFiltersArray={currentAreaFiltersArray}
+      />
+    </Suspense>
   );
 }

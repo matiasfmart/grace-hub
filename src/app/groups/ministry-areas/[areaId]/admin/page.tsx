@@ -1,6 +1,5 @@
-
 'use client';
-import { getMinistryAreaById } from '@/services/ministryAreaService';
+import { getMinistryAreaById, updateMinistryAreaAndSyncMembers } from '@/services/ministryAreaService';
 import { getAllMembersNonPaginated } from '@/services/memberService';
 import { notFound, useRouter, useSearchParams as useNextSearchParams, useParams as useNextParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,6 @@ import ManageSingleMinistryAreaView from '@/components/groups/manage-single-mini
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { 
-  updateMinistryAreaDetailsAction,
   handleAddAreaMeetingSeriesAction,
   handleUpdateAreaMeetingSeriesAction,
   handleDeleteAreaMeetingSeriesAction,
@@ -214,7 +212,7 @@ export default function MinistryAreaAdminPage({}: MinistryAreaAdminPageProps) {
   };
 
   const createSeriesLink = (seriesIdToLink: string) => {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams(currentHookSearchParams.toString());
       params.set('activeSeriesId', seriesIdToLink);
       if (spStartDate) params.set('startDate', spStartDate);
       if (spEndDate) params.set('endDate', spEndDate);
@@ -290,7 +288,7 @@ export default function MinistryAreaAdminPage({}: MinistryAreaAdminPageProps) {
                   ministryArea={ministryArea}
                   allMembers={allMembers}
                   activeMembers={activeMembers}
-                  updateMinistryAreaAction={updateMinistryAreaDetailsAction}
+                  updateMinistryAreaAction={updateMinistryAreaAndSyncMembers}
                   onSuccess={() => {
                       setIsEditAreaDetailsOpen(false);
                       router.refresh();
@@ -414,6 +412,9 @@ export default function MinistryAreaAdminPage({}: MinistryAreaAdminPageProps) {
                   filterEndDate={appliedEndDate}
                   memberCurrentPage={memberCurrentPageForTable}
                   memberPageSize={memberPageSizeForTable}
+                  allMembers={allMembers}
+                  allGdis={[]}
+                  allAreas={[]}
                 />
               ) : (
                 <div className="text-center py-10">
@@ -421,8 +422,8 @@ export default function MinistryAreaAdminPage({}: MinistryAreaAdminPageProps) {
                    <h2 className="text-xl font-semibold text-muted-foreground">
                     {groupMeetingSeries.length === 0 ? "No hay series de reuniones definidas para esta Área." :
                      appliedStartDate && appliedEndDate
-                      ? `No hay instancias para "${selectedSeriesObject?.name || 'la selección actual'}" en el rango de fechas`
-                      : `No hay instancias programadas para "${selectedSeriesObject?.name || 'la selección actual'}"`}
+                      ? `No hay instancias para &quot;${selectedSeriesObject?.name || 'la selección actual'}&quot; en el rango de fechas`
+                      : `No hay instancias programadas para &quot;${selectedSeriesObject?.name || 'la selección actual'}&quot;`}
                   </h2>
                    <p className="text-muted-foreground mt-2">
                     {groupMeetingSeries.length === 0 ? "Defina una nueva serie para comenzar." : 
