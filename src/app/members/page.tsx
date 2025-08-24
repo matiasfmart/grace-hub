@@ -1,3 +1,18 @@
+// Limpia cualquier Symbol de los datos para evitar errores de serialización
+function removeSymbols(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(removeSymbols);
+  } else if (obj && typeof obj === 'object') {
+    const clean: any = {};
+    for (const key in obj) {
+      if (typeof obj[key] !== 'symbol') {
+        clean[key] = removeSymbols(obj[key]);
+      }
+    }
+    return clean;
+  }
+  return obj;
+}
 import type { Member, GDI, MinistryArea, Meeting, MeetingSeries, AttendanceRecord, MemberWriteData, TitheRecord } from '@/lib/types';
 import MembersListView from '@/components/members/members-list-view';
 import { revalidatePath } from 'next/cache';
@@ -190,6 +205,15 @@ async function MembersPageContent({
 }: MembersPageContentProps) {
   const viewKey = `${currentPage}-${pageSize}-${searchTerm}-${memberStatusFilterString}-${roleFilterString}-${guideFilterString}-${areaFilterString}`; 
 
+  const rawData = await getMembersPageData(
+    currentPage,
+    pageSize,
+    searchTerm,
+    currentMemberStatusFiltersArray,
+    currentRoleFiltersArray,
+    currentGuideFiltersArray,
+    currentAreaFiltersArray 
+  );
   const {
     members,
     totalMembers,
@@ -202,15 +226,7 @@ async function MembersPageContent({
     allAttendanceRecords,
     allTitheRecords,
     absoluteTotalMembers
-  } = await getMembersPageData(
-    currentPage,
-    pageSize,
-    searchTerm,
-    currentMemberStatusFiltersArray,
-    currentRoleFiltersArray,
-    currentGuideFiltersArray,
-    currentAreaFiltersArray 
-  );
+  } = removeSymbols(rawData);
 
   return (
     <div className="container mx-auto py-8 px-4">
