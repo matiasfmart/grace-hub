@@ -1,14 +1,9 @@
 'use server';
 import type { AttendanceRecord, Meeting, Member } from '@/lib/types';
-import { findDocuments, deleteManyDocuments, getCollection as getCollectionDb } from '@/lib/db-utils';
+import { findDocuments, deleteManyDocuments, getCollection } from '@/lib/db-utils';
 import { getResolvedAttendeesForMeeting } from './meetingService';
-import { Collection } from 'mongodb';
 
 const ATTENDANCE_COLLECTION = 'attendance';
-
-async function getCollection(): Promise<Collection<AttendanceRecord>> {
-    return getCollectionDb(ATTENDANCE_COLLECTION);
-}
 
 export async function getAllAttendanceRecords(): Promise<AttendanceRecord[]> {
   return findDocuments<AttendanceRecord>(ATTENDANCE_COLLECTION);
@@ -22,7 +17,7 @@ export async function saveMeetingAttendance(
   meetingId: string,
   memberAttendances: Array<{ memberId: string; attended: boolean; notes?: string }>
 ): Promise<void> {
-  const collection = await getCollection();
+  const collection = await getCollection(ATTENDANCE_COLLECTION);
 
   const bulkOps = memberAttendances.map(att => {
     const filter = { meetingId, memberId: att.memberId };
@@ -65,8 +60,9 @@ export async function getResolvedAttendees(meeting: Meeting): Promise<Member[]> 
  * @param meetingId The ID of the meeting whose attendance records should be deleted.
  * @returns The number of deleted records.
  */
-export async function deleteAttendanceForMeeting(meetingId: string): Promise<number> {
-    return deleteManyDocuments(ATTENDANCE_COLLECTION, { meetingId });
+export async function deleteAttendanceForMeeting(meetingId: string): Promise<number> {    
+    const result = await deleteManyDocuments(ATTENDANCE_COLLECTION, { meetingId });
+    return result.deletedCount;
 }
 
 /**
@@ -74,8 +70,9 @@ export async function deleteAttendanceForMeeting(meetingId: string): Promise<num
  * @param meetingIds An array of meeting IDs.
  * @returns The number of deleted records.
  */
-export async function deleteAttendanceForMeetings(meetingIds: string[]): Promise<number> {
-    return deleteManyDocuments(ATTENDANCE_COLLECTION, { meetingId: { $in: meetingIds } });
+export async function deleteAttendanceForMeetings(meetingIds: string[]): Promise<number> {    
+    const result = await deleteManyDocuments(ATTENDANCE_COLLECTION, { meetingId: { $in: meetingIds } });
+    return result.deletedCount;
 }
 
 /**
@@ -83,7 +80,7 @@ export async function deleteAttendanceForMeetings(meetingIds: string[]): Promise
  * @param memberId The ID of the member.
  * @returns The number of deleted records.
  */
-export async function deleteAttendanceForMember(memberId: string): Promise<number> {
+export async function deleteAttendanceForMember(memberId: string): Promise<number> {    
     const result = await deleteManyDocuments(ATTENDANCE_COLLECTION, { memberId });
-    return result.deletedCount || 0;
+    return result.deletedCount;
 }

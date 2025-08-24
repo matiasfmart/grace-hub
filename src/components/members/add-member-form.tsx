@@ -121,7 +121,7 @@ export default function AddMemberForm({
     const map = new Map<string, string>();
     if (allMembers && Array.isArray(allMembers)) {
         for (const member of allMembers) {
-            map.set(member._id, `${member.firstName} ${member.lastName}`); // Changed member.id to member._id
+            map.set(member.id, `${member.firstName} ${member.lastName}`);
         }
     }
     return map;
@@ -333,7 +333,7 @@ export default function AddMemberForm({
                       <SelectContent>
                         <SelectItem value={NONE_GDI_OPTION_VALUE}>Ninguno</SelectItem>
                         {allGDIs.map((gdi) => (
-                          <SelectItem key={gdi._id} value={gdi._id}>
+                          <SelectItem key={gdi.id} value={gdi.id}>
                             {gdi.name} (Guía: {getMemberName(gdi.guideId)})
                           </SelectItem>
                         ))}
@@ -364,13 +364,13 @@ export default function AddMemberForm({
                               >
                                 <FormControl>
                                   <Checkbox
-                                    checked={field.value?.includes(area._id)}
+                                    checked={field.value?.includes(area.id)}
                                     onCheckedChange={(checked) => {
                                       return checked
-                                        ? field.onChange([...(field.value || []), area._id])
+                                        ? field.onChange([...(field.value || []), area.id])
                                         : field.onChange(
                                             field.value?.filter(
-                                              (value) => value !== area._id
+                                              (value) => value !== area.id
                                             )
                                           )
                                     }}

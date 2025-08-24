@@ -1,6 +1,6 @@
 'use server';
 import type { TitheRecord, TitheRecordWriteData } from '@/lib/types';
-import { findDocuments, insertOneDocument, deleteOneDocument, deleteManyDocuments, insertManyDocuments } from '@/lib/db-utils';
+import { findDocuments, insertOneDocument, deleteOneDocument, deleteManyDocuments, getCollection } from '@/lib/db-utils';
 import { revalidatePath } from 'next/cache';
 import { ObjectId } from 'mongodb';
 
@@ -39,19 +39,31 @@ export async function batchUpdateTithesForMonth(
   updates: { memberId: string; didTithe: boolean }[]
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const filter = { year, month };
-    await deleteManyDocuments(TITHES_COLLECTION, filter);
+    const collection = await getCollection(TITHES_COLLECTION);
 
-    const newRecords: TitheRecordWriteData[] = updates
-      .filter(update => update.didTithe)
-      .map(update => ({
-        memberId: update.memberId,
-        year,
-        month,
-      }));
+    const bulkOps = updates.map(update => {
+      const filter = { memberId: update.memberId, year, month };
+      if (update.didTithe) {
+        // Upsert: insert if not exists, do nothing if it does
+        return {
+          updateOne: {
+            filter,
+            update: { $setOnInsert: { memberId: update.memberId, year, month } },
+            upsert: true,
+          },
+        };
+      } else {
+        // Delete if it exists
+        return {
+          deleteOne: {
+            filter,
+          },
+        };
+      }
+    });
 
-    if (newRecords.length > 0) {
-      await insertManyDocuments(TITHES_COLLECTION, newRecords);
+    if (bulkOps.length > 0) {
+      await collection.bulkWrite(bulkOps as any);
     }
 
     revalidatePath('/tithes');
@@ -69,5 +81,5 @@ export async function batchUpdateTithesForMonth(
  */
 export async function deleteTithesForMember(memberId: string): Promise<number> {
     const result = await deleteManyDocuments(TITHES_COLLECTION, { memberId });
-    return result.deletedCount || 0;
+    return result.deletedCount;
 }
