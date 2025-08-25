@@ -1,5 +1,6 @@
 'use client';
-import { getGdiById, getAllGdis, updateGdiAndSyncMembers } from '@/services/gdiService';
+import { getGdiById, getAllGdis } from '@/services/gdiService';
+import { updateGdiDetailsAction } from './actions';
 import { getAllMembersNonPaginated } from '@/services/memberService';
 import { notFound, useRouter, useSearchParams as useNextSearchParams, useParams as useNextParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -291,10 +292,32 @@ export default function GdiAdminPage({}: GdiAdminPageProps) {
                   allMembers={allMembers}
                   activeMembers={activeMembers}
                   allGdis={allGdis}
-                  updateGdiAction={updateGdiAndSyncMembers}
-                  onSuccess={() => {
-                      setIsEditGdiDetailsOpen(false);
-                      router.refresh();
+                  updateGdiAction={async (gdiIdOrNewData, updatedData) => {
+                    if (typeof gdiIdOrNewData !== 'string' || !updatedData) {
+                      throw new Error('updateGdiAction: Firma inválida para edición de GDI');
+                    }
+                    return updateGdiDetailsAction(gdiIdOrNewData, updatedData);
+                  }}
+                  onSuccess={async () => {
+                    setIsEditGdiDetailsOpen(false);
+                    // Refresca los datos locales tras editar
+                    if (!gdiId) return;
+                    setIsLoading(true);
+                    setError(null);
+                    try {
+                      const data = await getData(gdiId, { 
+                        activeSeriesId: spActiveSeriesId, 
+                        startDate: spStartDate, 
+                        endDate: spEndDate, 
+                        mPage: spMPage, 
+                        mPSize: spMPSize 
+                      });
+                      setPageData(data);
+                    } catch (err) {
+                      setError((err as any).message || 'Error al cargar datos del GDI.');
+                    } finally {
+                      setIsLoading(false);
+                    }
                   }}
                 />
               </div>

@@ -288,10 +288,37 @@ export default function MinistryAreaAdminPage({}: MinistryAreaAdminPageProps) {
                   ministryArea={ministryArea}
                   allMembers={allMembers}
                   activeMembers={activeMembers}
-                  updateMinistryAreaAction={updateMinistryAreaAndSyncMembers}
-                  onSuccess={() => {
-                      setIsEditAreaDetailsOpen(false);
-                      router.refresh();
+                  updateMinistryAreaAction={async (areaIdOrNewData, updatedData) => {
+                    if (typeof areaIdOrNewData !== 'string' || !updatedData) {
+                      throw new Error('updateMinistryAreaAction: Firma inválida para edición de Área');
+                    }
+                    const updatedArea = await updateMinistryAreaAndSyncMembers(areaIdOrNewData, updatedData);
+                    if (updatedArea) {
+                      return { success: true, message: `Área "${updatedArea.name}" actualizada exitosamente.`, updatedArea };
+                    } else {
+                      return { success: false, message: 'No se pudo actualizar el área.' };
+                    }
+                  }}
+                  onSuccess={async () => {
+                    setIsEditAreaDetailsOpen(false);
+                    // Refresca los datos locales tras editar
+                    if (!areaId) return;
+                    setIsLoading(true);
+                    setError(null);
+                    try {
+                      const data = await getData(areaId, { 
+                        activeSeriesId: spActiveSeriesId, 
+                        startDate: spStartDate, 
+                        endDate: spEndDate, 
+                        mPage: spMPage, 
+                        mPSize: spMPSize 
+                      });
+                      setPageData(data);
+                    } catch (err) {
+                      setError((err as any).message || 'Error al cargar datos del Área Ministerial.');
+                    } finally {
+                      setIsLoading(false);
+                    }
                   }}
                 />
               </div>
