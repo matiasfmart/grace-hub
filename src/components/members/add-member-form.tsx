@@ -144,7 +144,7 @@ export default function AddMemberForm({
                   <FormItem>
                     <FormLabel>Nombre</FormLabel>
                     <FormControl>
-                      <Input placeholder="Juan" {...field} />
+                      <Input placeholder="Juan" className="text-sm max-w-full" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -157,7 +157,7 @@ export default function AddMemberForm({
                   <FormItem>
                     <FormLabel>Apellido</FormLabel>
                     <FormControl>
-                      <Input placeholder="Pérez" {...field} />
+                      <Input placeholder="Pérez" className="text-sm max-w-full" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -170,7 +170,7 @@ export default function AddMemberForm({
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="juan.perez@example.com" {...field} />
+                      <Input type="email" placeholder="ejemplo@email.com" className="text-sm max-w-full" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -183,7 +183,7 @@ export default function AddMemberForm({
                   <FormItem>
                     <FormLabel>Contacto (Teléfono)</FormLabel>
                     <FormControl>
-                      <Input type="tel" placeholder="555-1234" {...field} />
+                      <Input type="tel" placeholder="555-1234" className="text-sm max-w-full" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -195,7 +195,7 @@ export default function AddMemberForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Fecha de Nacimiento</FormLabel>
-                    <DatePicker date={field.value} setDate={field.onChange} placeholder="Seleccionar fecha de nacimiento" />
+                    <DatePicker date={field.value} setDate={field.onChange} placeholder="Seleccionar" />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -206,7 +206,7 @@ export default function AddMemberForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Fecha de Ingreso a la Iglesia</FormLabel>
-                    <DatePicker date={field.value} setDate={field.onChange} placeholder="Seleccionar fecha de ingreso" />
+                    <DatePicker date={field.value} setDate={field.onChange} placeholder="Seleccionar" />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -218,7 +218,7 @@ export default function AddMemberForm({
                   <FormItem>
                     <FormLabel>Fecha de Bautismo</FormLabel>
                     <FormControl>
-                      <Input placeholder="ej: Junio 15, Junio 2023, 2023-06-15" {...field} />
+                      <Input placeholder="ej: 2023-06-15" className="text-sm max-w-full" {...field} />
                     </FormControl>
                     <FormDescription>Día y mes (Junio 15), mes y año (Junio 2023), o fecha completa (2023-06-15).</FormDescription>
                     <FormMessage />
@@ -257,7 +257,7 @@ export default function AddMemberForm({
                   <FormItem className="md:col-span-2">
                     <FormLabel>URL del Avatar (Opcional)</FormLabel>
                     <FormControl>
-                      <Input type="url" placeholder="https://placehold.co/100x100" {...field} />
+                      <Input type="url" placeholder="https://avatar.com/img.png" className="text-sm max-w-full" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
