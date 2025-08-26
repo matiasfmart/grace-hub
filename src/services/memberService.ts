@@ -17,6 +17,9 @@ export async function getAllMembers(
   pageSize: number = 10,
   searchTerm?: string,
   memberStatusFilters?: string[],
+  roleFilters?: string[],
+  guideFilters?: string[],
+  areaFilters?: string[],
 ): Promise<{ members: Member[], totalMembers: number, totalPages: number }> {
   const query: Filter<any> = {};
 
@@ -32,6 +35,44 @@ export async function getAllMembers(
       { email: { $regex: lowercasedSearchTerm, $options: 'i' } },
       { phone: { $regex: lowercasedSearchTerm, $options: 'i' } },
     ];
+  }
+
+  if (roleFilters && roleFilters.length > 0) {
+    // Si incluye el valor especial NO_ROLE_FILTER_VALUE, buscar miembros sin roles
+    const NO_ROLE_FILTER_VALUE = 'NO_ROLE';
+    if (roleFilters.includes(NO_ROLE_FILTER_VALUE)) {
+      query.$or = [
+        ...(query.$or || []),
+        { roles: { $exists: false } },
+        { roles: { $size: 0 } }
+      ];
+    } else {
+      query.roles = { $in: roleFilters };
+    }
+  }
+
+  if (guideFilters && guideFilters.length > 0) {
+    // Si incluye el valor especial NO_GDI_FILTER_VALUE, buscar miembros sin GDI asignado
+    const NO_GDI_FILTER_VALUE = 'NO_GDI';
+    if (guideFilters.includes(NO_GDI_FILTER_VALUE)) {
+      query.assignedGDIId = { $in: [null, undefined, ''] };
+    } else {
+      query.assignedGDIId = { $in: guideFilters };
+    }
+  }
+
+  if (areaFilters && areaFilters.length > 0) {
+    // Si incluye el valor especial NO_AREA_FILTER_VALUE, buscar miembros sin área asignada
+    const NO_AREA_FILTER_VALUE = 'NO_AREA';
+    if (areaFilters.includes(NO_AREA_FILTER_VALUE)) {
+      query.$or = [
+        ...(query.$or || []),
+        { assignedAreaIds: { $exists: false } },
+        { assignedAreaIds: { $size: 0 } }
+      ];
+    } else {
+      query.assignedAreaIds = { $elemMatch: { $in: areaFilters } };
+    }
   }
 
   const totalMembers = await countDocuments(MEMBERS_COLLECTION, query);

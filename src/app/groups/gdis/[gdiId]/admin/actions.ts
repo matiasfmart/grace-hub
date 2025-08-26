@@ -22,6 +22,13 @@ export async function updateGdiDetailsAction(
   updatedData: Partial<Pick<GDI, 'name' | 'guideId' | 'memberIds'>>
 ): Promise<{ success: boolean; message: string; updatedGdi?: GDI }> {
   try {
+    // Get original GDI before update
+  const { ObjectId } = await import('mongodb');
+  const originalGdiArr = await findDocuments('gdis', { _id: new ObjectId(gdiIdToUpdate) });
+  const original = Array.isArray(originalGdiArr) ? originalGdiArr[0] : originalGdiArr;
+  const prevGuideId = original?.guideId;
+  const prevMemberIds = original?.memberIds || [];
+
     const finalMemberIds = (updatedData.memberIds || []).filter(id => id !== updatedData.guideId);
     const finalDataToUpdate = {
       name: updatedData.name,
@@ -31,11 +38,15 @@ export async function updateGdiDetailsAction(
     
     const updatedGdi = await updateGdiAndSyncMembers(gdiIdToUpdate, finalDataToUpdate);
 
-    if (updatedGdi) {
-        const affectedMemberIds = [updatedGdi.guideId, ...updatedGdi.memberIds].filter(Boolean);
-        if (affectedMemberIds && affectedMemberIds.length > 0) {
-          await bulkRecalculateAndUpdateRoles(affectedMemberIds);
-        }
+    // Collect all affected member IDs (previous and new guide/member IDs)
+    const affectedMemberIds = new Set([
+      prevGuideId,
+      ...(prevMemberIds || []),
+      updatedGdi?.guideId,
+      ...(updatedGdi?.memberIds || [])
+    ].filter(Boolean));
+    if (affectedMemberIds.size > 0) {
+      await bulkRecalculateAndUpdateRoles(Array.from(affectedMemberIds));
     }
 
     revalidatePath(`/groups/gdis/${gdiIdToUpdate}/admin`);

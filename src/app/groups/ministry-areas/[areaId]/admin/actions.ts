@@ -22,15 +22,26 @@ export async function updateMinistryAreaDetailsAction(
   updatedData: Partial<Pick<MinistryArea, 'leaderId' | 'memberIds' | 'name' | 'description'>>
 ): Promise<{ success: boolean; message: string; updatedArea?: MinistryArea }> {
   try {
+    // Get original Area before update
+    const { ObjectId } = await import('mongodb');
+    const originalAreaArr = await findDocuments('ministry-areas', { _id: new ObjectId(areaId) });
+    const original = Array.isArray(originalAreaArr) ? originalAreaArr[0] : originalAreaArr;
+    const prevLeaderId = original?.leaderId;
+    const prevMemberIds = original?.memberIds || [];
+
     const updatedArea = await updateMinistryAreaAndSyncMembers(areaId, updatedData);
-    
-    if (updatedArea) {
-        const affectedMemberIds = [updatedArea.leaderId, ...updatedArea.memberIds].filter(Boolean);
-        if (affectedMemberIds && affectedMemberIds.length > 0) {
-          await bulkRecalculateAndUpdateRoles(affectedMemberIds);
-        }
+
+    // Collect all affected member IDs (previous and new leader/member IDs)
+    const affectedMemberIds = new Set([
+      prevLeaderId,
+      ...(prevMemberIds || []),
+      updatedArea?.leaderId,
+      ...(updatedArea?.memberIds || [])
+    ].filter(Boolean));
+    if (affectedMemberIds.size > 0) {
+      await bulkRecalculateAndUpdateRoles(Array.from(affectedMemberIds));
     }
-    
+
     revalidatePath(`/groups/ministry-areas/${areaId}/admin`);
     revalidatePath('/groups');
     revalidatePath('/members'); 

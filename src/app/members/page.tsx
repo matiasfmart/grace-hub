@@ -138,7 +138,10 @@ async function getMembersPageData(
     currentPageParam,
     pageSizeParam,
     searchTermParam,
-    memberStatusFiltersParam
+    memberStatusFiltersParam,
+    roleFiltersParam,
+    guideFiltersParam,
+    areaFiltersParam
   );
   const allMembersForDropdowns = await getAllMembersNonPaginated();
   const allGDIsData = await getAllGdis();
