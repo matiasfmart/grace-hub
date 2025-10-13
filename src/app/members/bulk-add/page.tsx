@@ -6,9 +6,6 @@ import { addMember, addMemberToAssignments, getAllMembersNonPaginated } from '@/
 import { getAllGdis } from '@/services/gdiService';
 import { getAllMinistryAreas } from '@/services/ministryAreaService';
 
-const GDIS_DB_FILE_PATH = 'gdis-db.json';
-const MINISTRY_AREAS_DB_FILE_PATH = 'ministry-areas-db.json';
-
 export async function addBulkMembersAction(stagedMembersData: MemberWriteData[]): Promise<{ success: boolean; message: string }> {
   try {
     const addedMembers: Member[] = [];

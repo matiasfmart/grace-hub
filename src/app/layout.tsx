@@ -6,6 +6,9 @@ import MainLayout from '@/components/layout/main-layout';
 export const metadata: Metadata = {
   title: 'Grace Hub',
   description: 'Integral church management application.',
+  icons: {
+    icon: '/grace.ico',
+  },
 };
 
 export default function RootLayout({

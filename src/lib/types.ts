@@ -1,12 +1,21 @@
 import { z } from 'zod';
+import { ObjectId } from 'mongodb';
+
+// ============================================
+// MONGODB DOCUMENT TYPES (Internal/Database)
+// ============================================
 
 export const MemberRoleEnum = z.enum(['Leader', 'Worker', 'GeneralAttendee']);
 export type MemberRoleType = z.infer<typeof MemberRoleEnum>;
 
-export interface Member {
-  id: string;
+/**
+ * MongoDB document structure for Members
+ * Uses ObjectId for references for better performance and data integrity
+ */
+export interface MemberDocument {
+  _id?: ObjectId;
   firstName: string;
-  lastName:string;
+  lastName: string;
   email: string;
   phone: string;
   birthDate?: string; // YYYY-MM-DD
@@ -15,37 +24,28 @@ export interface Member {
   attendsLifeSchool?: boolean;
   attendsBibleInstitute?: boolean;
   fromAnotherChurch?: boolean;
-  assignedGDIId?: string | null; // ID of the GDI the member attends
-  assignedAreaIds?: string[]; // IDs of MinistryAreas the member is part of
+  assignedGDIId?: ObjectId | null; // ObjectId reference to GDI
+  assignedAreaIds?: ObjectId[]; // Array of ObjectId references to MinistryAreas
   status: 'Active' | 'Inactive' | 'New';
   avatarUrl?: string;
   roles?: MemberRoleType[];
 }
 
-export type MemberWriteData = Omit<Member, 'id'>;
+export interface GDIDocument {
+  _id?: ObjectId;
+  name: string;
+  guideId: ObjectId; // ObjectId reference to Member
+  memberIds: ObjectId[]; // Array of ObjectId references to Members
+}
 
-
-export interface MinistryArea {
-  id: string;
+export interface MinistryAreaDocument {
+  _id?: ObjectId;
   name: string;
   description: string;
-  leaderId: string; // Member ID of the leader
-  memberIds: string[];
+  leaderId: ObjectId; // ObjectId reference to Member
+  memberIds: ObjectId[]; // Array of ObjectId references to Members
 }
 
-export type MinistryAreaWriteData = Omit<MinistryArea, 'id'>;
-
-
-export interface GDI { // Grupo de Integración
-  id: string;
-  name: string;
-  guideId: string; // Member ID of the guide
-  memberIds: string[];
-}
-
-export type GDIWriteData = Omit<GDI, 'id'>;
-
-// For Meeting Series target roles
 export const MeetingTargetRoleEnum = z.enum(["allMembers", "workers", "leaders"]);
 export type MeetingTargetRoleType = z.infer<typeof MeetingTargetRoleEnum>;
 
@@ -64,45 +64,124 @@ export type MeetingFrequencyType = z.infer<typeof MeetingFrequencyEnum>;
 export const MeetingSeriesTypeEnum = z.enum(['general', 'gdi', 'ministryArea']);
 export type MeetingSeriesType = z.infer<typeof MeetingSeriesTypeEnum>;
 
-
-export interface MeetingSeries {
-  id: string;
+export interface MeetingSeriesDocument {
+  _id?: ObjectId;
   name: string;
   description?: string;
   defaultTime: string; // HH:MM
   defaultLocation: string;
   seriesType: MeetingSeriesType;
-  ownerGroupId?: string | null; // ID of GDI or MinistryArea if seriesType is 'gdi' or 'ministryArea'
-  targetAttendeeGroups: MeetingTargetRoleType[]; // For 'general' series. For group series, it's implicitly members of ownerGroupId.
+  ownerGroupId?: ObjectId | null; // ObjectId of GDI or MinistryArea if seriesType is 'gdi' or 'ministryArea'
+  targetAttendeeGroups: MeetingTargetRoleType[]; // For 'general' series
   frequency: MeetingFrequencyType;
   oneTimeDate?: string; // YYYY-MM-DD, only if frequency is "OneTime"
   cancelledDates?: string[]; // YYYY-MM-DD, dates of recurring instances explicitly cancelled
-
   // Weekly recurrence
   weeklyDays?: DayOfWeekType[];
-
   // Monthly recurrence
   monthlyRuleType?: MonthlyRuleType;
   monthlyDayOfMonth?: number; // 1-31
   monthlyWeekOrdinal?: WeekOrdinalType;
   monthlyDayOfWeek?: DayOfWeekType;
 }
-export type MeetingSeriesWriteData = Omit<MeetingSeries, 'id'>;
 
-export interface Meeting {
-  id: string;
-  seriesId: string;
+export interface MeetingDocument {
+  _id?: ObjectId;
+  seriesId: ObjectId; // ObjectId reference to MeetingSeries
   name: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:MM
   location: string;
   description?: string;
+  attendeeUids: ObjectId[]; // Array of ObjectId references to Members
+  minute?: string | null;
+}
+
+export interface AttendanceRecordDocument {
+  _id?: ObjectId;
+  meetingId: ObjectId; // ObjectId reference to Meeting
+  memberId: ObjectId; // ObjectId reference to Member
+  attended: boolean;
+  notes?: string;
+}
+
+export interface TitheRecordDocument {
+  _id?: ObjectId;
+  memberId: ObjectId; // ObjectId reference to Member
+  year: number; // e.g., 2024
+  month: number; // 1-12
+}
+
+// ============================================
+// CLIENT TYPES (API/UI)
+// ============================================
+// These are serialized versions sent to the client
+// ObjectIds are converted to strings
+
+export interface Member {
+  id: string; // Serialized from _id
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  birthDate?: string;
+  churchJoinDate?: string;
+  baptismDate?: string;
+  attendsLifeSchool?: boolean;
+  attendsBibleInstitute?: boolean;
+  fromAnotherChurch?: boolean;
+  assignedGDIId?: string | null;
+  assignedAreaIds?: string[];
+  status: 'Active' | 'Inactive' | 'New';
+  avatarUrl?: string;
+  roles?: MemberRoleType[];
+}
+
+export interface GDI {
+  id: string;
+  name: string;
+  guideId: string;
+  memberIds: string[];
+}
+
+export interface MinistryArea {
+  id: string;
+  name: string;
+  description: string;
+  leaderId: string;
+  memberIds: string[];
+}
+
+export interface MeetingSeries {
+  id: string;
+  name: string;
+  description?: string;
+  defaultTime: string;
+  defaultLocation: string;
+  seriesType: MeetingSeriesType;
+  ownerGroupId?: string | null;
+  targetAttendeeGroups: MeetingTargetRoleType[];
+  frequency: MeetingFrequencyType;
+  oneTimeDate?: string;
+  cancelledDates?: string[];
+  weeklyDays?: DayOfWeekType[];
+  monthlyRuleType?: MonthlyRuleType;
+  monthlyDayOfMonth?: number;
+  monthlyWeekOrdinal?: WeekOrdinalType;
+  monthlyDayOfWeek?: DayOfWeekType;
+}
+
+export interface Meeting {
+  id: string;
+  seriesId: string;
+  name: string;
+  date: string;
+  time: string;
+  location: string;
+  description?: string;
   attendeeUids: string[];
   minute?: string | null;
 }
-export type MeetingWriteData = Omit<Meeting, 'id' | 'attendeeUids'> & { attendeeUids?: string[] };
-export type MeetingInstanceUpdateData = Partial<Omit<Meeting, 'id' | 'seriesId' | 'attendeeUids'>>;
-
 
 export interface AttendanceRecord {
   id: string;
@@ -111,25 +190,42 @@ export interface AttendanceRecord {
   attended: boolean;
   notes?: string;
 }
-export type AttendanceRecordWriteData = Omit<AttendanceRecord, 'id'>;
 
 export interface TitheRecord {
   id: string;
   memberId: string;
-  year: number; // e.g., 2024
-  month: number; // 1-12
+  year: number;
+  month: number;
 }
 
+// ============================================
+// WRITE DATA TYPES (for inserts)
+// ============================================
+
+export type MemberWriteData = Omit<Member, 'id'>;
+export type GDIWriteData = Omit<GDI, 'id'>;
+export type MinistryAreaWriteData = Omit<MinistryArea, 'id'>;
+export type MeetingSeriesWriteData = Omit<MeetingSeries, 'id'>;
+export type MeetingWriteData = Omit<Meeting, 'id' | 'attendeeUids'> & { attendeeUids?: string[] };
+export type AttendanceRecordWriteData = Omit<AttendanceRecord, 'id'>;
 export type TitheRecordWriteData = Omit<TitheRecord, 'id'>;
 
-// Zod Schemas for Forms
+// ============================================
+// UPDATE DATA TYPES
+// ============================================
+
+export type MeetingInstanceUpdateData = Partial<Omit<Meeting, 'id' | 'seriesId' | 'attendeeUids'>>;
+export type AnyMeetingInstanceUpdateData = Partial<Omit<Meeting, 'id' | 'seriesId' | 'attendeeUids'>>;
+
+// ============================================
+// ZOD SCHEMAS FOR FORM VALIDATION
+// ============================================
 
 export const MemberStatusSchema = z.enum(['Active', 'Inactive', 'New']);
 export const NONE_GDI_OPTION_VALUE = "__NONE__"; // Used in member form for "Ninguno" GDI
 export const NO_ROLE_FILTER_VALUE = "no-role-assigned";
 export const NO_GDI_FILTER_VALUE = "no-gdi-assigned";
 export const NO_AREA_FILTER_VALUE = "no-area-assigned";
-
 
 export const AddMemberFormSchema = z.object({
   firstName: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres." }),
@@ -149,7 +245,6 @@ export const AddMemberFormSchema = z.object({
 });
 export type AddMemberFormValues = z.infer<typeof AddMemberFormSchema>;
 
-
 export const AddMinistryAreaFormSchema = z.object({
   name: z.string().min(3, { message: "Area name must be at least 3 characters." }),
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
@@ -162,7 +257,6 @@ export const AddGdiFormSchema = z.object({
   guideId: z.string().min(1, { message: "A guide must be selected." }),
 });
 export type AddGdiFormValues = z.infer<typeof AddGdiFormSchema>;
-
 
 export const DefineMeetingSeriesFormSchema = z.object({
   name: z.string().min(3, { message: "El nombre de la serie debe tener al menos 3 caracteres." }),
@@ -234,7 +328,6 @@ export const MeetingInstanceFormSchema = z.object({
 });
 export type MeetingInstanceFormValues = z.infer<typeof MeetingInstanceFormSchema>;
 
-
 export const daysOfWeek: { id: DayOfWeekType; label: string }[] = [
     { id: "Sunday", label: "Domingo" },
     { id: "Monday", label: "Lunes" },
@@ -255,6 +348,10 @@ export const weekOrdinals: { id: WeekOrdinalType; label: string }[] = [
 
 export type AddOccasionalMeetingFormValues = MeetingInstanceFormValues;
 export const AddOccasionalMeetingFormSchema = MeetingInstanceFormSchema;
+
+// ============================================
+// DISCRIMINATED UNION TYPES (for type safety)
+// ============================================
 
 interface MeetingBase {
   id: string;
@@ -285,7 +382,10 @@ export interface MinistryAreaMeeting extends MeetingBase {
 
 export type AnyMeeting = GeneralMeeting | GdiMeeting | MinistryAreaMeeting;
 export type AnyMeetingWriteData = Omit<AnyMeeting, 'id' | 'attendeeUids'> & { attendeeUids?: string[] };
-export type AnyMeetingInstanceUpdateData = Partial<Omit<AnyMeeting, 'id' | 'seriesId' | 'attendeeUids' | 'seriesType' | 'ownerGroupId'>>;
+
+// ============================================
+// PAGE PROPS TYPE
+// ============================================
 
 export interface PageProps {
   params: { [key: string]: string };

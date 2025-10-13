@@ -15,7 +15,19 @@ if (!process.env.MONGODB_CLUSTER_URL) {
 // Note: The appName is important for Atlas monitoring.
 const uri = `mongodb+srv://${process.env.MONGODB_USER}:${process.env.MONGODB_PASSWORD}@${process.env.MONGODB_CLUSTER_URL}/?retryWrites=true&w=majority&appName=Cluster0`;
 
-const options = {}
+const options = {
+  // SSL/TLS configuration to fix SSL errors in Windows environments
+  tls: true,
+  tlsAllowInvalidCertificates: true, // Temporarily allow invalid certificates for Windows SSL issues
+  tlsAllowInvalidHostnames: false,
+  // Increase timeouts for better stability
+  serverSelectionTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 10000,
+  // Additional stability options
+  maxPoolSize: 10,
+  minPoolSize: 2,
+}
 
 let client: MongoClient
 let clientPromise: Promise<MongoClient>

@@ -1,6 +1,16 @@
 'use server';
-import type { Member, MemberWriteData, GDI, MinistryArea } from '@/lib/types';
-import { findDocuments, findOneDocument, insertOneDocument, updateOneDocument, deleteOneDocument, countDocuments, updateManyDocuments } from '@/lib/db-utils';
+import type { Member, MemberDocument, GDI, GDIDocument, MinistryArea, MinistryAreaDocument } from '@/lib/types';
+import {
+  findDocuments,
+  findOneDocument,
+  insertOneDocument,
+  updateOneDocument,
+  updateManyDocuments,
+  deleteOneDocument,
+  countDocuments,
+  withTransaction
+} from '@/lib/db-utils';
+import { toObjectId, toObjectIds } from '@/lib/id-utils';
 import { calculateMemberRoles } from '@/lib/roleUtils';
 import { Filter, ObjectId } from 'mongodb';
 import { deleteAttendanceForMember } from './attendanceService';
@@ -10,7 +20,9 @@ const MEMBERS_COLLECTION = 'members';
 const GDIS_COLLECTION = 'gdis';
 const MINISTRY_AREAS_COLLECTION = 'ministry-areas';
 
-// --- Read Operations ---
+// ============================================
+// READ OPERATIONS
+// ============================================
 
 export async function getAllMembers(
   page: number = 1,
@@ -21,12 +33,14 @@ export async function getAllMembers(
   guideFilters?: string[],
   areaFilters?: string[],
 ): Promise<{ members: Member[], totalMembers: number, totalPages: number }> {
-  const query: Filter<any> = {};
+  const query: Filter<MemberDocument> = {};
 
+  // Status filter
   if (memberStatusFilters && memberStatusFilters.length > 0) {
-    query.status = { $in: memberStatusFilters };
+    query.status = { $in: memberStatusFilters as any };
   }
 
+  // Search term filter
   if (searchTerm) {
     const lowercasedSearchTerm = searchTerm.toLowerCase().trim();
     query.$or = [
@@ -37,8 +51,8 @@ export async function getAllMembers(
     ];
   }
 
+  // Role filter
   if (roleFilters && roleFilters.length > 0) {
-    // Si incluye el valor especial NO_ROLE_FILTER_VALUE, buscar miembros sin roles
     const NO_ROLE_FILTER_VALUE = 'NO_ROLE';
     if (roleFilters.includes(NO_ROLE_FILTER_VALUE)) {
       query.$or = [
@@ -47,22 +61,23 @@ export async function getAllMembers(
         { roles: { $size: 0 } }
       ];
     } else {
-      query.roles = { $in: roleFilters };
+      query.roles = { $in: roleFilters as any };
     }
   }
 
+  // GDI filter
   if (guideFilters && guideFilters.length > 0) {
-    // Si incluye el valor especial NO_GDI_FILTER_VALUE, buscar miembros sin GDI asignado
     const NO_GDI_FILTER_VALUE = 'NO_GDI';
     if (guideFilters.includes(NO_GDI_FILTER_VALUE)) {
-      query.assignedGDIId = { $in: [null, undefined, ''] };
+      query.assignedGDIId = { $in: [null, undefined] } as any;
     } else {
-      query.assignedGDIId = { $in: guideFilters };
+      const guideObjectIds = toObjectIds(guideFilters);
+      query.assignedGDIId = { $in: guideObjectIds } as any;
     }
   }
 
+  // Area filter
   if (areaFilters && areaFilters.length > 0) {
-    // Si incluye el valor especial NO_AREA_FILTER_VALUE, buscar miembros sin área asignada
     const NO_AREA_FILTER_VALUE = 'NO_AREA';
     if (areaFilters.includes(NO_AREA_FILTER_VALUE)) {
       query.$or = [
@@ -71,7 +86,8 @@ export async function getAllMembers(
         { assignedAreaIds: { $size: 0 } }
       ];
     } else {
-      query.assignedAreaIds = { $elemMatch: { $in: areaFilters } };
+      const areaObjectIds = toObjectIds(areaFilters);
+      query.assignedAreaIds = { $elemMatch: { $in: areaObjectIds } } as any;
     }
   }
 
@@ -79,7 +95,7 @@ export async function getAllMembers(
   const totalPages = Math.ceil(totalMembers / pageSize);
   const skip = (page - 1) * pageSize;
 
-  const members = await findDocuments<Member>(MEMBERS_COLLECTION, query, {
+  const members = await findDocuments<MemberDocument>(MEMBERS_COLLECTION, query, {
     sort: { firstName: 1, lastName: 1 },
     skip: skip,
     limit: pageSize,
@@ -89,34 +105,42 @@ export async function getAllMembers(
 }
 
 export async function getAllMembersNonPaginated(): Promise<Member[]> {
-  return findDocuments<Member>(MEMBERS_COLLECTION, {}, { sort: { firstName: 1, lastName: 1 } });
+  return findDocuments<MemberDocument>(MEMBERS_COLLECTION, {}, { sort: { firstName: 1, lastName: 1 } });
 }
 
 export async function getMemberById(id: string): Promise<Member | null> {
-  return findOneDocument<Member>(MEMBERS_COLLECTION, { _id: new ObjectId(id) }); // Query by _id
+  const oid = toObjectId(id);
+  if (!oid) return null;
+  return findOneDocument<MemberDocument>(MEMBERS_COLLECTION, { _id: oid });
 }
 
-// --- Write Operations ---
+// ============================================
+// WRITE OPERATIONS
+// ============================================
 
-export async function addMember(memberData: MemberWriteData): Promise<Member> {
-  const allGdis = await findDocuments<GDI>(GDIS_COLLECTION);
-  const allMinistryAreas = await findDocuments<MinistryArea>(MINISTRY_AREAS_COLLECTION);
+export async function addMember(memberData: Omit<Member, 'id'>): Promise<Member> {
+  const allGdis = await findDocuments<GDIDocument>(GDIS_COLLECTION);
+  const allMinistryAreas = await findDocuments<MinistryAreaDocument>(MINISTRY_AREAS_COLLECTION);
 
-  const tempMemberForRoleCalc: Pick<Member, 'id' | 'assignedGDIId' | 'assignedAreaIds'> = {
-    id: new ObjectId().toHexString(), // Placeholder for role calculation, will be replaced by actual _id
+  // Calculate roles based on assignments
+  const tempMemberForRoleCalc = {
+    id: new ObjectId().toHexString(),
     assignedGDIId: memberData.assignedGDIId,
     assignedAreaIds: memberData.assignedAreaIds,
   };
 
   const calculatedRoles = calculateMemberRoles(tempMemberForRoleCalc, allGdis, allMinistryAreas);
 
-  const newMember: MemberWriteData = {
+  // Convert string IDs to ObjectIds for storage
+  const memberDoc: Omit<MemberDocument, '_id'> = {
     ...memberData,
+    assignedGDIId: toObjectId(memberData.assignedGDIId),
+    assignedAreaIds: toObjectIds(memberData.assignedAreaIds),
     avatarUrl: memberData.avatarUrl || 'https://placehold.co/100x100',
     roles: calculatedRoles,
   };
 
-  const insertedMember = await insertOneDocument<Member>(MEMBERS_COLLECTION, newMember);
+  const insertedMember = await insertOneDocument<MemberDocument>(MEMBERS_COLLECTION, memberDoc);
   await addMemberToAssignments(insertedMember);
 
   return insertedMember;
@@ -126,120 +150,197 @@ export async function updateMember(memberId: string, updates: Partial<Omit<Membe
   const memberToUpdate = await getMemberById(memberId);
   if (!memberToUpdate) throw new Error(`Member with ID ${memberId} not found.`);
 
-  const allGdis = await findDocuments<GDI>(GDIS_COLLECTION);
-  const allMinistryAreas = await findDocuments<MinistryArea>(MINISTRY_AREAS_COLLECTION);
+  const allGdis = await findDocuments<GDIDocument>(GDIS_COLLECTION);
+  const allMinistryAreas = await findDocuments<MinistryAreaDocument>(MINISTRY_AREAS_COLLECTION);
 
   const updatedData: Member = { ...memberToUpdate, ...updates };
 
-  const memberForRoleCalc: Pick<Member, 'id' | 'assignedGDIId' | 'assignedAreaIds'> = {
-    id: memberToUpdate.id, // Use existing _id
+  // Recalculate roles
+  const memberForRoleCalc = {
+    id: memberToUpdate.id,
     assignedGDIId: updatedData.assignedGDIId,
     assignedAreaIds: updatedData.assignedAreaIds,
   };
   const calculatedRoles = calculateMemberRoles(memberForRoleCalc, allGdis, allMinistryAreas);
 
-  const finalUpdates = {
-    ...updates,
-    roles: calculatedRoles,
-  };
+  // Convert string IDs to ObjectIds for storage
+  const finalUpdates: any = { ...updates };
+  if (updates.assignedGDIId !== undefined) {
+    finalUpdates.assignedGDIId = toObjectId(updates.assignedGDIId);
+  }
+  if (updates.assignedAreaIds !== undefined) {
+    finalUpdates.assignedAreaIds = toObjectIds(updates.assignedAreaIds);
+  }
+  finalUpdates.roles = calculatedRoles;
 
   await updateMemberAssignments(memberId, memberToUpdate, updatedData);
 
-  return updateOneDocument<Member>(MEMBERS_COLLECTION, { _id: new ObjectId(memberId) }, { $set: finalUpdates });
+  const oid = toObjectId(memberId);
+  if (!oid) throw new Error('Invalid member ID');
+
+  return updateOneDocument<MemberDocument>(MEMBERS_COLLECTION, { _id: oid }, { $set: finalUpdates });
 }
 
+/**
+ * Delete member with transaction to ensure data consistency
+ * Removes member from GDIs, ministry areas, and deletes related records
+ */
 export async function deleteMember(memberId: string): Promise<Member | null> {
+  const memberOid = toObjectId(memberId);
+  if (!memberOid) return null;
+
   const memberToDelete = await getMemberById(memberId);
-  if (!memberToDelete) {
-    return null; // Member not found
-  }
+  if (!memberToDelete) return null;
 
-  // Unassign from GDI
-  if (memberToDelete.assignedGDIId) {
-    await updateOneDocument(GDIS_COLLECTION, { _id: new ObjectId(memberToDelete.assignedGDIId) }, { $pull: { memberIds: memberToDelete.id } as any });
-  }
-  // Unassign from Ministry Areas
-  if (memberToDelete.assignedAreaIds && memberToDelete.assignedAreaIds.length > 0) {
-    await updateManyDocuments(MINISTRY_AREAS_COLLECTION, { _id: { $in: memberToDelete.assignedAreaIds.map(id => new ObjectId(id)) } }, { $pull: { memberIds: memberToDelete.id } as any });
-  }
+  // Use transaction for atomic deletion
+  await withTransaction(async (session) => {
+    // 1. Unassign from GDI
+    if (memberToDelete.assignedGDIId) {
+      const gdiOid = toObjectId(memberToDelete.assignedGDIId);
+      if (gdiOid) {
+        await updateOneDocument(
+          GDIS_COLLECTION,
+          { _id: gdiOid },
+          { $pull: { memberIds: memberOid } as any },
+          { session }
+        );
+      }
+    }
 
-  // Also delete related records for data integrity
-  await deleteAttendanceForMember(memberToDelete.id);
-  await deleteTithesForMember(memberToDelete.id);
+    // 2. Unassign from Ministry Areas
+    if (memberToDelete.assignedAreaIds && memberToDelete.assignedAreaIds.length > 0) {
+      const areaOids = toObjectIds(memberToDelete.assignedAreaIds);
+      if (areaOids.length > 0) {
+        await updateManyDocuments(
+          MINISTRY_AREAS_COLLECTION,
+          { _id: { $in: areaOids } },
+          { $pull: { memberIds: memberOid } as any },
+          { session }
+        );
+      }
+    }
 
-  // Finally, delete the member document
-  const wasDeleted = await deleteOneDocument(MEMBERS_COLLECTION, { _id: new ObjectId(memberId) });
+    // 3. Delete related attendance records
+    await deleteAttendanceForMember(memberId);
 
-  if (wasDeleted) {
-    return memberToDelete; // Return the member object that was just deleted
-  }
+    // 4. Delete related tithe records
+    await deleteTithesForMember(memberId);
 
-  return null; // Deletion failed
+    // 5. Finally, delete the member document
+    await deleteOneDocument(MEMBERS_COLLECTION, { _id: memberOid }, { session });
+  });
+
+  return memberToDelete;
 }
 
 export async function bulkRecalculateAndUpdateRoles(memberIds: string[]): Promise<number> {
-    if (!memberIds || memberIds.length === 0) return 0;
+  if (!memberIds || memberIds.length === 0) return 0;
 
-    const allGdis = await findDocuments<GDI>(GDIS_COLLECTION);
-    const allMinistryAreas = await findDocuments<MinistryArea>(MINISTRY_AREAS_COLLECTION);
-    const membersToUpdate = await findDocuments<Member>(MEMBERS_COLLECTION, { _id: { $in: memberIds.map(id => new ObjectId(id)) } });
+  const memberOids = toObjectIds(memberIds);
+  if (memberOids.length === 0) return 0;
 
-    let updatedCount = 0;
+  const allGdis = await findDocuments<GDIDocument>(GDIS_COLLECTION);
+  const allMinistryAreas = await findDocuments<MinistryAreaDocument>(MINISTRY_AREAS_COLLECTION);
+  const membersToUpdate = await findDocuments<MemberDocument>(MEMBERS_COLLECTION, { _id: { $in: memberOids } });
 
-    for (const member of membersToUpdate) {
-        const calculatedRoles = calculateMemberRoles(member, allGdis, allMinistryAreas);
-        const rolesChanged = JSON.stringify(calculatedRoles) !== JSON.stringify(member.roles);
+  let updatedCount = 0;
 
-        if (rolesChanged) {
-            await updateOneDocument(MEMBERS_COLLECTION, { _id: new ObjectId(member.id) }, { $set: { roles: calculatedRoles } });
-            updatedCount++;
-        }
+  for (const member of membersToUpdate) {
+    const calculatedRoles = calculateMemberRoles(member, allGdis, allMinistryAreas);
+    const rolesChanged = JSON.stringify(calculatedRoles) !== JSON.stringify(member.roles);
+
+    if (rolesChanged) {
+      const memberOid = toObjectId(member.id);
+      if (memberOid) {
+        await updateOneDocument(MEMBERS_COLLECTION, { _id: memberOid }, { $set: { roles: calculatedRoles } });
+        updatedCount++;
+      }
     }
+  }
 
-    return updatedCount;
+  return updatedCount;
 }
 
-// --- Helper Functions for Assignments ---
+// ============================================
+// HELPER FUNCTIONS FOR ASSIGNMENTS
+// ============================================
 
 export async function addMemberToAssignments(newMember: Member): Promise<void> {
+  const memberOid = toObjectId(newMember.id);
+  if (!memberOid) return;
+
+  // Add to GDI
   if (newMember.assignedGDIId) {
-    await updateOneDocument(
-      GDIS_COLLECTION, 
-      { _id: new ObjectId(newMember.assignedGDIId) }, 
-      { $addToSet: { memberIds: newMember.id } as any }
-    );
+    const gdiOid = toObjectId(newMember.assignedGDIId);
+    if (gdiOid) {
+      await updateOneDocument(
+        GDIS_COLLECTION,
+        { _id: gdiOid },
+        { $addToSet: { memberIds: memberOid } as any }
+      );
+    }
   }
+
+  // Add to Ministry Areas
   if (newMember.assignedAreaIds && newMember.assignedAreaIds.length > 0) {
-    await updateManyDocuments(
-      MINISTRY_AREAS_COLLECTION, 
-      { _id: { $in: newMember.assignedAreaIds.map(id => new ObjectId(id)) } }, 
-      { $addToSet: { memberIds: newMember.id } as any }
-    );
+    const areaOids = toObjectIds(newMember.assignedAreaIds);
+    if (areaOids.length > 0) {
+      await updateManyDocuments(
+        MINISTRY_AREAS_COLLECTION,
+        { _id: { $in: areaOids } },
+        { $addToSet: { memberIds: memberOid } as any }
+      );
+    }
   }
 }
 
 export async function updateMemberAssignments(memberId: string, originalMember: Member, updatedMember: Member): Promise<void> {
+  const memberOid = toObjectId(memberId);
+  if (!memberOid) return;
+
   const oldGDI = originalMember.assignedGDIId;
   const newGDI = updatedMember.assignedGDIId;
   const oldAreas = new Set(originalMember.assignedAreaIds || []);
   const newAreas = new Set(updatedMember.assignedAreaIds || []);
 
+  // Handle GDI changes
   if (oldGDI !== newGDI) {
     if (oldGDI) {
-      await updateOneDocument(GDIS_COLLECTION, { _id: new ObjectId(oldGDI) }, { $pull: { memberIds: memberId } as any });
+      const oldGdiOid = toObjectId(oldGDI);
+      if (oldGdiOid) {
+        await updateOneDocument(GDIS_COLLECTION, { _id: oldGdiOid }, { $pull: { memberIds: memberOid } as any });
+      }
     }
     if (newGDI) {
-      await updateOneDocument(GDIS_COLLECTION, { _id: new ObjectId(newGDI) }, { $addToSet: { memberIds: memberId } as any });
+      const newGdiOid = toObjectId(newGDI);
+      if (newGdiOid) {
+        await updateOneDocument(GDIS_COLLECTION, { _id: newGdiOid }, { $addToSet: { memberIds: memberOid } as any });
+      }
     }
   }
 
+  // Handle Ministry Area changes
   const areasRemoved = [...oldAreas].filter(areaId => !newAreas.has(areaId));
   const areasAdded = [...newAreas].filter(areaId => !oldAreas.has(areaId));
 
   if (areasRemoved.length > 0) {
-    await updateManyDocuments(MINISTRY_AREAS_COLLECTION, { _id: { $in: areasRemoved.map(id => new ObjectId(id)) } }, { $pull: { memberIds: memberId } as any });
+    const removedOids = toObjectIds(areasRemoved);
+    if (removedOids.length > 0) {
+      await updateManyDocuments(
+        MINISTRY_AREAS_COLLECTION,
+        { _id: { $in: removedOids } },
+        { $pull: { memberIds: memberOid } as any }
+      );
+    }
   }
   if (areasAdded.length > 0) {
-    await updateManyDocuments(MINISTRY_AREAS_COLLECTION, { _id: { $in: areasAdded.map(id => new ObjectId(id)) } }, { $addToSet: { memberIds: memberId } as any });
+    const addedOids = toObjectIds(areasAdded);
+    if (addedOids.length > 0) {
+      await updateManyDocuments(
+        MINISTRY_AREAS_COLLECTION,
+        { _id: { $in: addedOids } },
+        { $addToSet: { memberIds: memberOid } as any }
+      );
+    }
   }
 }

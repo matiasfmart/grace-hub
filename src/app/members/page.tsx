@@ -168,15 +168,15 @@ async function getMembersPageData(
 }
 
 interface MembersPageProps {
-  searchParams: {
+  searchParams: Promise<{
     page?: string;
     pageSize?: string;
     search?: string;
     memberStatus?: string;
     role?: string;
     guide?: string;
-    area?: string; 
-  };
+    area?: string;
+  }>;
 }
 
 interface MembersPageContentProps {
@@ -268,15 +268,17 @@ async function MembersPageContent({
 }
 
 export default async function MembersPage({ searchParams }: MembersPageProps) {
-  const params = new URLSearchParams(searchParams as any); // Cast to any to avoid type errors
-  const currentPage = Number(params.get('page')) || 1;
-  const pageSize = Number(params.get('pageSize')) || 10;
-  const searchTerm = params.get('search') || '';
-  const memberStatusFilterString = params.get('memberStatus') || '';
-  const roleFilterString = params.get('role') || '';
-  const guideFilterString = params.get('guide') || '';
-  const areaFilterString = params.get('area') || ''; 
-  
+  // Await searchParams in Next.js 15
+  const resolvedParams = await searchParams;
+
+  const currentPage = Number(resolvedParams.page) || 1;
+  const pageSize = Number(resolvedParams.pageSize) || 10;
+  const searchTerm = resolvedParams.search || '';
+  const memberStatusFilterString = resolvedParams.memberStatus || '';
+  const roleFilterString = resolvedParams.role || '';
+  const guideFilterString = resolvedParams.guide || '';
+  const areaFilterString = resolvedParams.area || '';
+
   const currentMemberStatusFiltersArray = memberStatusFilterString ? memberStatusFilterString.split(',') : [];
   const currentRoleFiltersArray = roleFilterString ? roleFilterString.split(',') : [];
   const currentGuideFiltersArray = guideFilterString ? guideFilterString.split(',') : [];

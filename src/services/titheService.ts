@@ -1,24 +1,40 @@
 'use server';
-import type { TitheRecord, TitheRecordWriteData } from '@/lib/types';
+import type { TitheRecord, TitheRecordDocument, TitheRecordWriteData } from '@/lib/types';
 import { findDocuments, insertOneDocument, deleteOneDocument, deleteManyDocuments, getCollection } from '@/lib/db-utils';
+import { toObjectId } from '@/lib/id-utils';
 import { revalidatePath } from 'next/cache';
 import { ObjectId } from 'mongodb';
 
 const TITHES_COLLECTION = 'tithes';
 
+// ============================================
+// READ OPERATIONS
+// ============================================
+
 export async function getAllTitheRecords(): Promise<TitheRecord[]> {
-    return findDocuments<TitheRecord>(TITHES_COLLECTION);
+    return findDocuments<TitheRecordDocument>(TITHES_COLLECTION);
 }
+
+// ============================================
+// WRITE OPERATIONS
+// ============================================
 
 export async function setTitheStatus(memberId: string, year: number, month: number, didTithe: boolean): Promise<{ success: boolean; message: string }> {
     try {
-        const filter = { memberId, year, month };
-        const existingRecord = await findDocuments<TitheRecord>(TITHES_COLLECTION, filter);
+        const memberOid = toObjectId(memberId);
+        if (!memberOid) throw new Error('Invalid Member ID');
+
+        const filter = { memberId: memberOid, year, month };
+        const existingRecord = await findDocuments<TitheRecordDocument>(TITHES_COLLECTION, filter);
         const recordExists = existingRecord.length > 0;
 
         if (didTithe && !recordExists) {
-            const newRecord: TitheRecordWriteData = { memberId, year, month };
-            await insertOneDocument(TITHES_COLLECTION, newRecord);
+            const newRecordDoc: Omit<TitheRecordDocument, '_id'> = {
+                memberId: memberOid,
+                year,
+                month
+            };
+            await insertOneDocument(TITHES_COLLECTION, newRecordDoc);
         } else if (!didTithe && recordExists) {
             await deleteOneDocument(TITHES_COLLECTION, filter);
         } else {
@@ -42,13 +58,16 @@ export async function batchUpdateTithesForMonth(
     const collection = await getCollection(TITHES_COLLECTION);
 
     const bulkOps = updates.map(update => {
-      const filter = { memberId: update.memberId, year, month };
+      const memberOid = toObjectId(update.memberId);
+      if (!memberOid) throw new Error(`Invalid Member ID: ${update.memberId}`);
+
+      const filter = { memberId: memberOid, year, month };
       if (update.didTithe) {
         // Upsert: insert if not exists, do nothing if it does
         return {
           updateOne: {
             filter,
-            update: { $setOnInsert: { memberId: update.memberId, year, month } },
+            update: { $setOnInsert: { memberId: memberOid, year, month } },
             upsert: true,
           },
         };
@@ -74,12 +93,17 @@ export async function batchUpdateTithesForMonth(
   }
 }
 
+// ============================================
+// DELETE OPERATIONS
+// ============================================
+
 /**
  * Deletes all tithe records for a specific member.
- * @param memberId The ID of the member.
- * @returns The number of deleted records.
  */
 export async function deleteTithesForMember(memberId: string): Promise<number> {
-    const result = await deleteManyDocuments(TITHES_COLLECTION, { memberId });
+    const memberOid = toObjectId(memberId);
+    if (!memberOid) return 0;
+
+    const result = await deleteManyDocuments(TITHES_COLLECTION, { memberId: memberOid });
     return result.deletedCount;
 }

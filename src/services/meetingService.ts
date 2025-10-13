@@ -1,6 +1,7 @@
 'use server';
-import type { Meeting, MeetingWriteData, MeetingSeries, MeetingSeriesWriteData, Member, GDI, MinistryArea, MeetingTargetRoleType, DayOfWeekType, WeekOrdinalType, AnyMeetingInstanceUpdateData } from '@/lib/types';
-import { findDocuments, findOneDocument, insertOneDocument, updateOneDocument, deleteOneDocument, countDocuments, updateManyDocuments, getCollection as getCollectionDb } from '@/lib/db-utils';
+import type { Meeting, MeetingDocument, MeetingWriteData, MeetingSeries, MeetingSeriesDocument, MeetingSeriesWriteData, Member, MemberDocument, GDI, GDIDocument, MinistryArea, MinistryAreaDocument, MeetingTargetRoleType, DayOfWeekType, WeekOrdinalType, AnyMeetingInstanceUpdateData, AttendanceRecordDocument } from '@/lib/types';
+import { findDocuments, findOneDocument, insertOneDocument, updateOneDocument, deleteOneDocument, countDocuments, updateManyDocuments, getCollection as getCollectionDb, withTransaction } from '@/lib/db-utils';
+import { toObjectId, toObjectIds } from '@/lib/id-utils';
 import { format, parseISO, addWeeks, setDay, addMonths, setDate, getDate, getDaysInMonth, lastDayOfMonth, startOfDay, isSameDay, nextDay, getDay, isValid as isValidDateFn, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Collection, Filter, ObjectId } from 'mongodb';
@@ -94,59 +95,101 @@ function getNextMonthlyOccurrences(series: MeetingSeries, startDate: Date, count
     return occurrences.slice(0, count);
 }
 
-// --- Meeting Series CRUD ---
+// ============================================
+// MEETING SERIES CRUD
+// ============================================
 
 export async function getAllMeetingSeries(): Promise<MeetingSeries[]> {
-  return findDocuments<MeetingSeries>(MEETING_SERIES_COLLECTION);
+  return findDocuments<MeetingSeriesDocument>(MEETING_SERIES_COLLECTION);
 }
 
 export async function getMeetingSeriesById(id: string): Promise<MeetingSeries | null> {
-  return findOneDocument<MeetingSeries>(MEETING_SERIES_COLLECTION, { _id: new ObjectId(id) });
+  const oid = toObjectId(id);
+  if (!oid) return null;
+  return findOneDocument<MeetingSeriesDocument>(MEETING_SERIES_COLLECTION, { _id: oid });
 }
 
 export async function addMeetingSeries(seriesData: MeetingSeriesWriteData): Promise<{ series: MeetingSeries; newInstances?: Meeting[] }> {
-  const newSeries = await insertOneDocument<MeetingSeries>(MEETING_SERIES_COLLECTION, seriesData);
+  // Convert string IDs to ObjectIds for storage
+  const seriesDoc: Omit<MeetingSeriesDocument, '_id'> = {
+    ...seriesData,
+    ownerGroupId: toObjectId(seriesData.ownerGroupId || null),
+  };
+
+  const newSeries = await insertOneDocument<MeetingSeriesDocument>(MEETING_SERIES_COLLECTION, seriesDoc);
   const newInstances = await ensureFutureInstances(newSeries.id);
 
   return { series: newSeries, newInstances };
 }
 
 export async function updateMeetingSeries(seriesId: string, updates: Partial<MeetingSeriesWriteData>): Promise<{ updatedSeries: MeetingSeries; newlyGeneratedInstances?: Meeting[] }> {
-  const updatedSeries = await updateOneDocument<MeetingSeries>(MEETING_SERIES_COLLECTION, { _id: new ObjectId(seriesId) }, { $set: updates });
+  const seriesOid = toObjectId(seriesId);
+  if (!seriesOid) throw new Error('Invalid MeetingSeries ID');
+
+  // Convert string IDs to ObjectIds for storage
+  const finalUpdates: any = { ...updates };
+  if (updates.ownerGroupId !== undefined) {
+    finalUpdates.ownerGroupId = toObjectId(updates.ownerGroupId);
+  }
+
+  const updatedSeries = await updateOneDocument<MeetingSeriesDocument>(
+    MEETING_SERIES_COLLECTION,
+    { _id: seriesOid },
+    { $set: finalUpdates }
+  );
   if (!updatedSeries) throw new Error(`MeetingSeries with ID ${seriesId} not found.`);
 
   const newlyGeneratedInstances = await ensureFutureInstances(updatedSeries.id);
   return { updatedSeries, newlyGeneratedInstances };
 }
 
+/**
+ * Delete Meeting Series with transaction to ensure data consistency
+ */
 export async function deleteMeetingSeries(seriesId: string): Promise<boolean> {
-  const meetings = await findDocuments<Meeting>(MEETINGS_COLLECTION, { seriesId });
-  const meetingIds = meetings.map(m => new ObjectId(m.id));
+  const seriesOid = toObjectId(seriesId);
+  if (!seriesOid) throw new Error('Invalid MeetingSeries ID');
 
-  if (meetingIds.length > 0) {
-    const attendanceCollection = await getCollection(ATTENDANCE_COLLECTION);
-    await attendanceCollection.deleteMany({ meetingId: { $in: meetingIds } });
-  }
+  return withTransaction(async (session) => {
+    // 1. Find all meetings for this series
+    const meetings = await findDocuments<MeetingDocument>(MEETINGS_COLLECTION, { seriesId: seriesOid });
+    const meetingOids = toObjectIds(meetings.map(m => m.id));
 
-  const meetingsCollection = await getCollection(MEETINGS_COLLECTION);
-  await meetingsCollection.deleteMany({ seriesId: new ObjectId(seriesId) });
+    // 2. Delete all attendance records for these meetings
+    if (meetingOids.length > 0) {
+      const attendanceCollection = await getCollection(ATTENDANCE_COLLECTION);
+      await attendanceCollection.deleteMany({ meetingId: { $in: meetingOids } }, { session });
+    }
 
-  return deleteOneDocument(MEETING_SERIES_COLLECTION, { _id: new ObjectId(seriesId) });
+    // 3. Delete all meeting instances
+    const meetingsCollection = await getCollection(MEETINGS_COLLECTION);
+    await meetingsCollection.deleteMany({ seriesId: seriesOid }, { session });
+
+    // 4. Delete the series itself
+    return deleteOneDocument(MEETING_SERIES_COLLECTION, { _id: seriesOid }, { session });
+  });
 }
 
-// --- Meeting Instance CRUD ---
+// ============================================
+// MEETING INSTANCE CRUD
+// ============================================
 
 export async function getAllMeetings(): Promise<Meeting[]> {
-    return findDocuments<Meeting>(MEETINGS_COLLECTION);
+    return findDocuments<MeetingDocument>(MEETINGS_COLLECTION);
 }
 
 export async function getMeetingById(id: string): Promise<Meeting | null> {
-  return findOneDocument<Meeting>(MEETINGS_COLLECTION, { _id: new ObjectId(id) });
+  const oid = toObjectId(id);
+  if (!oid) return null;
+  return findOneDocument<MeetingDocument>(MEETINGS_COLLECTION, { _id: oid });
 }
 
 export async function getMeetingsBySeriesId(seriesId: string): Promise<Meeting[]> {
+    const seriesOid = toObjectId(seriesId);
+    if (!seriesOid) return [];
+
     await ensureFutureInstances(seriesId);
-    return findDocuments<Meeting>(MEETINGS_COLLECTION, { seriesId: new ObjectId(seriesId) }, { sort: { date: -1 } });
+    return findDocuments<MeetingDocument>(MEETINGS_COLLECTION, { seriesId: seriesOid }, { sort: { date: -1 } });
 }
 
 export async function getFilteredMeetingInstances(seriesIds: string[], startDate?: string, endDate?: string, page: number = 1, pageSize: number = 10): Promise<{ instances: Meeting[]; totalCount: number; totalPages: number }> {
@@ -156,15 +199,16 @@ export async function getFilteredMeetingInstances(seriesIds: string[], startDate
         }
     }
 
-    const query: Filter<Meeting> = { seriesId: { $in: seriesIds.map(id => new ObjectId(id)) } };
-    if (startDate) query.date = { ...query.date, $gte: startDate };
-    if (endDate) query.date = { ...query.date, $lte: endDate };
+    const seriesOids = toObjectIds(seriesIds);
+    const query: Filter<MeetingDocument> = { seriesId: { $in: seriesOids } as any };
+    if (startDate) query.date = { ...query.date as any, $gte: startDate };
+    if (endDate) query.date = { ...query.date as any, $lte: endDate };
 
     const totalCount = await countDocuments(MEETINGS_COLLECTION, query);
     const totalPages = Math.ceil(totalCount / pageSize);
     const skip = (page - 1) * pageSize;
 
-    const instances = await findDocuments<Meeting>(MEETINGS_COLLECTION, query, { sort: { date: -1 }, skip, limit: pageSize });
+    const instances = await findDocuments<MeetingDocument>(MEETINGS_COLLECTION, query, { sort: { date: -1 }, skip, limit: pageSize });
 
     return { instances, totalCount, totalPages };
 }
@@ -174,47 +218,79 @@ export async function addMeetingInstance(seriesId: string, instanceDetails: Pick
     if (!series) throw new Error(`MeetingSeries with ID ${seriesId} not found.`);
 
     const attendeeUids = (await getResolvedAttendeesForMeeting({ seriesId } as Meeting)).map(m => m.id);
+    const seriesOid = toObjectId(seriesId);
+    const attendeeOids = toObjectIds(attendeeUids);
 
-    const newInstanceData: MeetingWriteData = {
-        seriesId,
+    if (!seriesOid) throw new Error('Invalid MeetingSeries ID');
+
+    const newInstanceDoc: Omit<MeetingDocument, '_id'> = {
+        seriesId: seriesOid,
         ...instanceDetails,
-        attendeeUids,
+        attendeeUids: attendeeOids,
         minute: null,
     };
 
-    return insertOneDocument<Meeting>(MEETINGS_COLLECTION, newInstanceData);
+    return insertOneDocument<MeetingDocument>(MEETINGS_COLLECTION, newInstanceDoc);
 }
 
 export async function updateMeeting(meetingId: string, updates: AnyMeetingInstanceUpdateData): Promise<Meeting | null> {
-  return updateOneDocument<Meeting>(MEETINGS_COLLECTION, { _id: new ObjectId(meetingId) }, { $set: updates });
+  const meetingOid = toObjectId(meetingId);
+  if (!meetingOid) throw new Error('Invalid Meeting ID');
+
+  return updateOneDocument<MeetingDocument>(MEETINGS_COLLECTION, { _id: meetingOid }, { $set: updates });
 }
 
 export async function updateMeetingMinute(meetingId: string, minute: string | null): Promise<Meeting | null> {
     return updateMeeting(meetingId, { minute });
 }
 
+/**
+ * Delete Meeting Instance with transaction to ensure data consistency
+ */
 export async function deleteMeetingInstance(instanceId: string): Promise<void> {
+    const instanceOid = toObjectId(instanceId);
+    if (!instanceOid) throw new Error('Invalid Meeting Instance ID');
+
     const instance = await getMeetingById(instanceId);
     if (!instance) return;
 
-    await updateOneDocument(
-        MEETING_SERIES_COLLECTION, 
-        { _id: new ObjectId(instance.seriesId) }, 
-        { $addToSet: { cancelledDates: instance.date } as any }
-    );
+    const seriesOid = toObjectId(instance.seriesId);
+    if (!seriesOid) throw new Error('Invalid MeetingSeries ID');
 
-    await deleteOneDocument(MEETINGS_COLLECTION, { _id: new ObjectId(instanceId) });
-    await (await getCollection(ATTENDANCE_COLLECTION)).deleteMany({ meetingId: new ObjectId(instanceId) });
+    await withTransaction(async (session) => {
+        // 1. Mark this date as cancelled in the series
+        await updateOneDocument(
+            MEETING_SERIES_COLLECTION,
+            { _id: seriesOid },
+            { $addToSet: { cancelledDates: instance.date } as any },
+            { session }
+        );
+
+        // 2. Delete all attendance records for this meeting
+        await (await getCollection(ATTENDANCE_COLLECTION)).deleteMany({ meetingId: instanceOid }, { session });
+
+        // 3. Delete the meeting instance itself
+        await deleteOneDocument(MEETINGS_COLLECTION, { _id: instanceOid }, { session });
+    });
 }
 
-// --- Core Logic for Recurring Meetings & Attendee Resolution ---
+// ============================================
+// CORE LOGIC FOR RECURRING MEETINGS & ATTENDEE RESOLUTION
+// ============================================
 
 export async function ensureFutureInstances(seriesId: string): Promise<Meeting[]> {
+    const seriesOid = toObjectId(seriesId);
+    if (!seriesOid) return [];
+
     const series = await getMeetingSeriesById(seriesId);
     if (!series || series.frequency === "OneTime") return [];
 
     const today = startOfDay(new Date());
-    const instances = await findDocuments<Meeting>(MEETINGS_COLLECTION, { seriesId: new ObjectId(seriesId), date: { $gte: format(today, 'yyyy-MM-dd') } }, { sort: { date: 1 } });
+    const instances = await findDocuments<MeetingDocument>(
+        MEETINGS_COLLECTION,
+        { seriesId: seriesOid, date: { $gte: format(today, 'yyyy-MM-dd') } },
+        { sort: { date: 1 } }
+    );
 
     let instancesToGenerateCount = 0;
     if (series.frequency === "Weekly") instancesToGenerateCount = 4 - instances.length;
@@ -235,22 +311,26 @@ export async function ensureFutureInstances(seriesId: string): Promise<Meeting[]
     if (validDates.length === 0) return [];
 
     const attendeeUids = (await getResolvedAttendeesForMeeting({ seriesId } as Meeting)).map(m => m.id);
-    
-    const newInstances: MeetingWriteData[] = validDates.map(date => ({
-        seriesId: series.id,
+    const attendeeOids = toObjectIds(attendeeUids);
+
+    const newInstanceDocs: Omit<MeetingDocument, '_id'>[] = validDates.map(date => ({
+        seriesId: seriesOid,
         name: `${series.name} (${format(date, 'd MMM', { locale: es })})`,
         date: format(date, 'yyyy-MM-dd'),
         time: series.defaultTime,
         location: series.defaultLocation,
         description: series.description,
-        attendeeUids,
+        attendeeUids: attendeeOids,
         minute: null,
     }));
 
     const meetingsCollection = await getCollection(MEETINGS_COLLECTION);
-    await meetingsCollection.insertMany(newInstances as any[]);
+    await meetingsCollection.insertMany(newInstanceDocs as any[]);
 
-    return findDocuments<Meeting>(MEETINGS_COLLECTION, { seriesId: new ObjectId(seriesId), date: { $in: validDates.map(d => format(d, 'yyyy-MM-dd')) } });
+    return findDocuments<MeetingDocument>(
+        MEETINGS_COLLECTION,
+        { seriesId: seriesOid, date: { $in: validDates.map(d => format(d, 'yyyy-MM-dd')) } }
+    );
 }
 
 export async function getResolvedAttendeesForMeeting(meeting: Pick<Meeting, 'seriesId' | 'attendeeUids'>): Promise<Member[]> {
@@ -260,27 +340,34 @@ export async function getResolvedAttendeesForMeeting(meeting: Pick<Meeting, 'ser
     let memberIds = new Set<string>();
 
     if (series.seriesType === 'general') {
-        if (series.targetAttendeeGroups.includes("allMembers")) return findDocuments<Member>(MEMBERS_COLLECTION);
+        if (series.targetAttendeeGroups.includes("allMembers")) return findDocuments<MemberDocument>(MEMBERS_COLLECTION);
         // Complex role-based logic
-        const leaders = await findDocuments<Member>(MEMBERS_COLLECTION, { $or: [{ 'roles': 'Leader' }, { 'roles': 'Worker' }] });
+        const leaders = await findDocuments<MemberDocument>(MEMBERS_COLLECTION, { $or: [{ 'roles': 'Leader' }, { 'roles': 'Worker' }] });
         leaders.forEach(l => memberIds.add(l.id));
 
     } else if (series.seriesType === 'gdi' && series.ownerGroupId) {
-        const gdi = await findOneDocument<GDI>(GDIS_COLLECTION, { _id: new ObjectId(series.ownerGroupId) });
-        if (gdi) {
-            if (gdi.guideId) memberIds.add(gdi.guideId);
-            gdi.memberIds.forEach(id => memberIds.add(id));
+        const ownerOid = toObjectId(series.ownerGroupId);
+        if (ownerOid) {
+            const gdi = await findOneDocument<GDIDocument>(GDIS_COLLECTION, { _id: ownerOid });
+            if (gdi) {
+                if (gdi.guideId) memberIds.add(gdi.guideId);
+                gdi.memberIds.forEach(id => memberIds.add(id));
+            }
         }
     } else if (series.seriesType === 'ministryArea' && series.ownerGroupId) {
-        const area = await findOneDocument<MinistryArea>(MINISTRY_AREAS_COLLECTION, { _id: new ObjectId(series.ownerGroupId) });
-        if (area) {
-            if (area.leaderId) memberIds.add(area.leaderId);
-            area.memberIds.forEach(id => memberIds.add(id));
+        const ownerOid = toObjectId(series.ownerGroupId);
+        if (ownerOid) {
+            const area = await findOneDocument<MinistryAreaDocument>(MINISTRY_AREAS_COLLECTION, { _id: ownerOid });
+            if (area) {
+                if (area.leaderId) memberIds.add(area.leaderId);
+                area.memberIds.forEach(id => memberIds.add(id));
+            }
         }
     } else if (meeting.attendeeUids) {
         meeting.attendeeUids.forEach(id => memberIds.add(id));
     }
 
     if (memberIds.size === 0) return [];
-    return findDocuments<Member>(MEMBERS_COLLECTION, { _id: { $in: Array.from(memberIds).map(id => new ObjectId(id)) } });
+    const memberOids = toObjectIds(Array.from(memberIds));
+    return findDocuments<MemberDocument>(MEMBERS_COLLECTION, { _id: { $in: memberOids } as any });
 }
