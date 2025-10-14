@@ -1,5 +1,3 @@
-
-'use server';
 // This page component is no longer directly used for UI.
 // Its primary purpose was to host the updateGdiDetailsAction and fetch data.
 // The action has been moved to src/app/groups/gdis/[gdiId]/admin/actions.ts
@@ -10,12 +8,17 @@
 // we can export a simple default component.
 // Ideally, all imports would be updated to the new action location.
 
-import { redirect } from 'next/navigation';
+import { redirect } from "next/navigation";
 
-export default async function ManageGdiPage_DEPRECATED({ params }: { params: { gdiId: string }}) {
-  // Redirect to the new admin page, as this page is no longer the primary edit location.
-  redirect(`/groups/gdis/${params.gdiId}/admin`);
-  // return null; // Or simply return null if redirection is handled elsewhere or not desired.
+export default async function ManageGdiPage_DEPRECATED({
+	params,
+}: {
+	params: Promise<{ gdiId: string }>;
+}) {
+	// Redirect to the new admin page, as this page is no longer the primary edit location.
+	const { gdiId } = await params;
+	redirect(`/groups/gdis/${gdiId}/admin`);
+	// return null; // Or simply return null if redirection is handled elsewhere or not desired.
 }
 
 // The updateGdiDetailsAction has been moved to ./admin/actions.ts

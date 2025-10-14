@@ -1,15 +1,14 @@
 version: "3.9"
-
 services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile   # el Dockerfile de prod que vimos
+      dockerfile: Dockerfile
     container_name: grace-hub
     ports:
       - "3000:3000"
     env_file:
-      - .env                   # este archivo NO se commitea
+      - .env  # Las variables REALES se cargan aquí
     environment:
       - NODE_ENV=production
     restart: unless-stopped

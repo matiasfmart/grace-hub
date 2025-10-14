@@ -10,6 +10,14 @@ RUN npm ci
 FROM node:24.6.0-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Variables dummy SOLO para que el build no falle
+# Estas NO se usan en runtime
+ENV MONGODB_USER=dummy
+ENV MONGODB_PASSWORD=dummy
+ENV MONGODB_CLUSTER_URL=dummy.mongodb.net
+ENV MONGODB_DB_NAME=dummy
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Asegurate en next.config.ts: export default { output: 'standalone', ... }
@@ -21,14 +29,12 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# (opcional) certificados para HTTPS saliente
+# Certificados para HTTPS saliente
 RUN apk add --no-cache ca-certificates
 
 # Copiamos solo lo necesario para standalone
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-# Si usás /public, descomentá:
-# COPY --from=builder /app/public ./public
 
 # Usuario no-root
 RUN addgroup -S app && adduser -S -G app app

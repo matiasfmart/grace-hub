@@ -3,194 +3,199 @@
 @tailwind utilities;
 
 body {
-  font-family: 'PT Sans', sans-serif;
+	font-family: "PT Sans", sans-serif;
 }
 
 @layer base {
-  :root {
-    --background: 207 86% 94%; /* #E3F2FD light desaturated blue */
-    --foreground: 207 20% 25%; /* Darker blue-gray for text */
-    --card: 0 0% 100%; /* White for cards */
-    --card-foreground: 207 20% 25%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 207 20% 25%;
-    --primary: 207 88% 68%; /* #64B5F6 calming blue */
-    --primary-foreground: 0 0% 100%; /* White text on primary blue */
-    --secondary: 207 80% 88%; /* Lighter shade of primary blue */
-    --secondary-foreground: 207 20% 25%;
-    --muted: 207 50% 90%; /* Even lighter, desaturated blue */
-    --muted-foreground: 207 30% 50%;
-    --accent: 45 100% 58%; /* #FFCA28 warm yellow */
-    --accent-foreground: 45 100% 15%; /* Dark text on yellow accent */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --success: 142.1 70.6% 45.3%;
-    --success-foreground: 0 0% 98%;
-    --border: 207 50% 85%; /* Subtle blue-themed border */
-    --input: 207 50% 90%; /* Input background */
-    --ring: 207 88% 60%; /* Ring color, darker shade of primary */
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
-    --sidebar-background: 207 80% 96%;
-    --sidebar-foreground: 207 20% 30%;
-    --sidebar-primary: 207 88% 68%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 207 80% 90%;
-    --sidebar-accent-foreground: 207 20% 25%;
-    --sidebar-border: 207 50% 88%;
-    --sidebar-ring: 207 88% 60%;
-  }
-  .dark {
-    --background: 207 30% 15%; /* Dark blue */
-    --foreground: 207 80% 90%; /* Light blue text */
-    --card: 207 30% 20%; /* Slightly lighter dark blue for cards */
-    --card-foreground: 207 80% 90%;
-    --popover: 207 30% 10%;
-    --popover-foreground: 207 80% 90%;
-    --primary: 207 88% 68%; /* Calming blue */
-    --primary-foreground: 0 0% 100%; /* White text */
-    --secondary: 207 60% 30%; /* Mid-dark blue */
-    --secondary-foreground: 207 80% 90%;
-    --muted: 207 40% 25%;
-    --muted-foreground: 207 60% 70%;
-    --accent: 45 100% 58%; /* Warm yellow */
-    --accent-foreground: 45 100% 15%; /* Dark text on yellow */
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --success: 142.1 70.6% 45.3%;
-    --success-foreground: 0 0% 98%;
-    --border: 207 50% 30%;
-    --input: 207 50% 25%;
-    --ring: 207 88% 60%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 207 30% 12%;
-    --sidebar-foreground: 207 80% 85%;
-    --sidebar-primary: 207 88% 68%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 207 40% 22%;
-    --sidebar-accent-foreground: 207 80% 90%;
-    --sidebar-border: 207 50% 25%;
-    --sidebar-ring: 207 88% 60%;
-  }
+	:root {
+		--background: 207 86% 94%; /* #E3F2FD light desaturated blue */
+		--foreground: 207 20% 25%; /* Darker blue-gray for text */
+		--card: 0 0% 100%; /* White for cards */
+		--card-foreground: 207 20% 25%;
+		--popover: 0 0% 100%;
+		--popover-foreground: 207 20% 25%;
+		--primary: 207 88% 68%; /* #64B5F6 calming blue */
+		--primary-foreground: 0 0% 100%; /* White text on primary blue */
+		--secondary: 207 80% 88%; /* Lighter shade of primary blue */
+		--secondary-foreground: 207 20% 25%;
+		--muted: 207 50% 90%; /* Even lighter, desaturated blue */
+		--muted-foreground: 207 30% 50%;
+		--accent: 45 100% 58%; /* #FFCA28 warm yellow */
+		--accent-foreground: 45 100% 15%; /* Dark text on yellow accent */
+		--destructive: 0 84.2% 60.2%;
+		--destructive-foreground: 0 0% 98%;
+		--success: 142.1 70.6% 45.3%;
+		--success-foreground: 0 0% 98%;
+		--border: 207 50% 85%; /* Subtle blue-themed border */
+		--input: 207 50% 90%; /* Input background */
+		--ring: 207 88% 60%; /* Ring color, darker shade of primary */
+		--chart-1: 12 76% 61%;
+		--chart-2: 173 58% 39%;
+		--chart-3: 197 37% 24%;
+		--chart-4: 43 74% 66%;
+		--chart-5: 27 87% 67%;
+		--radius: 0.5rem;
+		--sidebar-background: 207 80% 96%;
+		--sidebar-foreground: 207 20% 30%;
+		--sidebar-primary: 207 88% 68%;
+		--sidebar-primary-foreground: 0 0% 100%;
+		--sidebar-accent: 207 80% 90%;
+		--sidebar-accent-foreground: 207 20% 25%;
+		--sidebar-border: 207 50% 88%;
+		--sidebar-ring: 207 88% 60%;
+	}
+	.dark {
+		--background: 207 30% 15%; /* Dark blue */
+		--foreground: 207 80% 90%; /* Light blue text */
+		--card: 207 30% 20%; /* Slightly lighter dark blue for cards */
+		--card-foreground: 207 80% 90%;
+		--popover: 207 30% 10%;
+		--popover-foreground: 207 80% 90%;
+		--primary: 207 88% 68%; /* Calming blue */
+		--primary-foreground: 0 0% 100%; /* White text */
+		--secondary: 207 60% 30%; /* Mid-dark blue */
+		--secondary-foreground: 207 80% 90%;
+		--muted: 207 40% 25%;
+		--muted-foreground: 207 60% 70%;
+		--accent: 45 100% 58%; /* Warm yellow */
+		--accent-foreground: 45 100% 15%; /* Dark text on yellow */
+		--destructive: 0 62.8% 30.6%;
+		--destructive-foreground: 0 0% 98%;
+		--success: 142.1 70.6% 45.3%;
+		--success-foreground: 0 0% 98%;
+		--border: 207 50% 30%;
+		--input: 207 50% 25%;
+		--ring: 207 88% 60%;
+		--chart-1: 220 70% 50%;
+		--chart-2: 160 60% 45%;
+		--chart-3: 30 80% 55%;
+		--chart-4: 280 65% 60%;
+		--chart-5: 340 75% 55%;
+		--sidebar-background: 207 30% 12%;
+		--sidebar-foreground: 207 80% 85%;
+		--sidebar-primary: 207 88% 68%;
+		--sidebar-primary-foreground: 0 0% 100%;
+		--sidebar-accent: 207 40% 22%;
+		--sidebar-accent-foreground: 207 80% 90%;
+		--sidebar-border: 207 50% 25%;
+		--sidebar-ring: 207 88% 60%;
+	}
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+	* {
+		@apply border-border;
+	}
+	body {
+		@apply bg-background text-foreground;
+	}
 }
 
 @media print {
-  body > *:not([data-radix-dialog-portal]), /* Hide everything except Radix Portals initially */
-  body > [data-radix-dialog-portal] > .radix-dialog-overlay { /* Hide overlays within portals */
-    display: none !important;
-    visibility: hidden !important;
-  }
+	body
+		> *:not(
+			[data-radix-dialog-portal]
+		) /* Hide everything except Radix Portals initially */,
+	body > [data-radix-dialog-portal] > .radix-dialog-overlay {
+		/* Hide overlays within portals */
+		display: none;
+		visibility: hidden;
+	}
 
-  /* Style the specific dialog content that has the 'is-printing-member-attendance' class */
-  .radix-dialog-content.is-printing-member-attendance {
-    position: fixed !important; /* Use fixed to ensure it's relative to viewport */
-    left: 0 !important;
-    top: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    max-width: none !important;
-    max-height: none !important;
-    overflow: visible !important; /* Show all content */
-    border: none !important;
-    box-shadow: none !important;
-    padding: 20px !important; /* Add some margin for print */
-    margin: 0 !important;
-    display: block !important;
-    background-color: white !important;
-    color: black !important;
-    border-radius: 0 !important; /* Remove rounded corners for print */
-    z-index: 999999 !important; /* Ensure it's on top */
-  }
-  
-  /* Hide children of the printing dialog content that are not part of the print section */
-  .radix-dialog-content.is-printing-member-attendance > *:not(#attendance-print-section-wrapper) {
-    display: none !important;
-    visibility: hidden !important;
-  }
-  
-  /* Ensure the actual print section and its content are visible */
-  #attendance-print-section-wrapper,
-  #attendance-print-section-wrapper #attendance-print-section {
-    display: block !important;
-    visibility: visible !important;
-    width: 100% !important;
-  }
+	/* Style the specific dialog content that has the 'is-printing-member-attendance' class */
+	.radix-dialog-content.is-printing-member-attendance {
+		position: fixed; /* Use fixed to ensure it's relative to viewport */
+		left: 0;
+		top: 0;
+		width: 100vw;
+		height: 100vh;
+		max-width: none;
+		max-height: none;
+		overflow: visible; /* Show all content */
+		border: none;
+		box-shadow: none;
+		padding: 20px; /* Add some margin for print */
+		margin: 0;
+		display: block;
+		background-color: white;
+		color: black;
+		border-radius: 0; /* Remove rounded corners for print */
+		z-index: 999999; /* Ensure it's on top */
+	}
 
-  /* Ensure all children of the print section are visible and styled for print */
-  #attendance-print-section-wrapper #attendance-print-section * {
-    visibility: visible !important;
-    color: black !important; /* Ensure text color */
-    background-color: transparent !important; /* Remove unwanted backgrounds */
-  }
+	/* Hide children of the printing dialog content that are not part of the print section */
+	.radix-dialog-content.is-printing-member-attendance
+	> *:not(#attendance-print-section-wrapper) {
+		display: none;
+		visibility: hidden;
+	}
 
-  /* Specific styling for charts within the print section */
-  .radix-dialog-content.is-printing-member-attendance .recharts-wrapper text {
-    fill: black !important;
-  }
-  .radix-dialog-content.is-printing-member-attendance .recharts-surface path,
-  .radix-dialog-content.is-printing-member-attendance .recharts-surface line,
-  .radix-dialog-content.is-printing-member-attendance .recharts-surface circle {
-     stroke: black !important; /* Ensure lines and dots are visible */
-     fill: black !important; /* For dots or area fills if any */
-  }
-   .radix-dialog-content.is-printing-member-attendance .recharts-cartesian-axis-tick-value {
-      fill: black !important;
-   }
+	/* Ensure the actual print section and its content are visible */
+	#attendance-print-section-wrapper,
+	#attendance-print-section-wrapper #attendance-print-section {
+		display: block;
+		visibility: visible;
+		width: 100%;
+	}
 
+	/* Ensure all children of the print section are visible and styled for print */
+	#attendance-print-section-wrapper #attendance-print-section * {
+		visibility: visible;
+		color: black; /* Ensure text color */
+		background-color: transparent; /* Remove unwanted backgrounds */
+	}
 
-  /* Hide elements explicitly marked with .no-print */
-  .no-print {
-    display: none !important;
-    visibility: hidden !important;
-  }
+	/* Specific styling for charts within the print section */
+	.radix-dialog-content.is-printing-member-attendance .recharts-wrapper text {
+		fill: black;
+	}
+	.radix-dialog-content.is-printing-member-attendance .recharts-surface path,
+	.radix-dialog-content.is-printing-member-attendance .recharts-surface line,
+	.radix-dialog-content.is-printing-member-attendance .recharts-surface circle {
+		stroke: black; /* Ensure lines and dots are visible */
+		fill: black; /* For dots or area fills if any */
+	}
+	.radix-dialog-content.is-printing-member-attendance
+		.recharts-cartesian-axis-tick-value {
+		fill: black;
+	}
 
-  /* Remove shadows from cards within the print section for cleaner look */
-  #attendance-print-section .card, 
-  #attendance-print-section [class*="shadow"] {
-    box-shadow: none !important;
-    border: 1px solid #ccc !important; /* Optionally add a light border for definition */
-  }
+	/* Hide elements explicitly marked with .no-print */
+	.no-print {
+		display: none;
+		visibility: hidden;
+	}
 
-  /* Ensure table lines are visible */
-  #attendance-print-section table,
-  #attendance-print-section th,
-  #attendance-print-section td {
-    border: 1px solid #ddd !important;
-  }
-  #attendance-print-section th {
-    background-color: #f2f2f2 !important; /* Light gray for table headers */
-  }
+	/* Remove shadows from cards within the print section for cleaner look */
+	#attendance-print-section .card,
+	#attendance-print-section [class*="shadow"] {
+		box-shadow: none;
+		border: 1px solid #ccc; /* Optionally add a light border for definition */
+	}
 
-  /* Page breaks */
-  @page {
-    size: auto; /* auto is default, but A4 or letter can be set */
-    margin: 0.5in; /* Adjust margins as needed */
-  }
-  /* Avoid breaking charts or tables across pages if possible */
-  #attendance-print-section .card {
-    page-break-inside: avoid;
-  }
-  #attendance-print-section table {
-     page-break-inside: auto; /* Allow tables to break if large */
-  }
-   #attendance-print-section tr {
-     page-break-inside: avoid; /* Try to keep table rows together */
-   }
+	/* Ensure table lines are visible */
+	#attendance-print-section table,
+	#attendance-print-section th,
+	#attendance-print-section td {
+		border: 1px solid #ddd;
+	}
+	#attendance-print-section th {
+		background-color: #f2f2f2; /* Light gray for table headers */
+	}
+
+	/* Page breaks */
+	@page {
+		size: auto; /* auto is default, but A4 or letter can be set */
+		margin: 0.5in; /* Adjust margins as needed */
+	}
+	/* Avoid breaking charts or tables across pages if possible */
+	#attendance-print-section .card {
+		page-break-inside: avoid;
+	}
+	#attendance-print-section table {
+		page-break-inside: auto; /* Allow tables to break if large */
+	}
+	#attendance-print-section tr {
+		page-break-inside: avoid; /* Try to keep table rows together */
+	}
 }
