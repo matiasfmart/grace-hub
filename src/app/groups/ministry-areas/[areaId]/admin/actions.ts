@@ -1,7 +1,6 @@
 "use server";
 import { format } from "date-fns";
 import { revalidatePath } from "next/cache";
-import { findDocuments } from "@/lib/db-utils";
 import type {
 	DefineMeetingSeriesFormValues,
 	Meeting,
@@ -17,9 +16,10 @@ import {
 	updateMeetingInstanceForGroup,
 	updateMeetingInstanceMinuteForGroup,
 	updateMeetingSeriesForGroup,
-} from "@/services/groupMeetingService";
-import { bulkRecalculateAndUpdateRoles } from "@/services/memberService";
-import { updateMinistryAreaAndSyncMembers } from "@/services/ministryAreaService"; // For Area details
+	bulkRecalculateAndUpdateRoles,
+	updateMinistryAreaAndSyncMembers,
+	getMinistryAreaById,
+} from "@/lib/api/services";
 
 // --- Ministry Area Detail Actions ---
 export async function updateMinistryAreaDetailsAction(
@@ -30,13 +30,7 @@ export async function updateMinistryAreaDetailsAction(
 ): Promise<{ success: boolean; message: string; updatedArea?: MinistryArea }> {
 	try {
 		// Get original Area before update
-		const { ObjectId } = await import("mongodb");
-		const originalAreaArr = await findDocuments("ministry-areas", {
-			_id: new ObjectId(areaId),
-		});
-		const original = Array.isArray(originalAreaArr)
-			? originalAreaArr[0]
-			: originalAreaArr;
+		const original = await getMinistryAreaById(areaId);
 		const prevLeaderId = original?.leaderId;
 		const prevMemberIds = original?.memberIds || [];
 
@@ -52,7 +46,7 @@ export async function updateMinistryAreaDetailsAction(
 				...(prevMemberIds || []),
 				updatedArea?.leaderId,
 				...(updatedArea?.memberIds || []),
-			].filter(Boolean),
+			].filter((id): id is string => Boolean(id)),
 		);
 		if (affectedMemberIds.size > 0) {
 			await bulkRecalculateAndUpdateRoles(Array.from(affectedMemberIds));
@@ -270,12 +264,3 @@ export async function handleUpdateAreaMeetingMinuteAction(
 	}
 }
 
-async function _getSeriesForInstance(
-	instanceId: string,
-): Promise<MeetingSeries | undefined> {
-	const allMeetings = await findDocuments<Meeting>("meetings");
-	const meetingInstance = allMeetings.find((m) => m.id === instanceId);
-	if (!meetingInstance) return undefined;
-	const allSeries = await findDocuments<MeetingSeries>("meeting-series");
-	return allSeries.find((s) => s.id === meetingInstance.seriesId);
-}

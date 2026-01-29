@@ -15,7 +15,7 @@ import {
 	addMeetingSeries,
 	deleteMeetingSeries,
 	updateMeetingSeries,
-} from "@/services/meetingService";
+} from "@/lib/api/services";
 
 export async function defineMeetingSeriesAction(
 	newSeriesData: DefineMeetingSeriesFormValues,

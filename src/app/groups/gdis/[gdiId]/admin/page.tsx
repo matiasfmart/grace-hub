@@ -49,13 +49,14 @@ import type {
 	MeetingSeries,
 	Member,
 } from "@/lib/types";
-import { getAllAttendanceRecords } from "@/services/attendanceService";
-import { getAllGdis, getGdiById } from "@/services/gdiService";
 import {
+	getAllAttendanceRecords,
+	getAllGdis,
+	getGdiById,
 	getGroupMeetingInstances,
 	getSeriesForGroup,
-} from "@/services/groupMeetingService";
-import { getAllMembersNonPaginated } from "@/services/memberService";
+	getAllMembersNonPaginated,
+} from "@/lib/api/services";
 import {
 	handleAddGdiMeetingSeriesAction,
 	handleAddMeetingForCurrentGDIAction,

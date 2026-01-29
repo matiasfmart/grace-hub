@@ -71,7 +71,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import type { Member, TitheRecord } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { batchUpdateTithesForMonth } from "@/services/titheService";
+import { batchUpdateTithesForMonth } from "@/lib/api/services";
 import { Label } from "../ui/label";
 import TitheProgressionChart from "./TitheProgressionChart";
 import TitheSummaryCards from "./TitheSummaryCards";

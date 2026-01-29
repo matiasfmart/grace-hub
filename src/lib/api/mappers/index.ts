@@ -1,0 +1,64 @@
+/**
+ * Mappers Index
+ *
+ * Central export point for all API mappers.
+ * Mappers translate between API contracts and frontend domain types.
+ */
+
+// Member mappers
+export {
+  mapApiMemberToMember,
+  mapApiMembersToMembers,
+  mapMemberToApiCreateRequest,
+  mapMemberToApiUpdateRequest,
+} from './memberMapper';
+
+// GDI mappers
+export {
+  mapApiGdiToGdi,
+  mapApiGdisToGdis,
+  mapGdiToApiCreateRequest,
+  mapGdiToApiUpdateRequest,
+} from './gdiMapper';
+
+// Area (Ministry Area) mappers
+export {
+  mapApiAreaToMinistryArea,
+  mapApiAreasToMinistryAreas,
+  mapMinistryAreaToApiCreateRequest,
+  mapMinistryAreaToApiUpdateRequest,
+} from './areaMapper';
+
+// Meeting mappers
+export {
+  mapApiMeetingToMeeting,
+  mapApiMeetingsToMeetings,
+  mapMeetingToApiCreateRequest,
+  mapMeetingToApiUpdateRequest,
+} from './meetingMapper';
+
+// Attendance mappers
+export {
+  mapApiAttendanceToAttendanceRecord,
+  mapApiAttendancesToAttendanceRecords,
+  mapAttendanceRecordToApiCreateRequest,
+  mapAttendanceRecordToApiUpdateRequest,
+  mapBulkAttendanceToApiRequests,
+} from './attendanceMapper';
+
+// Tithe mappers
+export {
+  mapApiTitheToTitheRecord,
+  mapApiTithesToTitheRecords,
+  mapTitheRecordToApiCreateRequest,
+} from './titheMapper';
+
+// Role mappers
+export {
+  mapApiRoleToMemberRole,
+  mapApiRolesToMemberRoles,
+  mapMemberRoleToApiCreateRequest,
+  mapMemberRoleToApiUpdateRequest,
+  getMemberRoleTypes,
+  type MemberRole,
+} from './roleMapper';

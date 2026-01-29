@@ -49,16 +49,14 @@ import type {
 	Member,
 	MinistryArea,
 } from "@/lib/types";
-import { getAllAttendanceRecords } from "@/services/attendanceService";
 import {
+	getAllAttendanceRecords,
 	getGroupMeetingInstances,
 	getSeriesForGroup,
-} from "@/services/groupMeetingService";
-import { getAllMembersNonPaginated } from "@/services/memberService";
-import {
+	getAllMembersNonPaginated,
 	getMinistryAreaById,
 	updateMinistryAreaAndSyncMembers,
-} from "@/services/ministryAreaService";
+} from "@/lib/api/services";
 import {
 	handleAddAreaMeetingSeriesAction,
 	handleAddMeetingForCurrentAreaAction,

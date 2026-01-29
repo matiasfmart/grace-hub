@@ -1,9 +1,11 @@
 import { addBulkMembersAction } from "@/app/actions/memberActions";
 import BulkAddMembersView from "@/components/members/bulk-add-members-view";
 import type { GDI, Member, MinistryArea } from "@/lib/types";
-import { getAllGdis } from "@/services/gdiService";
-import { getAllMembersNonPaginated } from "@/services/memberService";
-import { getAllMinistryAreas } from "@/services/ministryAreaService";
+import {
+	getAllGdis,
+	getAllMembersNonPaginated,
+	getAllMinistryAreas,
+} from "@/lib/api/services";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

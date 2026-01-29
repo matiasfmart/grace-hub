@@ -1,50 +1,11 @@
-import type { ObjectId } from "mongodb";
 import { z } from "zod";
 
 // ============================================
-// MONGODB DOCUMENT TYPES (Internal/Database)
+// ENUMS AND BASE TYPES
 // ============================================
 
 export const MemberRoleEnum = z.enum(["Leader", "Worker", "GeneralAttendee"]);
 export type MemberRoleType = z.infer<typeof MemberRoleEnum>;
-
-/**
- * MongoDB document structure for Members
- * Uses ObjectId for references for better performance and data integrity
- */
-export interface MemberDocument {
-	_id?: ObjectId;
-	firstName: string;
-	lastName: string;
-	email: string;
-	phone: string;
-	birthDate?: string; // YYYY-MM-DD
-	churchJoinDate?: string; // YYYY-MM-DD
-	baptismDate?: string; // User input, e.g., "June 2023" or "2023-06-15"
-	attendsLifeSchool?: boolean;
-	attendsBibleInstitute?: boolean;
-	fromAnotherChurch?: boolean;
-	assignedGDIId?: ObjectId | null; // ObjectId reference to GDI
-	assignedAreaIds?: ObjectId[]; // Array of ObjectId references to MinistryAreas
-	status: "Active" | "Inactive" | "New";
-	avatarUrl?: string;
-	roles?: MemberRoleType[];
-}
-
-export interface GDIDocument {
-	_id?: ObjectId;
-	name: string;
-	guideId: ObjectId; // ObjectId reference to Member
-	memberIds: ObjectId[]; // Array of ObjectId references to Members
-}
-
-export interface MinistryAreaDocument {
-	_id?: ObjectId;
-	name: string;
-	description: string;
-	leaderId: ObjectId; // ObjectId reference to Member
-	memberIds: ObjectId[]; // Array of ObjectId references to Members
-}
 
 export const MeetingTargetRoleEnum = z.enum([
 	"allMembers",
@@ -82,62 +43,12 @@ export type MeetingFrequencyType = z.infer<typeof MeetingFrequencyEnum>;
 export const MeetingSeriesTypeEnum = z.enum(["general", "gdi", "ministryArea"]);
 export type MeetingSeriesType = z.infer<typeof MeetingSeriesTypeEnum>;
 
-export interface MeetingSeriesDocument {
-	_id?: ObjectId;
-	name: string;
-	description?: string;
-	defaultTime: string; // HH:MM
-	defaultLocation: string;
-	seriesType: MeetingSeriesType;
-	ownerGroupId?: ObjectId | null; // ObjectId of GDI or MinistryArea if seriesType is 'gdi' or 'ministryArea'
-	targetAttendeeGroups: MeetingTargetRoleType[]; // For 'general' series
-	frequency: MeetingFrequencyType;
-	oneTimeDate?: string; // YYYY-MM-DD, only if frequency is "OneTime"
-	cancelledDates?: string[]; // YYYY-MM-DD, dates of recurring instances explicitly cancelled
-	// Weekly recurrence
-	weeklyDays?: DayOfWeekType[];
-	// Monthly recurrence
-	monthlyRuleType?: MonthlyRuleType;
-	monthlyDayOfMonth?: number; // 1-31
-	monthlyWeekOrdinal?: WeekOrdinalType;
-	monthlyDayOfWeek?: DayOfWeekType;
-}
-
-export interface MeetingDocument {
-	_id?: ObjectId;
-	seriesId: ObjectId; // ObjectId reference to MeetingSeries
-	name: string;
-	date: string; // YYYY-MM-DD
-	time: string; // HH:MM
-	location: string;
-	description?: string;
-	attendeeUids: ObjectId[]; // Array of ObjectId references to Members
-	minute?: string | null;
-}
-
-export interface AttendanceRecordDocument {
-	_id?: ObjectId;
-	meetingId: ObjectId; // ObjectId reference to Meeting
-	memberId: ObjectId; // ObjectId reference to Member
-	attended: boolean;
-	notes?: string;
-}
-
-export interface TitheRecordDocument {
-	_id?: ObjectId;
-	memberId: ObjectId; // ObjectId reference to Member
-	year: number; // e.g., 2024
-	month: number; // 1-12
-}
-
 // ============================================
 // CLIENT TYPES (API/UI)
 // ============================================
-// These are serialized versions sent to the client
-// ObjectIds are converted to strings
 
 export interface Member {
-	id: string; // Serialized from _id
+	id: string;
 	firstName: string;
 	lastName: string;
 	email: string;

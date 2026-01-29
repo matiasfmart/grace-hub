@@ -33,15 +33,15 @@ import {
 	NO_ROLE_FILTER_VALUE,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { getAllAttendanceRecords } from "@/services/attendanceService";
-import { getAllGdis } from "@/services/gdiService";
 import {
+	getAllAttendanceRecords,
+	getAllGdis,
 	getAllMeetingSeries,
 	getFilteredMeetingInstances,
 	getResolvedAttendeesForMeeting,
-} from "@/services/meetingService";
-import { getAllMembersNonPaginated } from "@/services/memberService";
-import { getAllMinistryAreas } from "@/services/ministryAreaService";
+	getAllMembersNonPaginated,
+	getAllMinistryAreas,
+} from "@/lib/api/services";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

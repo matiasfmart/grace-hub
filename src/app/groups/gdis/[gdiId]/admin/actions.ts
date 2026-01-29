@@ -1,7 +1,6 @@
 "use server";
 import { format } from "date-fns";
 import { revalidatePath } from "next/cache";
-import { findDocuments } from "@/lib/db-utils";
 import type {
 	DefineMeetingSeriesFormValues,
 	GDI,
@@ -9,8 +8,8 @@ import type {
 	MeetingInstanceFormValues,
 	MeetingSeries,
 } from "@/lib/types";
-import { updateGdiAndSyncMembers } from "@/services/gdiService"; // For GDI details
 import {
+	updateGdiAndSyncMembers,
 	addMeetingInstanceForGroup,
 	addMeetingSeriesForGroup,
 	deleteMeetingInstanceForGroup,
@@ -18,8 +17,9 @@ import {
 	updateMeetingInstanceForGroup,
 	updateMeetingInstanceMinuteForGroup,
 	updateMeetingSeriesForGroup,
-} from "@/services/groupMeetingService";
-import { bulkRecalculateAndUpdateRoles } from "@/services/memberService";
+	bulkRecalculateAndUpdateRoles,
+	getGdiById,
+} from "@/lib/api/services";
 
 // --- GDI Detail Actions ---
 export async function updateGdiDetailsAction(
@@ -28,13 +28,7 @@ export async function updateGdiDetailsAction(
 ): Promise<{ success: boolean; message: string; updatedGdi?: GDI }> {
 	try {
 		// Get original GDI before update
-		const { ObjectId } = await import("mongodb");
-		const originalGdiArr = await findDocuments("gdis", {
-			_id: new ObjectId(gdiIdToUpdate),
-		});
-		const original = Array.isArray(originalGdiArr)
-			? originalGdiArr[0]
-			: originalGdiArr;
+		const original = await getGdiById(gdiIdToUpdate);
 		const prevGuideId = original?.guideId;
 		const prevMemberIds = original?.memberIds || [];
 
@@ -59,7 +53,7 @@ export async function updateGdiDetailsAction(
 				...(prevMemberIds || []),
 				updatedGdi?.guideId,
 				...(updatedGdi?.memberIds || []),
-			].filter(Boolean),
+			].filter((id): id is string => Boolean(id)),
 		);
 		if (affectedMemberIds.size > 0) {
 			await bulkRecalculateAndUpdateRoles(Array.from(affectedMemberIds));
@@ -269,13 +263,3 @@ export async function handleUpdateGdiMeetingMinuteAction(
 	}
 }
 
-// Helper to find the series an instance belongs to (needed for some operations)
-async function _getSeriesForInstance(
-	instanceId: string,
-): Promise<MeetingSeries | undefined> {
-	const allMeetings = await findDocuments<Meeting>("meetings"); // Assuming readDbFile is accessible
-	const meetingInstance = allMeetings.find((m) => m.id === instanceId);
-	if (!meetingInstance) return undefined;
-	const allSeries = await findDocuments<MeetingSeries>("meeting-series");
-	return allSeries.find((s) => s.id === meetingInstance.seriesId);
-}

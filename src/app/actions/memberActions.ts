@@ -10,7 +10,7 @@ import {
 	getMemberById,
 	updateMember,
 	updateMemberAssignments,
-} from "@/services/memberService";
+} from "@/lib/api/services";
 
 export async function addSingleMemberAction(
 	newMemberData: MemberWriteData,

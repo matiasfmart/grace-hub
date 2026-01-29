@@ -5,15 +5,16 @@ import {
 	updateMemberAction,
 } from "@/app/actions/memberActions";
 import MembersListView from "@/components/members/members-list-view";
-import { getAllAttendanceRecords } from "@/services/attendanceService";
-import { getAllGdis } from "@/services/gdiService";
-import { getAllMeetingSeries, getAllMeetings } from "@/services/meetingService";
 import {
+	getAllAttendanceRecords,
+	getAllGdis,
+	getAllMeetingSeries,
+	getAllMeetings,
 	getAllMembers,
 	getAllMembersNonPaginated,
-} from "@/services/memberService";
-import { getAllMinistryAreas } from "@/services/ministryAreaService";
-import { getAllTitheRecords } from "@/services/titheService";
+	getAllMinistryAreas,
+	getAllTitheRecords,
+} from "@/lib/api/services";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

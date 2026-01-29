@@ -5,13 +5,13 @@ import {
 	NO_GDI_FILTER_VALUE,
 	NO_ROLE_FILTER_VALUE,
 } from "@/lib/types";
-import { getAllGdis } from "@/services/gdiService";
 import {
+	getAllGdis,
 	getAllMembers,
 	getAllMembersNonPaginated,
-} from "@/services/memberService";
-import { getAllMinistryAreas } from "@/services/ministryAreaService";
-import { getAllTitheRecords } from "@/services/titheService";
+	getAllMinistryAreas,
+	getAllTitheRecords,
+} from "@/lib/api/services";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

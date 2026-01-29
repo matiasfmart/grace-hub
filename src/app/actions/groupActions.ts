@@ -11,13 +11,11 @@ import {
 	addGdi as addGdiService,
 	deleteGdi as deleteGdiService,
 	getAllGdis,
-} from "@/services/gdiService";
-import { bulkRecalculateAndUpdateRoles } from "@/services/memberService";
-import {
 	addMinistryArea as addMinistryAreaService,
 	deleteMinistryArea as deleteMinistryAreaService,
 	getAllMinistryAreas,
-} from "@/services/ministryAreaService";
+	bulkRecalculateAndUpdateRoles,
+} from "@/lib/api/services";
 
 export async function addMinistryAreaActionSvc(
 	newAreaData: Partial<Omit<MinistryArea, "id">> & {

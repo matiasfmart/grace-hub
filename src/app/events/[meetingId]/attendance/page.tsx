@@ -20,16 +20,14 @@ import {
 	getAttendanceForMeeting,
 	getResolvedAttendees,
 	saveMeetingAttendance,
-} from "@/services/attendanceService";
-import {
 	deleteMeetingInstance,
 	getAllMeetingSeries,
 	getMeetingById,
 	getMeetingSeriesById,
 	updateMeeting,
 	updateMeetingMinute,
-} from "@/services/meetingService";
-import { getAllMembersNonPaginated } from "@/services/memberService";
+	getAllMembersNonPaginated,
+} from "@/lib/api/services";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

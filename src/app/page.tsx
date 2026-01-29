@@ -14,10 +14,13 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { getAllAttendanceRecords } from "@/services/attendanceService";
-import { getAllGdis } from "@/services/gdiService";
-import { getAllMeetingSeries, getAllMeetings } from "@/services/meetingService";
-import { getAllMembersNonPaginated } from "@/services/memberService";
+import {
+	getAllAttendanceRecords,
+	getAllGdis,
+	getAllMeetingSeries,
+	getAllMeetings,
+	getAllMembersNonPaginated,
+} from "@/lib/api/services";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
