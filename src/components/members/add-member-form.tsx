@@ -69,7 +69,7 @@ export default function AddMemberForm({
 		attendsBibleInstitute: initialMemberData?.attendsBibleInstitute || false,
 		fromAnotherChurch: initialMemberData?.fromAnotherChurch || false,
 		status: initialMemberData?.status || "New",
-		avatarUrl: initialMemberData?.avatarUrl || "",
+		address: initialMemberData?.address || "",
 		assignedGDIId:
 			initialMemberData?.assignedGDIId === null
 				? NONE_GDI_OPTION_VALUE
@@ -96,7 +96,7 @@ export default function AddMemberForm({
 			attendsBibleInstitute: initialMemberData?.attendsBibleInstitute || false,
 			fromAnotherChurch: initialMemberData?.fromAnotherChurch || false,
 			status: initialMemberData?.status || "New",
-			avatarUrl: initialMemberData?.avatarUrl || "",
+			address: initialMemberData?.address || "",
 			assignedGDIId:
 				initialMemberData?.assignedGDIId === null
 					? NONE_GDI_OPTION_VALUE
@@ -128,7 +128,7 @@ export default function AddMemberForm({
 				attendsBibleInstitute: false,
 				fromAnotherChurch: false,
 				status: "New",
-				avatarUrl: "",
+				address: "",
 				assignedGDIId: NONE_GDI_OPTION_VALUE,
 				assignedAreaIds: [],
 			});
@@ -304,14 +304,14 @@ export default function AddMemberForm({
 						/>
 						<FormField
 							control={form.control}
-							name="avatarUrl"
+							name="address"
 							render={({ field }) => (
 								<FormItem className="md:col-span-2">
-									<FormLabel>URL del Avatar (Opcional)</FormLabel>
+									<FormLabel>Dirección (Opcional)</FormLabel>
 									<FormControl>
 										<Input
-											type="url"
-											placeholder="https://avatar.com/img.png"
+											type="text"
+											placeholder="Calle, número, ciudad..."
 											className="text-sm max-w-full"
 											{...field}
 										/>

@@ -128,7 +128,7 @@ type SortKey =
 			| "email"
 			| "assignedGDIId"
 			| "assignedAreaIds"
-			| "avatarUrl"
+			| "address"
 			| "attendsLifeSchool"
 			| "attendsBibleInstitute"
 			| "fromAnotherChurch"
@@ -750,11 +750,6 @@ export default function MembersListView({
 								>
 									<TableCell>
 										<Avatar>
-											<AvatarImage
-												src={member.avatarUrl}
-												alt={`${member.firstName} ${member.lastName}`}
-												data-ai-hint="person portrait"
-											/>
 											<AvatarFallback>
 												{member.firstName.substring(0, 1)}
 												{member.lastName.substring(0, 1)}

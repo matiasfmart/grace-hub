@@ -30,7 +30,7 @@ export function mapApiMemberToMember(apiMember: ApiMemberResponse): Member {
     assignedGDIId: null, // Will be populated separately via GDI assignments
     assignedAreaIds: [], // Will be populated separately via Area assignments
     status: apiMember.status,
-    avatarUrl: undefined,
+    address: apiMember.address || undefined,
     roles: [], // Will be populated separately via Role assignments
   };
 }
@@ -69,6 +69,7 @@ export function mapMemberToApiCreateRequest(member: MemberWriteData): ApiCreateM
     joinDate: member.churchJoinDate,
     bibleStudy,
     typeBibleStudy,
+    address: member.address,
   };
 }
 
@@ -101,6 +102,8 @@ export function mapMemberToApiUpdateRequest(member: Partial<MemberWriteData>): A
       request.typeBibleStudy = undefined;
     }
   }
+
+  if (member.address !== undefined) request.address = member.address;
 
   return request;
 }

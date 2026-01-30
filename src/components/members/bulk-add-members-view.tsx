@@ -73,7 +73,7 @@ export default function BulkAddMembersView({
 				attendsBibleInstitute: newMemberData.attendsBibleInstitute,
 				fromAnotherChurch: newMemberData.fromAnotherChurch,
 				status: newMemberData.status,
-				avatarUrl: newMemberData.avatarUrl || "https://placehold.co/100x100",
+				address: newMemberData.address || "",
 				assignedGDIId:
 					newMemberData.assignedGDIId === NONE_GDI_OPTION_VALUE
 						? null
@@ -193,11 +193,6 @@ export default function BulkAddMembersView({
 						<TableRow key={member.id}>
 							<TableCell>
 								<Avatar className="h-9 w-9">
-									<AvatarImage
-										src={member.avatarUrl}
-										alt={`${member.firstName} ${member.lastName}`}
-										data-ai-hint="person portrait"
-									/>
 									<AvatarFallback>
 										{member.firstName.substring(0, 1)}
 										{member.lastName.substring(0, 1)}

@@ -168,11 +168,6 @@ export default function AttendanceManagerView({
 										className="h-5 w-5"
 									/>
 									<Avatar className="h-9 w-9">
-										<AvatarImage
-											src={attendee.avatarUrl}
-											alt={`${attendee.firstName} ${attendee.lastName}`}
-											data-ai-hint="person portrait"
-										/>
 										<AvatarFallback>
 											{attendee.firstName.charAt(0)}
 											{attendee.lastName.charAt(0)}

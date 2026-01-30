@@ -347,11 +347,6 @@ export default function MemberDetailsDialog({
 				<DialogHeader className="p-6 border-b no-print">
 					<div className="flex items-center space-x-4">
 						<Avatar className="h-16 w-16 sm:h-20 sm:w-20">
-							<AvatarImage
-								src={member.avatarUrl}
-								alt={`${member.firstName} ${member.lastName}`}
-								data-ai-hint="person portrait"
-							/>
 							<AvatarFallback>
 								{member.firstName.substring(0, 1)}
 								{member.lastName.substring(0, 1)}
@@ -450,6 +445,12 @@ export default function MemberDetailsDialog({
 											Teléfono:
 										</span>
 										<span className="col-span-2">{member.phone}</span>
+									</div>
+									<div className="grid grid-cols-3 gap-2">
+										<span className="font-semibold text-muted-foreground">
+											Dirección:
+										</span>
+										<span className="col-span-2">{member.address || "No especificada"}</span>
 									</div>
 									<div className="grid grid-cols-3 gap-2">
 										<span className="font-semibold text-muted-foreground">

@@ -33,6 +33,7 @@ export interface ApiMemberResponse {
   joinDate?: string;
   bibleStudy: boolean;
   typeBibleStudy?: string;
+  address?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -121,6 +122,7 @@ export interface ApiCreateMemberRequest {
   joinDate?: string;
   bibleStudy?: boolean;
   typeBibleStudy?: string;
+  address?: string;
 }
 
 export interface ApiUpdateMemberRequest {
@@ -133,6 +135,7 @@ export interface ApiUpdateMemberRequest {
   joinDate?: string;
   bibleStudy?: boolean;
   typeBibleStudy?: string;
+  address?: string;
 }
 
 export interface ApiCreateGdiRequest {

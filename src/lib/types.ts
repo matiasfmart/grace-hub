@@ -65,7 +65,7 @@ export interface Member {
 	assignedGDIId?: string | null;
 	assignedAreaIds?: string[];
 	status: "Active" | "Inactive" | "New";
-	avatarUrl?: string;
+	address?: string;
 	roles?: MemberRoleType[];
 }
 
@@ -187,11 +187,7 @@ export const AddMemberFormSchema = z.object({
 	attendsBibleInstitute: z.boolean().default(false),
 	fromAnotherChurch: z.boolean().default(false),
 	status: MemberStatusSchema,
-	avatarUrl: z
-		.string()
-		.url({ message: "URL inválida." })
-		.optional()
-		.or(z.literal("")),
+	address: z.string().optional().or(z.literal("")),
 	assignedGDIId: z.string().nullable().optional(),
 	assignedAreaIds: z.array(z.string()).optional(),
 });

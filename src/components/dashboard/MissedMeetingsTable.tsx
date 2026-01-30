@@ -439,11 +439,6 @@ export default function MissedMeetingsTable({
 										<TableCell>
 											<div className="flex items-center space-x-2">
 												<Avatar className="h-8 w-8">
-													<AvatarImage
-														src={member.avatarUrl}
-														alt={`${member.firstName} ${member.lastName}`}
-														data-ai-hint="person portrait"
-													/>
 													<AvatarFallback>
 														{member.firstName.charAt(0)}
 														{member.lastName.charAt(0)}
