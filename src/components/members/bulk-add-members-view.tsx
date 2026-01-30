@@ -65,13 +65,10 @@ export default function BulkAddMembersView({
 				lastName: newMemberData.lastName,
 				email: newMemberData.email || "",
 				phone: newMemberData.phone,
-				birthDate: newMemberData.birthDate
-					? newMemberData.birthDate.toISOString().split("T")[0]
-					: undefined,
-				churchJoinDate: newMemberData.churchJoinDate
-					? newMemberData.churchJoinDate.toISOString().split("T")[0]
-					: undefined,
-				baptismDate: newMemberData.baptismDate || "",
+				// Convert Date from form to string for Member type (YYYY-MM-DD format)
+				birthDate: newMemberData.birthDate?.toISOString().split("T")[0],
+				churchJoinDate: newMemberData.churchJoinDate?.toISOString().split("T")[0],
+				baptismDate: newMemberData.baptismDate?.toISOString().split("T")[0],
 				attendsLifeSchool: newMemberData.attendsLifeSchool,
 				attendsBibleInstitute: newMemberData.attendsBibleInstitute,
 				fromAnotherChurch: newMemberData.fromAnotherChurch,

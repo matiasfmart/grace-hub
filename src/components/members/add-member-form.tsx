@@ -31,6 +31,7 @@ import type {
 	MinistryArea,
 } from "@/lib/types";
 import { AddMemberFormSchema, NONE_GDI_OPTION_VALUE } from "@/lib/types";
+import { parseApiDate } from "@/lib/utils/date";
 
 interface AddMemberFormProps {
 	onDialogClose?: () => void; // For dialog control
@@ -60,13 +61,10 @@ export default function AddMemberForm({
 		lastName: initialMemberData?.lastName || "",
 		email: initialMemberData?.email || "",
 		phone: initialMemberData?.phone || "",
-		birthDate: initialMemberData?.birthDate
-			? new Date(`${initialMemberData.birthDate}T00:00:00Z`)
-			: undefined,
-		churchJoinDate: initialMemberData?.churchJoinDate
-			? new Date(`${initialMemberData.churchJoinDate}T00:00:00Z`)
-			: undefined,
-		baptismDate: initialMemberData?.baptismDate || "",
+		// Convert string dates from Member to Date for the form (DatePicker needs Date)
+		birthDate: parseApiDate(initialMemberData?.birthDate),
+		churchJoinDate: parseApiDate(initialMemberData?.churchJoinDate),
+		baptismDate: parseApiDate(initialMemberData?.baptismDate),
 		attendsLifeSchool: initialMemberData?.attendsLifeSchool || false,
 		attendsBibleInstitute: initialMemberData?.attendsBibleInstitute || false,
 		fromAnotherChurch: initialMemberData?.fromAnotherChurch || false,
@@ -90,13 +88,10 @@ export default function AddMemberForm({
 			lastName: initialMemberData?.lastName || "",
 			email: initialMemberData?.email || "",
 			phone: initialMemberData?.phone || "",
-			birthDate: initialMemberData?.birthDate
-				? new Date(`${initialMemberData.birthDate}T00:00:00Z`)
-				: undefined,
-			churchJoinDate: initialMemberData?.churchJoinDate
-				? new Date(`${initialMemberData.churchJoinDate}T00:00:00Z`)
-				: undefined,
-			baptismDate: initialMemberData?.baptismDate || "",
+			// Convert string dates from Member to Date for the form (DatePicker needs Date)
+			birthDate: parseApiDate(initialMemberData?.birthDate),
+			churchJoinDate: parseApiDate(initialMemberData?.churchJoinDate),
+			baptismDate: parseApiDate(initialMemberData?.baptismDate),
 			attendsLifeSchool: initialMemberData?.attendsLifeSchool || false,
 			attendsBibleInstitute: initialMemberData?.attendsBibleInstitute || false,
 			fromAnotherChurch: initialMemberData?.fromAnotherChurch || false,
@@ -128,7 +123,7 @@ export default function AddMemberForm({
 				phone: "",
 				birthDate: undefined,
 				churchJoinDate: undefined,
-				baptismDate: "",
+				baptismDate: undefined,
 				attendsLifeSchool: false,
 				attendsBibleInstitute: false,
 				fromAnotherChurch: false,
@@ -274,19 +269,13 @@ export default function AddMemberForm({
 							control={form.control}
 							name="baptismDate"
 							render={({ field }) => (
-								<FormItem>
+								<FormItem className="flex flex-col">
 									<FormLabel>Fecha de Bautismo</FormLabel>
-									<FormControl>
-										<Input
-											placeholder="ej: 2023-06-15"
-											className="text-sm max-w-full"
-											{...field}
-										/>
-									</FormControl>
-									<FormDescription>
-										Día y mes (Junio 15), mes y año (Junio 2023), o fecha
-										completa (2023-06-15).
-									</FormDescription>
+									<DatePicker
+										date={field.value}
+										setDate={field.onChange}
+										placeholder="Seleccionar"
+									/>
 									<FormMessage />
 								</FormItem>
 							)}

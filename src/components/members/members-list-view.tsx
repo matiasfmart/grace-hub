@@ -88,6 +88,7 @@ import {
 	NO_ROLE_FILTER_VALUE,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { toApiDateString } from "@/lib/utils/date";
 import AddMemberForm from "./add-member-form";
 import MemberDetailsDialog from "./member-details-dialog";
 
@@ -370,12 +371,10 @@ export default function MembersListView({
 		const newMemberWriteData: MemberWriteData = {
 			...data,
 			email: data.email ?? "",
-			birthDate: data.birthDate
-				? data.birthDate.toISOString().split("T")[0]
-				: undefined,
-			churchJoinDate: data.churchJoinDate
-				? data.churchJoinDate.toISOString().split("T")[0]
-				: undefined,
+			// Convert Date from form to string for MemberWriteData (YYYY-MM-DD format)
+			birthDate: toApiDateString(data.birthDate),
+			churchJoinDate: toApiDateString(data.churchJoinDate),
+			baptismDate: toApiDateString(data.baptismDate),
 			roles: [],
 		};
 

@@ -47,6 +47,9 @@ export type MeetingSeriesType = z.infer<typeof MeetingSeriesTypeEnum>;
 // CLIENT TYPES (API/UI)
 // ============================================
 
+// Note: Dates are kept as strings (YYYY-MM-DD format from API) because
+// Next.js cannot serialize Date objects when passing from Server to Client Components.
+// Use formatDisplayDate() or formatShortDate() from lib/utils/date.ts to display them.
 export interface Member {
 	id: string;
 	firstName: string;
@@ -179,7 +182,7 @@ export const AddMemberFormSchema = z.object({
 		.min(7, { message: "El número de teléfono parece demasiado corto." }),
 	birthDate: z.date().optional(),
 	churchJoinDate: z.date().optional(),
-	baptismDate: z.string().optional(),
+	baptismDate: z.date().optional(),
 	attendsLifeSchool: z.boolean().default(false),
 	attendsBibleInstitute: z.boolean().default(false),
 	fromAnotherChurch: z.boolean().default(false),

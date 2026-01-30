@@ -56,6 +56,7 @@ import type {
 	MinistryArea,
 	TitheRecord,
 } from "@/lib/types";
+import { toApiDateString } from "@/lib/utils/date";
 import AddMemberForm from "./add-member-form";
 import MemberAttendanceSummary from "./member-attendance-chart";
 import MemberAttendanceLineChart from "./member-attendance-line-chart";
@@ -128,19 +129,24 @@ export default function MemberDetailsDialog({
 		}
 	}, [isOpen]);
 
-	const formatDate = (dateString?: string) => {
-		if (!dateString) return "N/A";
-		try {
-			const date = new Date(`${dateString}T00:00:00Z`);
-			return date.toLocaleDateString("es-ES", {
-				year: "numeric",
-				month: "long",
-				day: "numeric",
-				timeZone: "UTC",
-			});
-		} catch (_e) {
-			return dateString;
+	const formatDate = (date?: Date | string) => {
+		if (!date) return "N/A";
+		// Handle both Date objects and strings (strings may come from serialization)
+		// Check if it's already a valid Date with getTime method
+		let dateObj: Date;
+		if (date instanceof Date && typeof date.getTime === 'function') {
+			dateObj = date;
+		} else {
+			// Convert string or invalid Date-like object to Date
+			dateObj = new Date(String(date));
 		}
+		if (isNaN(dateObj.getTime())) return "N/A";
+		return dateObj.toLocaleDateString("es-ES", {
+			year: "numeric",
+			month: "long",
+			day: "numeric",
+			timeZone: "UTC",
+		});
 	};
 
 	const memberGDIInfo = useMemo(() => {
@@ -171,7 +177,7 @@ export default function MemberDetailsDialog({
 			.filter(Boolean) as string[];
 	}, [member, allMinistryAreas]);
 
-	const baptismDate = member?.baptismDate || "N/A";
+	const baptismDate = member?.baptismDate ? formatDate(member.baptismDate) : "N/A";
 
 	const displayStatus = (status: Member["status"]) => {
 		switch (status) {
@@ -245,12 +251,10 @@ export default function MemberDetailsDialog({
 		const updatedMemberData: Member = {
 			...member, // Preserva campos no editables como id, _id, roles, etc.
 			...data,
-			birthDate: data.birthDate
-				? data.birthDate.toISOString().split("T")[0]
-				: undefined,
-			churchJoinDate: data.churchJoinDate
-				? data.churchJoinDate.toISOString().split("T")[0]
-				: undefined,
+			// Convert Date from form to string for Member type (YYYY-MM-DD format)
+			birthDate: toApiDateString(data.birthDate),
+			churchJoinDate: toApiDateString(data.churchJoinDate),
+			baptismDate: toApiDateString(data.baptismDate),
 		};
 
 		startTransition(async () => {

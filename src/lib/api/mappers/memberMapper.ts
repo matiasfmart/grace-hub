@@ -19,9 +19,11 @@ export function mapApiMemberToMember(apiMember: ApiMemberResponse): Member {
     lastName: apiMember.lastName,
     email: '', // Backend doesn't have email, using contact
     phone: apiMember.contact || '',
-    birthDate: apiMember.birthDate,
-    churchJoinDate: apiMember.joinDate,
-    baptismDate: apiMember.baptismDate,
+    // Keep dates as strings (YYYY-MM-DD) - Next.js can't serialize Date objects
+    // between Server and Client Components
+    birthDate: apiMember.birthDate || undefined,
+    churchJoinDate: apiMember.joinDate || undefined,
+    baptismDate: apiMember.baptismDate || undefined,
     attendsLifeSchool: apiMember.bibleStudy && apiMember.typeBibleStudy === 'LifeSchool',
     attendsBibleInstitute: apiMember.bibleStudy && apiMember.typeBibleStudy === 'BibleInstitute',
     fromAnotherChurch: false, // Backend doesn't track this
@@ -61,6 +63,7 @@ export function mapMemberToApiCreateRequest(member: MemberWriteData): ApiCreateM
     lastName: member.lastName,
     contact: member.phone || member.email,
     status: member.status,
+    // Dates are already strings in YYYY-MM-DD format (from Member type)
     birthDate: member.birthDate,
     baptismDate: member.baptismDate,
     joinDate: member.churchJoinDate,
@@ -81,6 +84,7 @@ export function mapMemberToApiUpdateRequest(member: Partial<MemberWriteData>): A
     request.contact = member.phone || member.email;
   }
   if (member.status !== undefined) request.status = member.status;
+  // Dates are already strings in YYYY-MM-DD format (from Member type)
   if (member.birthDate !== undefined) request.birthDate = member.birthDate;
   if (member.baptismDate !== undefined) request.baptismDate = member.baptismDate;
   if (member.churchJoinDate !== undefined) request.joinDate = member.churchJoinDate;
