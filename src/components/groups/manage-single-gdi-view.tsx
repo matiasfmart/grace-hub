@@ -29,7 +29,7 @@ interface ManageSingleGdiViewProps {
 		gdiIdOrNewData:
 			| string
 			| (Partial<Omit<GDI, "id">> & { name: string; guideId: string }),
-		updatedData?: Partial<Pick<GDI, "name" | "guideId" | "memberIds">>,
+		updatedData?: Partial<Pick<GDI, "name" | "guideId" | "mentorId" | "memberIds">>,
 	) => Promise<{
 		success: boolean;
 		message: string;
@@ -148,6 +148,13 @@ export default function ManageSingleGdiView({
 		});
 	};
 
+	const handleMentorChange = (newMentorId: string) => {
+		setEditableGdi((prev) => ({
+			...prev,
+			mentorId: newMentorId || undefined,
+		}));
+	};
+
 	const handleAvailableMemberSelection = (
 		memberId: string,
 		isChecked: boolean,
@@ -199,6 +206,7 @@ export default function ManageSingleGdiView({
 			const dataToSend = {
 				name: editableGdi.name,
 				guideId: editableGdi.guideId,
+				mentorId: editableGdi.mentorId,
 				memberIds: finalMemberIds,
 			};
 
@@ -268,6 +276,16 @@ export default function ManageSingleGdiView({
 		}));
 	}, [activeMembers, allGdis, isAdding, initialGdi.id]);
 
+	const mentorOptions = useMemo(() => {
+		return [
+			{ value: "", label: "Sin asignar" },
+			...activeMembers.map((member) => ({
+				value: member.id,
+				label: `${member.firstName} ${member.lastName}`,
+			})),
+		];
+	}, [activeMembers]);
+
 	return (
 		<>
 			<CardContent className="grid grid-cols-1 lg:grid-cols-5 gap-6 p-0 pt-4">
@@ -309,6 +327,26 @@ export default function ManageSingleGdiView({
 							onChange={handleInputChange}
 							disabled={isPending}
 							className="mt-1"
+						/>
+					</div>
+
+					<div className="p-4 border rounded-lg shadow-sm bg-card">
+						<h3 className="text-lg font-semibold mb-3 flex items-center">
+							<UserCheck className="mr-2 h-5 w-5 text-muted-foreground" />
+							Mentor del GDI
+						</h3>
+						<Label htmlFor="mentorIdSelect">
+							Seleccionar Mentor (opcional)
+						</Label>
+						<Combobox
+							options={mentorOptions}
+							value={editableGdi.mentorId || ""}
+							onChange={handleMentorChange}
+							placeholder="Seleccionar mentor"
+							searchPlaceholder="Buscar mentor..."
+							emptyStateMessage="No se encontró ningún miembro activo."
+							disabled={isPending}
+							triggerClassName="mt-1"
 						/>
 					</div>
 				</div>

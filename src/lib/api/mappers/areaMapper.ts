@@ -15,7 +15,8 @@ export function mapApiAreaToMinistryArea(apiArea: ApiAreaResponse): MinistryArea
     id: String(apiArea.areaId),
     name: apiArea.name,
     description: apiArea.description || '',
-    leaderId: '', // Will be populated separately via role/assignment lookup
+    leaderId: apiArea.leaderId ? String(apiArea.leaderId) : '',
+    mentorId: apiArea.mentorId ? String(apiArea.mentorId) : '',
     memberIds: [], // Will be populated separately via member assignments
   };
 }
@@ -34,6 +35,8 @@ export function mapMinistryAreaToApiCreateRequest(area: MinistryAreaWriteData): 
   return {
     name: area.name,
     description: area.description,
+    leaderId: area.leaderId ? Number(area.leaderId) : undefined,
+    mentorId: area.mentorId ? Number(area.mentorId) : undefined,
   };
 }
 
@@ -45,6 +48,8 @@ export function mapMinistryAreaToApiUpdateRequest(area: Partial<MinistryAreaWrit
 
   if (area.name !== undefined) request.name = area.name;
   if (area.description !== undefined) request.description = area.description;
+  if (area.leaderId !== undefined) request.leaderId = area.leaderId ? Number(area.leaderId) : undefined;
+  if (area.mentorId !== undefined) request.mentorId = area.mentorId ? Number(area.mentorId) : undefined;
 
   return request;
 }

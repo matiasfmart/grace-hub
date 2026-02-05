@@ -24,7 +24,7 @@ import {
 // --- GDI Detail Actions ---
 export async function updateGdiDetailsAction(
 	gdiIdToUpdate: string,
-	updatedData: Partial<Pick<GDI, "name" | "guideId" | "memberIds">>,
+	updatedData: Partial<Pick<GDI, "name" | "guideId" | "mentorId" | "memberIds">>,
 ): Promise<{ success: boolean; message: string; updatedGdi?: GDI }> {
 	try {
 		// Get original GDI before update
@@ -38,12 +38,13 @@ export async function updateGdiDetailsAction(
 		const finalDataToUpdate = {
 			name: updatedData.name,
 			guideId: updatedData.guideId,
-			memberIds: finalMemberIds,
+			mentorId: updatedData.mentorId,
 		};
 
 		const updatedGdi = await updateGdiAndSyncMembers(
 			gdiIdToUpdate,
 			finalDataToUpdate,
+			finalMemberIds,
 		);
 
 		// Collect all affected member IDs (previous and new guide/member IDs)

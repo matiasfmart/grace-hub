@@ -1,6 +1,6 @@
 "use client";
 
-import { Phone, Settings, Trash2, UserCheck, Users } from "lucide-react";
+import { Phone, Settings, Trash2, UserCheck, UserCircle, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,11 @@ export default function GdisManager({
 		return allMembers.find((member) => member.id === guideId);
 	};
 
+	const getMentorDetails = (mentorId?: string) => {
+		if (!mentorId) return undefined;
+		return allMembers.find((member) => member.id === mentorId);
+	};
+
 	const handleDeleteClick = (gdi: GDI) => {
 		setGdiToDelete(gdi);
 		setIsDeleteAlertOpen(true);
@@ -54,6 +59,7 @@ export default function GdisManager({
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 					{gdis.map((gdi) => {
 						const guide = getGuideDetails(gdi.guideId);
+						const mentor = getMentorDetails(gdi.mentorId);
 						return (
 							<Card
 								key={gdi.id}
@@ -85,6 +91,29 @@ export default function GdisManager({
 												className="text-primary hover:underline text-sm"
 											>
 												{guide.phone}
+											</a>
+										</div>
+									)}
+									<div>
+										<h4 className="font-semibold text-sm mb-1 flex items-center">
+											<UserCircle className="mr-2 h-4 w-4 text-muted-foreground" />{" "}
+											Mentor del GDI:
+										</h4>
+										<p className="text-muted-foreground text-sm">
+											{mentor ? `${mentor.firstName} ${mentor.lastName}` : "Sin asignar"}
+										</p>
+									</div>
+									{mentor && (
+										<div>
+											<h4 className="font-semibold text-sm mb-1 flex items-center">
+												<Phone className="mr-2 h-4 w-4 text-muted-foreground" />{" "}
+												Teléfono del Mentor:
+											</h4>
+											<a
+												href={`tel:${mentor.phone}`}
+												className="text-primary hover:underline text-sm"
+											>
+												{mentor.phone}
 											</a>
 										</div>
 									)}

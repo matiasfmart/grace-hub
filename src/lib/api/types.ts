@@ -57,6 +57,8 @@ export interface ApiAreaResponse {
   areaId: number;
   name: string;
   description?: string;
+  leaderId?: number;
+  mentorId?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -153,11 +155,15 @@ export interface ApiUpdateGdiRequest {
 export interface ApiCreateAreaRequest {
   name: string;
   description?: string;
+  leaderId?: number;
+  mentorId?: number;
 }
 
 export interface ApiUpdateAreaRequest {
   name?: string;
   description?: string;
+  leaderId?: number;
+  mentorId?: number;
 }
 
 export interface ApiCreateMeetingRequest {

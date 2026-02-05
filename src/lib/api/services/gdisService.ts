@@ -35,17 +35,21 @@ export const gdisService = {
    * Get GDI with members populated
    */
   async getByIdWithMembers(id: string): Promise<GDI & { members: Member[] }> {
-    const [apiGdi, memberIds] = await Promise.all([
+    const [apiGdi, membersResponse] = await Promise.all([
       gdisEndpoint.getById(Number(id)),
       gdisEndpoint.getMembers(Number(id)),
     ]);
 
     const gdi = mapApiGdiToGdi(apiGdi);
+    const memberIds = membersResponse.memberIds;
     
-    // Fetch member details
-    const memberPromises = memberIds.map(memberId => membersEndpoint.getById(memberId));
-    const apiMembers = await Promise.all(memberPromises);
-    const members = mapApiMembersToMembers(apiMembers);
+    // Fetch member details if there are any members
+    let members: Member[] = [];
+    if (memberIds.length > 0) {
+      const memberPromises = memberIds.map(memberId => membersEndpoint.getById(memberId));
+      const apiMembers = await Promise.all(memberPromises);
+      members = mapApiMembersToMembers(apiMembers);
+    }
 
     return {
       ...gdi,
@@ -97,8 +101,31 @@ export const gdisService = {
    * Get GDI member IDs
    */
   async getMemberIds(gdiId: string): Promise<string[]> {
-    const memberIds = await gdisEndpoint.getMembers(Number(gdiId));
-    return memberIds.map(String);
+    const response = await gdisEndpoint.getMembers(Number(gdiId));
+    return response.memberIds.map(String);
+  },
+
+  /**
+   * Sync members for a GDI (add new, remove old)
+   */
+  async syncMembers(gdiId: string, newMemberIds: string[]): Promise<void> {
+    // Get current members
+    const response = await gdisEndpoint.getMembers(Number(gdiId));
+    const currentMemberIds = response.memberIds.map(String);
+    
+    // Calculate diff
+    const toAdd = newMemberIds.filter(id => !currentMemberIds.includes(id));
+    const toRemove = currentMemberIds.filter(id => !newMemberIds.includes(id));
+
+    // Execute changes in parallel
+    const addPromises = toAdd.map(memberId => 
+      gdisEndpoint.assignMember(Number(gdiId), Number(memberId))
+    );
+    const removePromises = toRemove.map(memberId => 
+      gdisEndpoint.removeMember(Number(gdiId), Number(memberId))
+    );
+
+    await Promise.all([...addPromises, ...removePromises]);
   },
 };
 
@@ -107,18 +134,32 @@ export const gdisService = {
 // ==============================================
 
 /**
- * Get all GDIs
+ * Get all GDIs (with member IDs populated)
  */
 export async function getAllGdis(): Promise<GDI[]> {
-  return gdisService.getAll();
+  const gdis = await gdisService.getAll();
+  // Fetch member IDs for each GDI in parallel
+  const gdisWithMembers = await Promise.all(
+    gdis.map(async (gdi) => {
+      const memberIds = await gdisService.getMemberIds(gdi.id);
+      return { ...gdi, memberIds };
+    })
+  );
+  return gdisWithMembers;
 }
 
 /**
- * Get GDI by ID
+ * Get GDI by ID (with member IDs populated)
  */
 export async function getGdiById(id: string): Promise<GDI | null> {
   try {
-    return await gdisService.getById(id);
+    const gdi = await gdisService.getById(id);
+    // Fetch member IDs from memberships endpoint
+    const memberIds = await gdisService.getMemberIds(id);
+    return {
+      ...gdi,
+      memberIds,
+    };
   } catch {
     return null;
   }
@@ -140,15 +181,25 @@ export async function addGdi(data: GDIWriteData): Promise<GDI> {
 
 /**
  * Update GDI and sync members
- * Note: Member sync is handled by backend
  */
 export async function updateGdiAndSyncMembers(
   id: string, 
   data: Partial<GDIWriteData>,
-  _memberIds?: string[]
+  memberIds?: string[]
 ): Promise<GDI> {
-  // Backend handles member sync, we just update the GDI
-  return gdisService.update(id, data);
+  // Update the GDI
+  const updatedGdi = await gdisService.update(id, data);
+  
+  // Sync members if provided
+  if (memberIds !== undefined) {
+    await gdisService.syncMembers(id, memberIds);
+  }
+  
+  // Return with updated memberIds
+  return {
+    ...updatedGdi,
+    memberIds: memberIds ?? updatedGdi.memberIds,
+  };
 }
 
 /**

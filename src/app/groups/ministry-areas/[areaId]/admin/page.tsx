@@ -55,13 +55,13 @@ import {
 	getSeriesForGroup,
 	getAllMembersNonPaginated,
 	getMinistryAreaById,
-	updateMinistryAreaAndSyncMembers,
 } from "@/lib/api/services";
 import {
 	handleAddAreaMeetingSeriesAction,
 	handleAddMeetingForCurrentAreaAction,
 	handleDeleteAreaMeetingSeriesAction,
 	handleUpdateAreaMeetingSeriesAction,
+	updateMinistryAreaDetailsAction,
 } from "./actions";
 
 type MinistryAreaAdminPageProps = {};
@@ -367,22 +367,10 @@ export default function MinistryAreaAdminPage({}: MinistryAreaAdminPageProps) {
 												"updateMinistryAreaAction: Firma inválida para edición de Área",
 											);
 										}
-										const updatedArea = await updateMinistryAreaAndSyncMembers(
+										return updateMinistryAreaDetailsAction(
 											areaIdOrNewData,
 											updatedData,
 										);
-										if (updatedArea) {
-											return {
-												success: true,
-												message: `Área "${updatedArea.name}" actualizada exitosamente.`,
-												updatedArea,
-											};
-										} else {
-											return {
-												success: false,
-												message: "No se pudo actualizar el área.",
-											};
-										}
 									}}
 									onSuccess={async () => {
 										setIsEditAreaDetailsOpen(false);

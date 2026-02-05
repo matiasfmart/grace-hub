@@ -21,6 +21,7 @@ export async function addMinistryAreaActionSvc(
 	newAreaData: Partial<Omit<MinistryArea, "id">> & {
 		name: string;
 		leaderId: string;
+		mentorId?: string;
 		memberIds?: string[];
 	},
 ): Promise<{ success: boolean; message: string; newArea?: MinistryArea }> {
@@ -29,6 +30,7 @@ export async function addMinistryAreaActionSvc(
 			name: newAreaData.name,
 			description: newAreaData.description || "",
 			leaderId: newAreaData.leaderId,
+			mentorId: newAreaData.mentorId || "",
 			memberIds: newAreaData.memberIds || [],
 		};
 		const newArea = await addMinistryAreaService(areaToWrite);

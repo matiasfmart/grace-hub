@@ -73,6 +73,7 @@ export interface GDI {
 	id: string;
 	name: string;
 	guideId: string;
+	mentorId?: string;
 	memberIds: string[];
 }
 
@@ -81,6 +82,7 @@ export interface MinistryArea {
 	name: string;
 	description: string;
 	leaderId: string;
+	mentorId: string;
 	memberIds: string[];
 }
 
@@ -201,6 +203,7 @@ export const AddMinistryAreaFormSchema = z.object({
 		.string()
 		.min(10, { message: "Description must be at least 10 characters." }),
 	leaderId: z.string().min(1, { message: "A leader must be selected." }),
+	mentorId: z.string().optional(),
 });
 export type AddMinistryAreaFormValues = z.infer<
 	typeof AddMinistryAreaFormSchema
@@ -211,6 +214,7 @@ export const AddGdiFormSchema = z.object({
 		.string()
 		.min(3, { message: "GDI name must be at least 3 characters." }),
 	guideId: z.string().min(1, { message: "A guide must be selected." }),
+	mentorId: z.string().optional(),
 });
 export type AddGdiFormValues = z.infer<typeof AddGdiFormSchema>;
 

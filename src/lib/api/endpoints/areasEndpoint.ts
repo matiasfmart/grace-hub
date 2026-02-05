@@ -39,7 +39,7 @@ export const areasEndpoint = {
    * Update an area
    */
   async update(id: number, data: ApiUpdateAreaRequest): Promise<ApiAreaResponse> {
-    return apiClient.patch<ApiAreaResponse>(`${ENDPOINT}/${id}`, data);
+    return apiClient.put<ApiAreaResponse>(`${ENDPOINT}/${id}`, data);
   },
 
   /**
@@ -66,7 +66,7 @@ export const areasEndpoint = {
   /**
    * Get area members
    */
-  async getMembers(areaId: number): Promise<number[]> {
-    return apiClient.get<number[]>(`${ENDPOINT}/${areaId}/members`);
+  async getMembers(areaId: number): Promise<{ memberIds: number[] }> {
+    return apiClient.get<{ memberIds: number[] }>(`${ENDPOINT}/${areaId}/members`);
   },
 };

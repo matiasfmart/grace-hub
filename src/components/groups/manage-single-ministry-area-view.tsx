@@ -95,6 +95,13 @@ export default function ManageSingleMinistryAreaView({
 		});
 	};
 
+	const handleMentorChange = (mentorId: string) => {
+		setEditableArea((prev) => ({
+			...prev,
+			mentorId: mentorId || undefined,
+		}));
+	};
+
 	const handleAvailableMemberSelection = (
 		memberId: string,
 		isChecked: boolean,
@@ -156,6 +163,7 @@ export default function ManageSingleMinistryAreaView({
 				name: editableArea.name,
 				description: editableArea.description,
 				leaderId: editableArea.leaderId,
+				mentorId: editableArea.mentorId,
 				memberIds: finalMemberIds,
 			};
 
@@ -221,6 +229,16 @@ export default function ManageSingleMinistryAreaView({
 		}));
 	}, [activeMembers]);
 
+	const mentorOptions = useMemo(() => {
+		return [
+			{ value: "", label: "Sin asignar" },
+			...activeMembers.map((member) => ({
+				value: member.id,
+				label: `${member.firstName} ${member.lastName}`,
+			})),
+		];
+	}, [activeMembers]);
+
 	return (
 		<>
 			<CardContent className="grid grid-cols-1 lg:grid-cols-5 gap-6 p-0 pt-4">
@@ -281,6 +299,26 @@ export default function ManageSingleMinistryAreaView({
 								/>
 							</div>
 						</div>
+					</div>
+
+					<div className="p-4 border rounded-lg shadow-sm bg-card">
+						<h3 className="text-lg font-semibold mb-3 flex items-center">
+							<UserCheck className="mr-2 h-5 w-5 text-muted-foreground" />
+							Mentor del Área
+						</h3>
+						<Label htmlFor="mentorIdSelect">
+							Seleccionar Mentor (opcional)
+						</Label>
+						<Combobox
+							options={mentorOptions}
+							value={editableArea.mentorId || ""}
+							onChange={handleMentorChange}
+							placeholder="Seleccionar mentor"
+							searchPlaceholder="Buscar mentor..."
+							emptyStateMessage="No se encontró ningún miembro activo."
+							disabled={isPending}
+							triggerClassName="mt-1"
+						/>
 					</div>
 				</div>
 

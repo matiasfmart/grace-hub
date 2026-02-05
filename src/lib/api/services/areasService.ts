@@ -35,17 +35,21 @@ export const areasService = {
    * Get area with members populated
    */
   async getByIdWithMembers(id: string): Promise<MinistryArea & { members: Member[] }> {
-    const [apiArea, memberIds] = await Promise.all([
+    const [apiArea, membersResponse] = await Promise.all([
       areasEndpoint.getById(Number(id)),
       areasEndpoint.getMembers(Number(id)),
     ]);
 
     const area = mapApiAreaToMinistryArea(apiArea);
+    const memberIds = membersResponse.memberIds;
 
-    // Fetch member details
-    const memberPromises = memberIds.map(memberId => membersEndpoint.getById(memberId));
-    const apiMembers = await Promise.all(memberPromises);
-    const members = mapApiMembersToMembers(apiMembers);
+    // Fetch member details if there are any members
+    let members: Member[] = [];
+    if (memberIds.length > 0) {
+      const memberPromises = memberIds.map(memberId => membersEndpoint.getById(memberId));
+      const apiMembers = await Promise.all(memberPromises);
+      members = mapApiMembersToMembers(apiMembers);
+    }
 
     return {
       ...area,
@@ -97,8 +101,31 @@ export const areasService = {
    * Get area member IDs
    */
   async getMemberIds(areaId: string): Promise<string[]> {
-    const memberIds = await areasEndpoint.getMembers(Number(areaId));
-    return memberIds.map(String);
+    const response = await areasEndpoint.getMembers(Number(areaId));
+    return response.memberIds.map(String);
+  },
+
+  /**
+   * Sync members for an area (add new, remove old)
+   */
+  async syncMembers(areaId: string, newMemberIds: string[]): Promise<void> {
+    // Get current members
+    const response = await areasEndpoint.getMembers(Number(areaId));
+    const currentMemberIds = response.memberIds.map(String);
+    
+    // Calculate diff
+    const toAdd = newMemberIds.filter(id => !currentMemberIds.includes(id));
+    const toRemove = currentMemberIds.filter(id => !newMemberIds.includes(id));
+
+    // Execute changes in parallel
+    const addPromises = toAdd.map(memberId => 
+      areasEndpoint.assignMember(Number(areaId), Number(memberId))
+    );
+    const removePromises = toRemove.map(memberId => 
+      areasEndpoint.removeMember(Number(areaId), Number(memberId))
+    );
+
+    await Promise.all([...addPromises, ...removePromises]);
   },
 };
 
@@ -114,11 +141,17 @@ export async function getAllMinistryAreas(): Promise<MinistryArea[]> {
 }
 
 /**
- * Get ministry area by ID
+ * Get ministry area by ID (with member IDs populated)
  */
 export async function getMinistryAreaById(id: string): Promise<MinistryArea | null> {
   try {
-    return await areasService.getById(id);
+    const area = await areasService.getById(id);
+    // Fetch member IDs from memberships endpoint
+    const memberIds = await areasService.getMemberIds(id);
+    return {
+      ...area,
+      memberIds,
+    };
   } catch {
     return null;
   }
@@ -140,14 +173,25 @@ export async function addMinistryArea(data: MinistryAreaWriteData): Promise<Mini
 
 /**
  * Update ministry area and sync members
- * Note: Member sync is handled by backend
  */
 export async function updateMinistryAreaAndSyncMembers(
   id: string,
   data: Partial<MinistryAreaWriteData>,
-  _memberIds?: string[]
+  memberIds?: string[]
 ): Promise<MinistryArea> {
-  return areasService.update(id, data);
+  // Update the area
+  const updatedArea = await areasService.update(id, data);
+  
+  // Sync members if provided
+  if (memberIds !== undefined) {
+    await areasService.syncMembers(id, memberIds);
+  }
+  
+  // Return with updated memberIds
+  return {
+    ...updatedArea,
+    memberIds: memberIds ?? updatedArea.memberIds,
+  };
 }
 
 /**

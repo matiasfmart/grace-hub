@@ -39,7 +39,7 @@ export const gdisEndpoint = {
    * Update a GDI
    */
   async update(id: number, data: ApiUpdateGdiRequest): Promise<ApiGdiResponse> {
-    return apiClient.patch<ApiGdiResponse>(`${ENDPOINT}/${id}`, data);
+    return apiClient.put<ApiGdiResponse>(`${ENDPOINT}/${id}`, data);
   },
 
   /**
@@ -66,7 +66,7 @@ export const gdisEndpoint = {
   /**
    * Get GDI members
    */
-  async getMembers(gdiId: number): Promise<number[]> {
-    return apiClient.get<number[]>(`${ENDPOINT}/${gdiId}/members`);
+  async getMembers(gdiId: number): Promise<{ memberIds: number[] }> {
+    return apiClient.get<{ memberIds: number[] }>(`${ENDPOINT}/${gdiId}/members`);
   },
 };

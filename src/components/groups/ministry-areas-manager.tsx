@@ -1,6 +1,6 @@
 "use client";
 
-import { Phone, Settings, Trash2, UserCircle, UsersRound } from "lucide-react";
+import { Phone, Settings, Trash2, UserCircle, UserCheck, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,11 @@ export default function MinistryAreasManager({
 		return allMembers.find((member) => member.id === leaderId);
 	};
 
+	const getMentorDetails = (mentorId?: string) => {
+		if (!mentorId) return undefined;
+		return allMembers.find((member) => member.id === mentorId);
+	};
+
 	const handleDeleteClick = (area: MinistryArea) => {
 		setAreaToDelete(area);
 		setIsDeleteAlertOpen(true);
@@ -54,6 +59,7 @@ export default function MinistryAreasManager({
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 					{ministryAreas.map((area) => {
 						const leader = getLeaderDetails(area.leaderId);
+						const mentor = getMentorDetails(area.mentorId);
 						return (
 							<Card
 								key={area.id}
@@ -90,6 +96,31 @@ export default function MinistryAreasManager({
 												className="text-primary hover:underline text-sm"
 											>
 												{leader.phone}
+											</a>
+										</div>
+									)}
+									<div>
+										<h4 className="font-semibold text-sm mb-1 flex items-center">
+											<UserCheck className="mr-2 h-4 w-4 text-muted-foreground" />{" "}
+											Mentor del Área:
+										</h4>
+										<p className="text-muted-foreground text-sm">
+											{mentor
+												? `${mentor.firstName} ${mentor.lastName}`
+												: "Sin asignar"}
+										</p>
+									</div>
+									{mentor && (
+										<div>
+											<h4 className="font-semibold text-sm mb-1 flex items-center">
+												<Phone className="mr-2 h-4 w-4 text-muted-foreground" />{" "}
+												Teléfono del Mentor:
+											</h4>
+											<a
+												href={`tel:${mentor.phone}`}
+												className="text-primary hover:underline text-sm"
+											>
+												{mentor.phone}
 											</a>
 										</div>
 									)}

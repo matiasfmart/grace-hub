@@ -15,6 +15,7 @@ export function mapApiGdiToGdi(apiGdi: ApiGdiResponse): GDI {
     id: String(apiGdi.gdiId),
     name: apiGdi.name,
     guideId: apiGdi.guideId ? String(apiGdi.guideId) : '',
+    mentorId: apiGdi.mentorId ? String(apiGdi.mentorId) : undefined,
     memberIds: [], // Will be populated separately via member assignments
   };
 }
@@ -33,6 +34,7 @@ export function mapGdiToApiCreateRequest(gdi: GDIWriteData): ApiCreateGdiRequest
   return {
     name: gdi.name,
     guideId: gdi.guideId ? Number(gdi.guideId) : undefined,
+    mentorId: gdi.mentorId ? Number(gdi.mentorId) : undefined,
   };
 }
 
@@ -44,6 +46,7 @@ export function mapGdiToApiUpdateRequest(gdi: Partial<GDIWriteData>): ApiUpdateG
 
   if (gdi.name !== undefined) request.name = gdi.name;
   if (gdi.guideId !== undefined) request.guideId = gdi.guideId ? Number(gdi.guideId) : undefined;
+  if (gdi.mentorId !== undefined) request.mentorId = gdi.mentorId ? Number(gdi.mentorId) : undefined;
 
   return request;
 }

@@ -25,7 +25,7 @@ import {
 export async function updateMinistryAreaDetailsAction(
 	areaId: string,
 	updatedData: Partial<
-		Pick<MinistryArea, "leaderId" | "memberIds" | "name" | "description">
+		Pick<MinistryArea, "leaderId" | "mentorId" | "memberIds" | "name" | "description">
 	>,
 ): Promise<{ success: boolean; message: string; updatedArea?: MinistryArea }> {
 	try {
@@ -34,9 +34,13 @@ export async function updateMinistryAreaDetailsAction(
 		const prevLeaderId = original?.leaderId;
 		const prevMemberIds = original?.memberIds || [];
 
+		// Extract memberIds to pass separately for sync
+		const { memberIds, ...areaData } = updatedData;
+
 		const updatedArea = await updateMinistryAreaAndSyncMembers(
 			areaId,
-			updatedData,
+			areaData,
+			memberIds,
 		);
 
 		// Collect all affected member IDs (previous and new leader/member IDs)
