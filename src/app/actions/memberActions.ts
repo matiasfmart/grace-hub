@@ -7,6 +7,8 @@ import {
 	deleteMember,
 	getMemberById,
 	updateMember,
+	gdisService,
+	areasService,
 } from "@/lib/api/services";
 
 export async function addSingleMemberAction(
@@ -14,6 +16,20 @@ export async function addSingleMemberAction(
 ): Promise<{ success: boolean; message: string; newMember?: Member }> {
 	try {
 		const newMember = await addMember(newMemberData);
+
+		// Assign member to GDI if specified
+		if (newMemberData.assignedGDIId) {
+			await gdisService.assignMember(newMemberData.assignedGDIId, newMember.id);
+		}
+
+		// Assign member to Areas if specified
+		if (newMemberData.assignedAreaIds?.length) {
+			await Promise.all(
+				newMemberData.assignedAreaIds.map((areaId) =>
+					areasService.assignMember(areaId, newMember.id)
+				)
+			);
+		}
 
 		revalidatePath("/members");
 		revalidatePath("/groups");
@@ -68,7 +84,31 @@ export async function updateMemberAction(
 			};
 		}
 
-		// Assignments and roles are managed automatically by the backend
+		// Sync GDI assignment if changed
+		const oldGdiId = originalMemberData.assignedGDIId;
+		const newGdiId = updatedMemberData.assignedGDIId;
+		if (oldGdiId !== newGdiId) {
+			if (oldGdiId) {
+				await gdisService.removeMember(oldGdiId, updatedMemberData.id);
+			}
+			if (newGdiId) {
+				await gdisService.assignMember(newGdiId, updatedMemberData.id);
+			}
+		}
+
+		// Sync Area assignments if changed
+		const oldAreaIds = new Set(originalMemberData.assignedAreaIds || []);
+		const newAreaIds = new Set(updatedMemberData.assignedAreaIds || []);
+		const areasToRemove = [...oldAreaIds].filter((id) => !newAreaIds.has(id));
+		const areasToAdd = [...newAreaIds].filter((id) => !oldAreaIds.has(id));
+		await Promise.all([
+			...areasToRemove.map((areaId) =>
+				areasService.removeMember(areaId, updatedMemberData.id)
+			),
+			...areasToAdd.map((areaId) =>
+				areasService.assignMember(areaId, updatedMemberData.id)
+			),
+		]);
 
 		revalidatePath("/members");
 		revalidatePath("/groups");
@@ -151,7 +191,21 @@ export async function addBulkMembersAction(
 		const addedMembers: Member[] = [];
 		for (const memberData of stagedMembersData) {
 			const newMember = await addMember(memberData);
-			// Assignments are handled automatically by the backend
+
+			// Assign member to GDI if specified
+			if (memberData.assignedGDIId) {
+				await gdisService.assignMember(memberData.assignedGDIId, newMember.id);
+			}
+
+			// Assign member to Areas if specified
+			if (memberData.assignedAreaIds?.length) {
+				await Promise.all(
+					memberData.assignedAreaIds.map((areaId) =>
+						areasService.assignMember(areaId, newMember.id)
+					)
+				);
+			}
+
 			addedMembers.push(newMember);
 		}
 
