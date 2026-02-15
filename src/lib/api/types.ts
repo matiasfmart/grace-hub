@@ -19,6 +19,27 @@ export type ApiRoleType = 'Leader' | 'Worker' | 'GeneralAttendee';
 // ==============================================
 
 /**
+ * Assigned GDI info from backend
+ */
+export interface ApiAssignedGdi {
+  id: number;
+  name: string;
+}
+
+/**
+ * Assigned Area info from backend
+ */
+export interface ApiAssignedArea {
+  id: number;
+  name: string;
+}
+
+/**
+ * Member role types from backend
+ */
+export type ApiMemberRoleType = 'GdiGuide' | 'GdiMentor' | 'AreaLeader' | 'AreaMentor' | 'Worker';
+
+/**
  * MemberResponseDto from backend
  */
 export interface ApiMemberResponse {
@@ -36,6 +57,10 @@ export interface ApiMemberResponse {
   address?: string;
   createdAt: string;
   updatedAt: string;
+  // Enriched data from memberships
+  assignedGdi?: ApiAssignedGdi;
+  assignedAreas: ApiAssignedArea[];
+  roles: ApiMemberRoleType[];
 }
 
 /**
@@ -212,6 +237,30 @@ export interface ApiPaginatedResponse<T> {
   total: number;
   page: number;
   limit: number;
+}
+
+/**
+ * Paginated members response from backend
+ */
+export interface ApiPaginatedMembersResponse {
+  data: ApiMemberResponse[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/**
+ * Query params for filtered members search
+ */
+export interface ApiMembersFilterParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string[];
+  role?: string[];
+  gdi?: number[];
+  area?: number[];
 }
 
 export interface ApiListResponse<T> {

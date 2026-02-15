@@ -10,16 +10,38 @@ import type {
   ApiMemberResponse,
   ApiCreateMemberRequest,
   ApiUpdateMemberRequest,
+  ApiPaginatedMembersResponse,
+  ApiMembersFilterParams,
 } from '../types';
 
 const ENDPOINT = '/members';
 
 export const membersEndpoint = {
   /**
-   * Get all members
+   * Get all members (simple, no filters)
    */
   async getAll(): Promise<ApiMemberResponse[]> {
     return apiClient.get<ApiMemberResponse[]>(ENDPOINT);
+  },
+
+  /**
+   * Get members with filters, search, and pagination
+   */
+  async search(params: ApiMembersFilterParams = {}): Promise<ApiPaginatedMembersResponse> {
+    const queryParams = new URLSearchParams();
+    
+    if (params.page !== undefined) queryParams.set('page', params.page.toString());
+    if (params.pageSize !== undefined) queryParams.set('pageSize', params.pageSize.toString());
+    if (params.search) queryParams.set('search', params.search);
+    if (params.status?.length) queryParams.set('status', params.status.join(','));
+    if (params.role?.length) queryParams.set('role', params.role.join(','));
+    if (params.gdi?.length) queryParams.set('gdi', params.gdi.join(','));
+    if (params.area?.length) queryParams.set('area', params.area.join(','));
+
+    const queryString = queryParams.toString();
+    const url = queryString ? `${ENDPOINT}/search?${queryString}` : `${ENDPOINT}/search`;
+    
+    return apiClient.get<ApiPaginatedMembersResponse>(url);
   },
 
   /**

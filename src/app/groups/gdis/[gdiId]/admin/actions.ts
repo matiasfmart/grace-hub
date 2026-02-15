@@ -17,8 +17,6 @@ import {
 	updateMeetingInstanceForGroup,
 	updateMeetingInstanceMinuteForGroup,
 	updateMeetingSeriesForGroup,
-	bulkRecalculateAndUpdateRoles,
-	getGdiById,
 } from "@/lib/api/services";
 
 // --- GDI Detail Actions ---
@@ -27,11 +25,6 @@ export async function updateGdiDetailsAction(
 	updatedData: Partial<Pick<GDI, "name" | "guideId" | "mentorId" | "memberIds">>,
 ): Promise<{ success: boolean; message: string; updatedGdi?: GDI }> {
 	try {
-		// Get original GDI before update
-		const original = await getGdiById(gdiIdToUpdate);
-		const prevGuideId = original?.guideId;
-		const prevMemberIds = original?.memberIds || [];
-
 		const finalMemberIds = (updatedData.memberIds || []).filter(
 			(id) => id !== updatedData.guideId,
 		);
@@ -47,18 +40,7 @@ export async function updateGdiDetailsAction(
 			finalMemberIds,
 		);
 
-		// Collect all affected member IDs (previous and new guide/member IDs)
-		const affectedMemberIds = new Set(
-			[
-				prevGuideId,
-				...(prevMemberIds || []),
-				updatedGdi?.guideId,
-				...(updatedGdi?.memberIds || []),
-			].filter((id): id is string => Boolean(id)),
-		);
-		if (affectedMemberIds.size > 0) {
-			await bulkRecalculateAndUpdateRoles(Array.from(affectedMemberIds));
-		}
+		// Roles are managed automatically by the backend
 
 		revalidatePath(`/groups/gdis/${gdiIdToUpdate}/admin`);
 		revalidatePath("/groups");

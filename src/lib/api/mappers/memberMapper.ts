@@ -6,8 +6,29 @@
  * If backend changes, only this file needs to update.
  */
 
-import type { ApiMemberResponse, ApiCreateMemberRequest, ApiUpdateMemberRequest } from '../types';
-import type { Member, MemberWriteData } from '@/lib/types';
+import type { ApiMemberResponse, ApiCreateMemberRequest, ApiUpdateMemberRequest, ApiMemberRoleType } from '../types';
+import type { Member, MemberWriteData, MemberRoleType } from '@/lib/types';
+
+/**
+ * Maps backend role types to frontend role types
+ */
+function mapApiRolesToFrontendRoles(apiRoles: ApiMemberRoleType[]): MemberRoleType[] {
+  const frontendRoles: MemberRoleType[] = [];
+  
+  for (const role of apiRoles) {
+    if (role === 'GdiGuide' || role === 'GdiMentor' || role === 'AreaLeader' || role === 'AreaMentor') {
+      if (!frontendRoles.includes('Leader')) {
+        frontendRoles.push('Leader');
+      }
+    } else if (role === 'Worker') {
+      if (!frontendRoles.includes('Worker')) {
+        frontendRoles.push('Worker');
+      }
+    }
+  }
+  
+  return frontendRoles;
+}
 
 /**
  * Maps API Member response to frontend Member type
@@ -27,11 +48,12 @@ export function mapApiMemberToMember(apiMember: ApiMemberResponse): Member {
     attendsLifeSchool: apiMember.bibleStudy && apiMember.typeBibleStudy === 'LifeSchool',
     attendsBibleInstitute: apiMember.bibleStudy && apiMember.typeBibleStudy === 'BibleInstitute',
     fromAnotherChurch: false, // Backend doesn't track this
-    assignedGDIId: null, // Will be populated separately via GDI assignments
-    assignedAreaIds: [], // Will be populated separately via Area assignments
+    // Use enriched data from backend
+    assignedGDIId: apiMember.assignedGdi ? String(apiMember.assignedGdi.id) : null,
+    assignedAreaIds: apiMember.assignedAreas?.map(area => String(area.id)) || [],
     status: apiMember.status,
     address: apiMember.address || undefined,
-    roles: [], // Will be populated separately via Role assignments
+    roles: mapApiRolesToFrontendRoles(apiMember.roles || []),
   };
 }
 

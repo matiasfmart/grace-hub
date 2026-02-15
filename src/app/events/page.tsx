@@ -38,7 +38,6 @@ import {
 	getAllGdis,
 	getAllMeetingSeries,
 	getFilteredMeetingInstances,
-	getResolvedAttendeesForMeeting,
 	getAllMembersNonPaginated,
 	getAllMinistryAreas,
 } from "@/lib/api/services";
@@ -156,21 +155,8 @@ async function getEventsPageData(
 	}
 
 	// ---MODIFIED LOGIC FOR ROWS---
-	let initialRowMembers: Member[] = [];
-	const selectedSeriesObject = actualSelectedSeriesId
-		? seriesPresentInFilter.find((s) => s.id === actualSelectedSeriesId)
-		: undefined;
-
-	if (selectedSeriesObject) {
-		// Create a dummy meeting to resolve all potential attendees for the SERIES based on CURRENT roles.
-		const dummyMeetingForSeries: Pick<Meeting, "seriesId" | "attendeeUids"> = {
-			seriesId: selectedSeriesObject.id,
-			attendeeUids: [], // Not used for dynamic resolution
-		};
-		initialRowMembers = await getResolvedAttendeesForMeeting(
-			dummyMeetingForSeries,
-		);
-	}
+	// Use all members as initial rows (instead of deprecated series-based resolution)
+	const initialRowMembers: Member[] = allMembersData;
 
 	const expectedAttendeesMap: Record<string, Set<string>> = {};
 	for (const meeting of meetingsForPage) {

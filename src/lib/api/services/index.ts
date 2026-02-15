@@ -27,9 +27,6 @@ export {
   updateMember,
   deleteMember,
   addMember,
-  addMemberToAssignments,
-  updateMemberAssignments,
-  bulkRecalculateAndUpdateRoles,
 } from './membersService';
 
 // GDIs
@@ -58,7 +55,6 @@ export {
   getMeetingById,
   getAllMeetingSeries,
   getMeetingSeriesById,
-  getResolvedAttendeesForMeeting,
   updateMeeting,
   updateMeetingMinute,
   deleteMeetingInstance,
@@ -74,7 +70,6 @@ export {
   getAttendanceForMeeting,
   saveAttendanceForMeeting,
   saveMeetingAttendance,
-  getResolvedAttendees,
 } from './attendanceService';
 
 // Tithes

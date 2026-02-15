@@ -11,8 +11,7 @@ import {
   mapMeetingToApiCreateRequest,
   mapMeetingToApiUpdateRequest,
 } from '../mappers';
-import { membersService } from './membersService';
-import type { Meeting, MeetingWriteData, MeetingSeriesType, MeetingSeries, MeetingSeriesWriteData, Member } from '@/lib/types';
+import type { Meeting, MeetingWriteData, MeetingSeriesType, MeetingSeries, MeetingSeriesWriteData } from '@/lib/types';
 
 export const meetingsService = {
   /**
@@ -135,20 +134,6 @@ export async function getAllMeetingSeries(): Promise<MeetingSeries[]> {
 export async function getMeetingSeriesById(_id: string): Promise<MeetingSeries | null> {
   console.warn('getMeetingSeriesById: Backend does not support meeting series.');
   return null;
-}
-
-/**
- * Get resolved attendees for meeting
- * Note: In the new architecture, returns empty array as series don't exist
- * This function is deprecated - attendance is managed via attendance records
- */
-export async function getResolvedAttendeesForMeeting(
-  _meeting: Pick<Meeting, "seriesId" | "attendeeUids">
-): Promise<Member[]> {
-  console.warn('getResolvedAttendeesForMeeting is deprecated - attendance is managed via attendance records');
-  // In the new architecture, we don't have meeting series
-  // Return empty array - components should adapt to use attendance records
-  return [];
 }
 
 /**

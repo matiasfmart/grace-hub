@@ -4,12 +4,9 @@ import { revalidatePath } from "next/cache";
 import type { Member, MemberWriteData } from "@/lib/types";
 import {
 	addMember,
-	addMemberToAssignments,
-	bulkRecalculateAndUpdateRoles,
 	deleteMember,
 	getMemberById,
 	updateMember,
-	updateMemberAssignments,
 } from "@/lib/api/services";
 
 export async function addSingleMemberAction(
@@ -71,18 +68,7 @@ export async function updateMemberAction(
 			};
 		}
 
-		await updateMemberAssignments(
-			memberToUpdate.id,
-			originalMemberData,
-			memberToUpdate,
-		);
-
-		const allAffectedIds = Array.from(
-			new Set([memberToUpdate.id, originalMemberData.id]),
-		);
-		if (allAffectedIds.length > 0) {
-			await bulkRecalculateAndUpdateRoles(allAffectedIds);
-		}
+		// Assignments and roles are managed automatically by the backend
 
 		revalidatePath("/members");
 		revalidatePath("/groups");
@@ -165,7 +151,7 @@ export async function addBulkMembersAction(
 		const addedMembers: Member[] = [];
 		for (const memberData of stagedMembersData) {
 			const newMember = await addMember(memberData);
-			await addMemberToAssignments(newMember);
+			// Assignments are handled automatically by the backend
 			addedMembers.push(newMember);
 		}
 

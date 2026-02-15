@@ -219,20 +219,15 @@ export default function MembersListView({
 		setMembers(initialMembers);
 	}, [initialMembers]);
 
-	const gdiGuidesForFilter = useMemo(() => {
-		const guideIds = new Set(allGDIs.map((gdi) => gdi.guideId).filter(Boolean));
-		const guides = allMembersForDropdowns
-			.filter((member) => guideIds.has(member.id))
-			.sort((a, b) =>
-				`${a.firstName} ${a.lastName}`.localeCompare(
-					`${b.firstName} ${b.lastName}`,
-				),
-			);
+	// Members now come enriched with GDI, Areas, and Roles from backend
+
+	// GDI filter options - use GDI IDs directly instead of guide IDs
+	const gdiFilterOptions = useMemo(() => {
 		return [
-			{ id: NO_GDI_FILTER_VALUE, firstName: "No Asignado a GDI", lastName: "" },
-			...guides,
+			{ id: NO_GDI_FILTER_VALUE, name: "No Asignado a GDI" },
+			...allGDIs.sort((a, b) => a.name.localeCompare(b.name)),
 		];
-	}, [allGDIs, allMembersForDropdowns]);
+	}, [allGDIs]);
 
 	const getGdiName = useCallback(
 		(member: Member): string => {
@@ -578,21 +573,17 @@ export default function MembersListView({
 								<CommandList className="max-h-60">
 									<CommandEmpty>No se encontró el GDI.</CommandEmpty>
 									<DropdownMenuLabel className="px-2 pt-2 text-xs">
-										Filtrar por GDI (Guía o Miembro)
+										Filtrar por GDI
 									</DropdownMenuLabel>
 									<DropdownMenuSeparator className="mx-1 my-1" />
 									<CommandGroup>
-										{gdiGuidesForFilter.map((guide) => (
+										{gdiFilterOptions.map((gdi) => (
 											<CommandItem
-												key={
-													guide.id === NO_GDI_FILTER_VALUE
-														? NO_GDI_FILTER_VALUE
-														: guide.id
-												}
-												value={`${guide.firstName} ${guide.id !== NO_GDI_FILTER_VALUE ? guide.lastName : ""}`}
+												key={gdi.id}
+												value={gdi.name}
 												onSelect={() =>
 													toggleFilterItem(
-														guide.id,
+														gdi.id,
 														selectedGuideIds,
 														setSelectedGuideIds,
 													)
@@ -603,29 +594,25 @@ export default function MembersListView({
 													<Check
 														className={cn(
 															"mr-2 h-3.5 w-3.5",
-															selectedGuideIds.includes(guide.id)
+															selectedGuideIds.includes(gdi.id)
 																? "opacity-100"
 																: "opacity-0",
 														)}
 													/>
 													<span className="truncate">
-														{guide.firstName}{" "}
-														{guide.id !== NO_GDI_FILTER_VALUE
-															? guide.lastName
-															: ""}
-														{guide.id !== NO_GDI_FILTER_VALUE ? ` (Guía)` : ""}
+														{gdi.name}
 													</span>
 												</div>
 											</CommandItem>
 										))}
 									</CommandGroup>
-									{gdiGuidesForFilter.length === 1 &&
-										gdiGuidesForFilter[0].id === NO_GDI_FILTER_VALUE && (
+									{gdiFilterOptions.length === 1 &&
+										gdiFilterOptions[0].id === NO_GDI_FILTER_VALUE && (
 											<CommandItem
 												disabled
 												className="text-xs text-muted-foreground text-center py-2"
 											>
-												No hay guías para mostrar
+												No hay GDIs para mostrar
 											</CommandItem>
 										)}
 								</CommandList>

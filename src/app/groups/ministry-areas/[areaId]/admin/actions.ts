@@ -16,9 +16,7 @@ import {
 	updateMeetingInstanceForGroup,
 	updateMeetingInstanceMinuteForGroup,
 	updateMeetingSeriesForGroup,
-	bulkRecalculateAndUpdateRoles,
 	updateMinistryAreaAndSyncMembers,
-	getMinistryAreaById,
 } from "@/lib/api/services";
 
 // --- Ministry Area Detail Actions ---
@@ -29,11 +27,6 @@ export async function updateMinistryAreaDetailsAction(
 	>,
 ): Promise<{ success: boolean; message: string; updatedArea?: MinistryArea }> {
 	try {
-		// Get original Area before update
-		const original = await getMinistryAreaById(areaId);
-		const prevLeaderId = original?.leaderId;
-		const prevMemberIds = original?.memberIds || [];
-
 		// Extract memberIds to pass separately for sync
 		const { memberIds, ...areaData } = updatedData;
 
@@ -43,18 +36,7 @@ export async function updateMinistryAreaDetailsAction(
 			memberIds,
 		);
 
-		// Collect all affected member IDs (previous and new leader/member IDs)
-		const affectedMemberIds = new Set(
-			[
-				prevLeaderId,
-				...(prevMemberIds || []),
-				updatedArea?.leaderId,
-				...(updatedArea?.memberIds || []),
-			].filter((id): id is string => Boolean(id)),
-		);
-		if (affectedMemberIds.size > 0) {
-			await bulkRecalculateAndUpdateRoles(Array.from(affectedMemberIds));
-		}
+		// Roles are managed automatically by the backend
 
 		revalidatePath(`/groups/ministry-areas/${areaId}/admin`);
 		revalidatePath("/groups");

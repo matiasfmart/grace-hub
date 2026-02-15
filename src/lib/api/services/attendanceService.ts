@@ -12,7 +12,7 @@ import {
   mapAttendanceRecordToApiUpdateRequest,
   mapBulkAttendanceToApiRequests,
 } from '../mappers';
-import type { AttendanceRecord, AttendanceRecordWriteData, Meeting, Member } from '@/lib/types';
+import type { AttendanceRecord, AttendanceRecordWriteData } from '@/lib/types';
 
 export const attendanceService = {
   /**
@@ -154,17 +154,6 @@ export async function saveMeetingAttendance(
   memberAttendances: Array<{ memberId: string; attended: boolean; notes?: string }>
 ): Promise<void> {
   await attendanceService.bulkCreate(meetingId, memberAttendances);
-}
-
-/**
- * Get resolved attendees for a meeting
- * Note: This delegates to meetingsService.getResolvedAttendeesForMeeting
- */
-export async function getResolvedAttendees(_meeting: Meeting): Promise<Member[]> {
-  // In the new architecture, attendance is handled differently
-  // Return empty array - the actual attendance is managed via attendance records
-  console.warn('getResolvedAttendees is deprecated - attendance is now handled via attendance records');
-  return [];
 }
 
 export default attendanceService;

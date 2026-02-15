@@ -98,7 +98,7 @@ export default function ManageSingleMinistryAreaView({
 	const handleMentorChange = (mentorId: string) => {
 		setEditableArea((prev) => ({
 			...prev,
-			mentorId: mentorId || undefined,
+			mentorId: mentorId || "",
 		}));
 	};
 
@@ -356,10 +356,15 @@ export default function ManageSingleMinistryAreaView({
 										/>
 										<Label
 											htmlFor={`add-member-${member.id}`}
-											className="font-normal text-sm cursor-pointer flex-grow"
+											className="font-normal text-sm cursor-pointer flex-grow flex items-center gap-2"
 										>
 											{member.firstName} {member.lastName} (
 											{statusDisplayMap[member.status] || member.status})
+											{!member.assignedGDIId && (
+												<Badge variant="destructive" className="text-xs px-1.5 py-0.5">
+													sin GDI
+												</Badge>
+											)}
 										</Label>
 									</div>
 								))
@@ -401,11 +406,16 @@ export default function ManageSingleMinistryAreaView({
 						<ScrollArea className="h-48 w-full rounded-md border p-2">
 							{leaderDetails && (
 								<div className="flex items-center justify-between p-2 rounded-md bg-primary/10">
-									<span className="font-medium text-sm text-primary">
+									<span className="font-medium text-sm text-primary flex items-center gap-2">
 										{leaderDetails.firstName} {leaderDetails.lastName} (
 										{statusDisplayMap[leaderDetails.status] ||
 											leaderDetails.status}
 										)
+										{!leaderDetails.assignedGDIId && (
+											<Badge variant="destructive" className="text-xs px-1.5 py-0.5">
+												sin GDI
+											</Badge>
+										)}
 									</span>
 									<Badge variant="default" className="text-xs">
 										Líder
@@ -432,10 +442,15 @@ export default function ManageSingleMinistryAreaView({
 											/>
 											<Label
 												htmlFor={`remove-member-${member.id}`}
-												className="font-normal text-sm cursor-pointer flex-grow"
+												className="font-normal text-sm cursor-pointer flex-grow flex items-center gap-2"
 											>
 												{member.firstName} {member.lastName} (
 												{statusDisplayMap[member.status] || member.status})
+												{!member.assignedGDIId && (
+													<Badge variant="destructive" className="text-xs px-1.5 py-0.5">
+														sin GDI
+													</Badge>
+												)}
 											</Label>
 										</div>
 									),

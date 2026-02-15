@@ -18,7 +18,6 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Meeting, MeetingInstanceFormValues } from "@/lib/types";
 import {
 	getAttendanceForMeeting,
-	getResolvedAttendees,
 	saveMeetingAttendance,
 	deleteMeetingInstance,
 	getAllMeetingSeries,
@@ -50,11 +49,9 @@ async function getPageData(meetingId: string) {
 		getAttendanceForMeeting(meetingId),
 	]);
 
-	const resolvedAttendees = await getResolvedAttendees(meetingInstance);
 	return {
 		meetingInstance,
 		meetingSeries,
-		resolvedAttendees,
 		currentAttendance,
 		allMembers,
 	};
@@ -194,8 +191,8 @@ export default async function MeetingAttendancePage({
 	const {
 		meetingInstance,
 		meetingSeries,
-		resolvedAttendees,
 		currentAttendance,
+		allMembers,
 	} = await getPageData(meetingId);
 
 	const seriesName = meetingSeries ? meetingSeries.name : "Serie Desconocida";
@@ -264,7 +261,7 @@ export default async function MeetingAttendancePage({
 
 			<AttendanceManagerView
 				meetingId={meetingInstance.id}
-				initialAttendees={resolvedAttendees}
+				initialAttendees={allMembers}
 				initialAttendanceRecords={currentAttendance}
 				saveAttendanceAction={handleSaveAttendance}
 			/>

@@ -134,10 +134,18 @@ export const areasService = {
 // ==============================================
 
 /**
- * Get all ministry areas
+ * Get all ministry areas (with member IDs populated)
  */
 export async function getAllMinistryAreas(): Promise<MinistryArea[]> {
-  return areasService.getAll();
+  const areas = await areasService.getAll();
+  // Fetch member IDs for each area in parallel
+  const areasWithMembers = await Promise.all(
+    areas.map(async (area) => {
+      const memberIds = await areasService.getMemberIds(area.id);
+      return { ...area, memberIds };
+    })
+  );
+  return areasWithMembers;
 }
 
 /**

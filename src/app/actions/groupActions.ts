@@ -14,7 +14,6 @@ import {
 	addMinistryArea as addMinistryAreaService,
 	deleteMinistryArea as deleteMinistryAreaService,
 	getAllMinistryAreas,
-	bulkRecalculateAndUpdateRoles,
 } from "@/lib/api/services";
 
 export async function addMinistryAreaActionSvc(
@@ -35,13 +34,7 @@ export async function addMinistryAreaActionSvc(
 		};
 		const newArea = await addMinistryAreaService(areaToWrite);
 
-		const affectedMemberIds = new Set<string>();
-		affectedMemberIds.add(newArea.leaderId);
-		(newAreaData.memberIds || []).forEach((id) => affectedMemberIds.add(id));
-
-		if (affectedMemberIds.size > 0) {
-			await bulkRecalculateAndUpdateRoles(Array.from(affectedMemberIds));
-		}
+		// Roles are managed automatically by the backend
 
 		revalidatePath("/groups");
 		revalidatePath(`/members`);
@@ -74,13 +67,7 @@ export async function addGdiActionSvc(
 		};
 		const newGdi = await addGdiService(gdiToWrite);
 
-		const affectedMemberIds = new Set<string>();
-		affectedMemberIds.add(newGdi.guideId);
-		(newGdiData.memberIds || []).forEach((id) => affectedMemberIds.add(id));
-
-		if (affectedMemberIds.size > 0) {
-			await bulkRecalculateAndUpdateRoles(Array.from(affectedMemberIds));
-		}
+		// Roles are managed automatically by the backend
 
 		revalidatePath("/groups");
 		revalidatePath(`/members`);
