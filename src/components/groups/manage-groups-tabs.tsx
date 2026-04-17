@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusCircle } from "lucide-react";
+import { AlertTriangle, PlusCircle, Users, UsersRound } from "lucide-react";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import {
 	Dialog,
@@ -10,6 +10,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import type { GDI, Member, MinistryArea } from "@/lib/types";
 import { Button } from "../ui/button";
@@ -50,6 +51,7 @@ const newAreaTemplate: MinistryArea = {
 	name: "",
 	description: "",
 	leaderId: "",
+	mentorId: "",
 	memberIds: [],
 };
 
@@ -69,9 +71,27 @@ export default function ManageGroupsTabs({
 	const [isAddAreaDialogOpen, setIsAddAreaDialogOpen] = useState(false);
 
 	const activeMembers = useMemo(
-		() => allMembers.filter((m) => m.status === "Active"),
+		() => allMembers.filter((m) => m.status === "vigente"),
 		[allMembers],
 	);
+
+	// KPIs calculados
+	const stats = useMemo(() => {
+		const areasWithoutMentor = initialMinistryAreas.filter(a => !a.mentorId).length;
+		const gdisWithoutMentor = initialGdis.filter(g => !g.mentorId).length;
+		const totalMembers = new Set([
+			...initialMinistryAreas.flatMap(a => a.memberIds),
+			...initialGdis.flatMap(g => g.memberIds)
+		]).size;
+		return {
+			totalAreas: initialMinistryAreas.length,
+			totalGdis: initialGdis.length,
+			withoutMentor: areasWithoutMentor + gdisWithoutMentor,
+			totalMembers,
+		};
+	}, [initialMinistryAreas, initialGdis]);
+
+	const [activeTab, setActiveTab] = useState<"ministry-areas" | "gdis">("ministry-areas");
 
 	const handleAddMinistryAreaSubmit = useCallback(
 		async (
@@ -163,48 +183,99 @@ export default function ManageGroupsTabs({
 
 	return (
 		<>
-			<Tabs defaultValue="ministry-areas" className="w-full">
-				<TabsList className="grid w-full grid-cols-2 mb-6">
-					<TabsTrigger value="ministry-areas">Áreas Ministeriales</TabsTrigger>
-					<TabsTrigger value="gdis">GDIs (Grupos de Integración)</TabsTrigger>
-				</TabsList>
-				<TabsContent value="ministry-areas">
-					<div className="flex justify-between items-center mb-6">
-						<h2 className="text-2xl font-semibold">Áreas Ministeriales</h2>
-						<Button
-							onClick={() => setIsAddAreaDialogOpen(true)}
-							disabled={isPending}
-						>
-							<PlusCircle className="mr-2 h-4 w-4" /> Agregar Nueva Área
-						</Button>
-					</div>
-					<MinistryAreasManager
-						ministryAreas={initialMinistryAreas}
-						allMembers={allMembers}
-						activeMembers={activeMembers}
-						deleteMinistryAreaAction={deleteMinistryAreaAction}
-					/>
-				</TabsContent>
-				<TabsContent value="gdis">
-					<div className="flex justify-between items-center mb-6">
-						<h2 className="text-2xl font-semibold">
-							GDIs (Grupos de Integración)
-						</h2>
-						<Button
-							onClick={() => setIsAddGdiDialogOpen(true)}
-							disabled={isPending}
-						>
-							<PlusCircle className="mr-2 h-4 w-4" /> Agregar Nuevo GDI
-						</Button>
-					</div>
-					<GdisManager
-						gdis={initialGdis}
-						allMembers={allMembers}
-						activeMembers={activeMembers}
-						deleteGdiAction={deleteGdiAction}
-					/>
-				</TabsContent>
-			</Tabs>
+			{/* KPI Summary Cards */}
+			<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+				<Card className="border-l-4 border-l-primary">
+					<CardContent className="p-4">
+						<div className="flex items-center gap-3">
+							<UsersRound className="h-8 w-8 text-primary" />
+							<div>
+								<p className="text-2xl font-bold">{stats.totalAreas}</p>
+								<p className="text-xs text-muted-foreground">Áreas</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+				<Card className="border-l-4 border-l-primary">
+					<CardContent className="p-4">
+						<div className="flex items-center gap-3">
+							<Users className="h-8 w-8 text-primary" />
+							<div>
+								<p className="text-2xl font-bold">{stats.totalGdis}</p>
+								<p className="text-xs text-muted-foreground">GDIs</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+				<Card className="border-l-4 border-l-blue-400">
+					<CardContent className="p-4">
+						<div className="flex items-center gap-3">
+							<Users className="h-8 w-8 text-blue-400" />
+							<div>
+								<p className="text-2xl font-bold">{stats.totalMembers}</p>
+								<p className="text-xs text-muted-foreground">Miembros asignados</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+				{stats.withoutMentor > 0 && (
+					<Card className="border-l-4 border-l-warning bg-warning/5">
+						<CardContent className="p-4">
+							<div className="flex items-center gap-3">
+								<AlertTriangle className="h-8 w-8 text-warning" />
+								<div>
+									<p className="text-2xl font-bold">{stats.withoutMentor}</p>
+									<p className="text-xs text-muted-foreground">Sin mentor</p>
+								</div>
+							</div>
+						</CardContent>
+					</Card>
+				)}
+			</div>
+
+			{/* Navigation Bar with Tabs and Action Button */}
+			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+				<Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "ministry-areas" | "gdis")} className="w-full sm:w-auto">
+					<TabsList className="grid w-full sm:w-auto grid-cols-2">
+						<TabsTrigger value="ministry-areas" className="gap-2">
+							<UsersRound className="h-4 w-4" />
+							<span className="hidden sm:inline">Áreas Ministeriales</span>
+							<span className="sm:hidden">Áreas</span>
+							<span className="ml-1 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{stats.totalAreas}</span>
+						</TabsTrigger>
+						<TabsTrigger value="gdis" className="gap-2">
+							<Users className="h-4 w-4" />
+							<span>GDIs</span>
+							<span className="ml-1 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{stats.totalGdis}</span>
+						</TabsTrigger>
+					</TabsList>
+				</Tabs>
+				<Button
+					onClick={() => activeTab === "ministry-areas" ? setIsAddAreaDialogOpen(true) : setIsAddGdiDialogOpen(true)}
+					disabled={isPending}
+					className="w-full sm:w-auto"
+				>
+					<PlusCircle className="mr-2 h-4 w-4" />
+					{activeTab === "ministry-areas" ? "Nueva Área" : "Nuevo GDI"}
+				</Button>
+			</div>
+
+			{/* Content */}
+			{activeTab === "ministry-areas" ? (
+				<MinistryAreasManager
+					ministryAreas={initialMinistryAreas}
+					allMembers={allMembers}
+					activeMembers={activeMembers}
+					deleteMinistryAreaAction={deleteMinistryAreaAction}
+				/>
+			) : (
+				<GdisManager
+					gdis={initialGdis}
+					allMembers={allMembers}
+					activeMembers={activeMembers}
+					deleteGdiAction={deleteGdiAction}
+				/>
+			)}
 
 			<Dialog open={isAddAreaDialogOpen} onOpenChange={setIsAddAreaDialogOpen}>
 				<DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">

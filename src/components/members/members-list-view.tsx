@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	AlertTriangle,
 	ArrowDownNarrowWide,
 	ArrowUpNarrowWide,
 	Briefcase,
@@ -8,11 +9,15 @@ import {
 	ChevronDown,
 	ChevronLeft,
 	ChevronRight,
+	Eye,
 	Filter,
-	Info,
 	ListPlus,
+	MoreVertical,
+	Pencil,
 	Search,
 	ShieldCheck,
+	Trash2,
+	UserCheck,
 	UserPlus,
 	Users,
 	X,
@@ -29,6 +34,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	Command,
 	CommandEmpty,
@@ -48,6 +54,7 @@ import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
+	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
@@ -155,9 +162,8 @@ const roleFilterOptions: {
 ];
 
 const statusDisplayMap: Record<Member["status"], string> = {
-	Active: "Activo",
-	Inactive: "Inactivo",
-	New: "Nuevo",
+	vigente: "Vigente",
+	eliminado: "Eliminado",
 };
 const statusFilterOptions: { value: Member["status"]; label: string }[] =
 	Object.entries(statusDisplayMap).map(([value, label]) => ({
@@ -214,6 +220,19 @@ export default function MembersListView({
 	const router = useRouter();
 	const pathname = usePathname();
 	const searchParamsHook = useSearchParams();
+
+	// KPI Stats calculation
+	const stats = useMemo(() => {
+		const activeMembers = allMembersForDropdowns.filter(m => m.status === "vigente");
+		const withoutGdi = activeMembers.filter(m => !m.assignedGDIId);
+		const withoutArea = activeMembers.filter(m => !m.assignedAreaIds || m.assignedAreaIds.length === 0);
+		return {
+			total: absoluteTotalMembers,
+			active: activeMembers.length,
+			withoutGdi: withoutGdi.length,
+			withoutArea: withoutArea.length,
+		};
+	}, [allMembersForDropdowns, absoluteTotalMembers]);
 
 	useEffect(() => {
 		setMembers(initialMembers);
@@ -431,6 +450,62 @@ export default function MembersListView({
 
 	return (
 		<>
+			{/* KPI Stats Cards */}
+			<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+				<Card className="border-l-4 border-l-primary">
+					<CardContent className="p-4">
+						<div className="flex items-center gap-3">
+							<div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+								<Users className="h-5 w-5 text-primary" />
+							</div>
+							<div>
+								<p className="text-2xl font-bold">{stats.total}</p>
+								<p className="text-xs text-muted-foreground">Total Miembros</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+				<Card className="border-l-4 border-l-green-500">
+					<CardContent className="p-4">
+						<div className="flex items-center gap-3">
+							<div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
+								<UserCheck className="h-5 w-5 text-green-600" />
+							</div>
+							<div>
+								<p className="text-2xl font-bold">{stats.active}</p>
+								<p className="text-xs text-muted-foreground">Vigentes</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+				<Card className={cn("border-l-4", stats.withoutGdi > 0 ? "border-l-warning" : "border-l-green-500")}>
+					<CardContent className="p-4">
+						<div className="flex items-center gap-3">
+							<div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", stats.withoutGdi > 0 ? "bg-warning/20" : "bg-green-100")}>
+								<AlertTriangle className={cn("h-5 w-5", stats.withoutGdi > 0 ? "text-warning" : "text-green-600")} />
+							</div>
+							<div>
+								<p className="text-2xl font-bold">{stats.withoutGdi}</p>
+								<p className="text-xs text-muted-foreground">Sin GDI</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+				<Card className={cn("border-l-4", stats.withoutArea > 0 ? "border-l-warning" : "border-l-green-500")}>
+					<CardContent className="p-4">
+						<div className="flex items-center gap-3">
+							<div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", stats.withoutArea > 0 ? "bg-warning/20" : "bg-green-100")}>
+								<AlertTriangle className={cn("h-5 w-5", stats.withoutArea > 0 ? "text-warning" : "text-green-600")} />
+							</div>
+							<div>
+								<p className="text-2xl font-bold">{stats.withoutArea}</p>
+								<p className="text-xs text-muted-foreground">Sin Área</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+
 			<div className="mb-6 space-y-4">
 				<div className="flex flex-col md:flex-row justify-between items-center gap-4">
 					<div className="w-full md:w-auto md:flex-grow md:max-w-sm">
@@ -456,25 +531,27 @@ export default function MembersListView({
 							<button type="submit" className="hidden" />
 						</form>
 					</div>
-					<div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-						<Button
-							onClick={() => setIsAddMemberDialogOpen(true)}
-							disabled={isProcessingMember}
-							className="w-full sm:w-auto"
-						>
-							<UserPlus className="mr-2 h-4 w-4" /> Agregar Nuevo Miembro
-						</Button>
-						<Button
-							asChild
-							variant="outline"
-							disabled={isProcessingMember}
-							className="w-full sm:w-auto"
-						>
-							<Link href="/members/bulk-add">
-								<ListPlus className="mr-2 h-4 w-4" /> Agregar Múltiples Miembros
-							</Link>
-						</Button>
-					</div>
+					{/* Unified Add Button with Dropdown */}
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button disabled={isProcessingMember}>
+								<UserPlus className="mr-2 h-4 w-4" /> Agregar Miembro
+								<ChevronDown className="ml-2 h-4 w-4" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuItem onClick={() => setIsAddMemberDialogOpen(true)}>
+								<UserPlus className="mr-2 h-4 w-4" />
+								Agregar Individual
+							</DropdownMenuItem>
+							<DropdownMenuItem asChild>
+								<Link href="/members/bulk-add">
+									<ListPlus className="mr-2 h-4 w-4" />
+									Agregar Múltiples
+								</Link>
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
 				</div>
 
 				<div className="flex flex-wrap items-center gap-x-2 gap-y-2 py-2">
@@ -724,16 +801,20 @@ export default function MembersListView({
 									Estado <SortIcon columnKey="status" />
 								</div>
 							</TableHead>
-							<TableHead className="text-center">Info</TableHead>
+							<TableHead className="text-center">Acciones</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
 						{processedMembers.map((member) => {
 							const memberAreas = getMemberAreaNames(member);
+							const isDeleted = member.status === "eliminado";
 							return (
 								<TableRow
 									key={member.id}
-									className="hover:bg-muted/50 transition-colors"
+									className={cn(
+										"hover:bg-muted/50 transition-colors",
+										isDeleted && "opacity-50"
+									)}
 								>
 									<TableCell>
 										<Avatar>
@@ -743,7 +824,7 @@ export default function MembersListView({
 											</AvatarFallback>
 										</Avatar>
 									</TableCell>
-									<TableCell className="font-medium">
+									<TableCell className={cn("font-medium", isDeleted && "line-through")}>
 										{member.firstName} {member.lastName}
 									</TableCell>
 									<TableCell>{member.phone}</TableCell>
@@ -789,33 +870,50 @@ export default function MembersListView({
 									<TableCell>
 										<Badge
 											variant={
-												member.status === "Active"
+												member.status === "vigente"
 													? "default"
-													: member.status === "Inactive"
-														? "secondary"
-														: "outline"
+													: "secondary"
 											}
 											className={
-												member.status === "Active"
+												member.status === "vigente"
 													? "bg-green-500/20 text-green-700 border-green-500/50"
-													: member.status === "Inactive"
-														? "bg-red-500/20 text-red-700 border-red-500/50"
-														: "bg-yellow-500/20 text-yellow-700 border-yellow-500/50"
+													: "bg-red-500/20 text-red-700 border-red-500/50"
 											}
 										>
 											{displayStatus(member.status)}
 										</Badge>
 									</TableCell>
 									<TableCell className="text-center">
-										<Button
-											variant="outline"
-											size="icon"
-											onClick={() => handleOpenDetailsDialog(member)}
-											title="Ver Detalles"
-											disabled={isProcessingMember}
-										>
-											<Info className="h-4 w-4" />
-										</Button>
+										<DropdownMenu>
+											<DropdownMenuTrigger asChild>
+												<Button
+													variant="ghost"
+													size="icon"
+													disabled={isProcessingMember}
+												>
+													<MoreVertical className="h-4 w-4" />
+												</Button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align="end">
+												<DropdownMenuItem onClick={() => handleOpenDetailsDialog(member)}>
+													<Eye className="mr-2 h-4 w-4" />
+													Ver Detalles
+												</DropdownMenuItem>
+												<DropdownMenuItem onClick={() => handleOpenEditDialog(member)}>
+													<Pencil className="mr-2 h-4 w-4" />
+													Editar
+												</DropdownMenuItem>
+												<DropdownMenuSeparator />
+												<DropdownMenuItem
+													onClick={() => handleDeleteMember(member.id)}
+													className="text-destructive focus:text-destructive"
+													disabled={member.status === "eliminado"}
+												>
+													<Trash2 className="mr-2 h-4 w-4" />
+													Eliminar
+												</DropdownMenuItem>
+											</DropdownMenuContent>
+										</DropdownMenu>
 									</TableCell>
 								</TableRow>
 							);

@@ -115,7 +115,7 @@ export default function MemberAttendanceSummary({
 			if (!series) return false;
 
 			if (series.seriesType === "general") {
-				if (series.targetAttendeeGroups.includes("allMembers")) return true;
+				if ((series.targetAttendeeGroups || []).includes("allMembers")) return true;
 				// For specific role-based general meetings, attendeeUids should be pre-resolved
 				return meeting.attendeeUids?.includes(memberId);
 			} else {

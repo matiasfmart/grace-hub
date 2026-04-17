@@ -26,15 +26,21 @@ export async function defineMeetingSeriesAction(
 	newInstances?: Meeting[];
 }> {
 	try {
+		const oneTimeDateStr = newSeriesData.oneTimeDate instanceof Date &&
+			isValid(newSeriesData.oneTimeDate)
+			? format(newSeriesData.oneTimeDate, "yyyy-MM-dd")
+			: undefined;
+
 		const dataForService: MeetingSeriesWriteData = {
 			...newSeriesData,
 			seriesType: "general",
+			audienceType: "all_active",
 			ownerGroupId: null,
-			oneTimeDate:
-				newSeriesData.oneTimeDate instanceof Date &&
-				isValid(newSeriesData.oneTimeDate)
-					? format(newSeriesData.oneTimeDate, "yyyy-MM-dd")
-					: undefined,
+			gdiId: null,
+			areaId: null,
+			meetingTypeId: null,
+			startDate: oneTimeDateStr || format(new Date(), "yyyy-MM-dd"),
+			oneTimeDate: oneTimeDateStr,
 		};
 
 		const result = await addMeetingSeries(dataForService);

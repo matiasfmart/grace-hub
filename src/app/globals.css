@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,79 +8,112 @@ body {
 	font-family: "PT Sans", sans-serif;
 }
 
+/* Grace Hub Design System - "La Cruz del Refugio" */
 @layer base {
 	:root {
-		--background: 207 86% 94%; /* #E3F2FD light desaturated blue */
-		--foreground: 207 20% 25%; /* Darker blue-gray for text */
-		--card: 0 0% 100%; /* White for cards */
-		--card-foreground: 207 20% 25%;
+		/* Surface Hierarchy - Reduced visual fatigue */
+		--background: 210 69% 94%; /* #E3F2FD - Azul desaturado */
+		--foreground: 205 100% 10%; /* #001d32 - On-surface (blue-black) */
+		
+		/* Surface Container Levels */
+		--card: 0 0% 100%; /* #ffffff - Surface Container Lowest */
+		--card-foreground: 205 100% 10%;
 		--popover: 0 0% 100%;
-		--popover-foreground: 207 20% 25%;
-		--primary: 207 88% 68%; /* #64B5F6 calming blue */
-		--primary-foreground: 0 0% 100%; /* White text on primary blue */
-		--secondary: 207 80% 88%; /* Lighter shade of primary blue */
-		--secondary-foreground: 207 20% 25%;
-		--muted: 207 50% 90%; /* Even lighter, desaturated blue */
-		--muted-foreground: 207 30% 50%;
-		--accent: 45 100% 58%; /* #FFCA28 warm yellow */
-		--accent-foreground: 45 100% 15%; /* Dark text on yellow accent */
-		--destructive: 0 84.2% 60.2%;
-		--destructive-foreground: 0 0% 98%;
-		--success: 142.1 70.6% 45.3%;
-		--success-foreground: 0 0% 98%;
-		--border: 207 50% 85%; /* Subtle blue-themed border */
-		--input: 207 50% 90%; /* Input background */
-		--ring: 207 88% 60%; /* Ring color, darker shade of primary */
-		--chart-1: 12 76% 61%;
-		--chart-2: 173 58% 39%;
-		--chart-3: 197 37% 24%;
-		--chart-4: 43 74% 66%;
-		--chart-5: 27 87% 67%;
-		--radius: 0.5rem;
-		--sidebar-background: 207 80% 96%;
-		--sidebar-foreground: 207 20% 30%;
-		--sidebar-primary: 207 88% 68%;
+		--popover-foreground: 205 100% 10%;
+		
+		/* Primary Blue Palette - Gradient Brand Colors */
+		--primary: 207 89% 68%; /* #64B5F6 - Primary gradient start */
+		--primary-foreground: 0 0% 100%;
+		--primary-light: 207 89% 68%; /* #64b5f6 - Light variant */
+		--primary-dark: 210 79% 51%; /* #1E88E5 - Gradient end */
+		
+		/* Secondary & Muted */
+		--secondary: 207 100% 96%; /* #e9f5ff - Surface Container Low */
+		--secondary-foreground: 210 79% 51%;
+		--muted: 207 100% 96%; /* Surface Container Low */
+		--muted-foreground: 210 10% 28%; /* #404850 - On-surface-variant */
+		
+		/* Accent */
+		--accent: 207 100% 96%;
+		--accent-foreground: 210 79% 51%;
+		
+		/* Status Colors */
+		--destructive: 0 84% 60%;
+		--destructive-foreground: 0 0% 100%;
+		--success: 142 70% 45%;
+		--success-foreground: 0 0% 100%;
+		--warning: 45 100% 58%; /* #FFCA28 - At Risk / Unassigned */
+		--warning-foreground: 0 0% 20%;
+		
+		/* Borders & Inputs - "No-Line" Rule: Use background shifts */
+		--border: 207 60% 92%;
+		--input: 207 100% 96%; /* Surface Container Low */
+		--ring: 207 89% 68%;
+		
+		/* Charts */
+		--chart-1: 207 89% 68%;
+		--chart-2: 210 79% 51%;
+		--chart-3: 207 60% 50%;
+		--chart-4: 210 80% 45%;
+		--chart-5: 207 100% 80%;
+		
+		/* Border Radius - Modern Softness */
+		--radius: 0.75rem;
+		--radius-sm: 0.375rem;
+		--radius-lg: 1rem;
+		--radius-xl: 1.5rem;
+		--radius-2xl: 1rem; /* 16px - Logo container */
+		
+		/* Sidebar */
+		--sidebar-background: 0 0% 100%; /* Surface Container Lowest */
+		--sidebar-foreground: 205 100% 10%;
+		--sidebar-primary: 207 89% 68%;
 		--sidebar-primary-foreground: 0 0% 100%;
-		--sidebar-accent: 207 80% 90%;
-		--sidebar-accent-foreground: 207 20% 25%;
-		--sidebar-border: 207 50% 88%;
-		--sidebar-ring: 207 88% 60%;
+		--sidebar-accent: 207 100% 96%;
+		--sidebar-accent-foreground: 210 79% 51%;
+		--sidebar-border: 207 60% 94%;
+		--sidebar-ring: 207 89% 68%;
 	}
 	.dark {
-		--background: 207 30% 15%; /* Dark blue */
-		--foreground: 207 80% 90%; /* Light blue text */
-		--card: 207 30% 20%; /* Slightly lighter dark blue for cards */
-		--card-foreground: 207 80% 90%;
-		--popover: 207 30% 10%;
-		--popover-foreground: 207 80% 90%;
-		--primary: 207 88% 68%; /* Calming blue */
-		--primary-foreground: 0 0% 100%; /* White text */
-		--secondary: 207 60% 30%; /* Mid-dark blue */
-		--secondary-foreground: 207 80% 90%;
-		--muted: 207 40% 25%;
-		--muted-foreground: 207 60% 70%;
-		--accent: 45 100% 58%; /* Warm yellow */
-		--accent-foreground: 45 100% 15%; /* Dark text on yellow */
-		--destructive: 0 62.8% 30.6%;
-		--destructive-foreground: 0 0% 98%;
-		--success: 142.1 70.6% 45.3%;
-		--success-foreground: 0 0% 98%;
-		--border: 207 50% 30%;
-		--input: 207 50% 25%;
-		--ring: 207 88% 60%;
-		--chart-1: 220 70% 50%;
-		--chart-2: 160 60% 45%;
-		--chart-3: 30 80% 55%;
-		--chart-4: 280 65% 60%;
-		--chart-5: 340 75% 55%;
-		--sidebar-background: 207 30% 12%;
-		--sidebar-foreground: 207 80% 85%;
-		--sidebar-primary: 207 88% 68%;
-		--sidebar-primary-foreground: 0 0% 100%;
-		--sidebar-accent: 207 40% 22%;
-		--sidebar-accent-foreground: 207 80% 90%;
-		--sidebar-border: 207 50% 25%;
-		--sidebar-ring: 207 88% 60%;
+		/* Dark mode - Grace Hub */
+		--background: 205 50% 8%; /* Deep sanctuary blue */
+		--foreground: 210 60% 92%;
+		--card: 205 45% 12%;
+		--card-foreground: 210 60% 92%;
+		--popover: 205 45% 10%;
+		--popover-foreground: 210 60% 92%;
+		--primary: 207 89% 68%; /* #64b5f6 */
+		--primary-foreground: 205 100% 8%;
+		--primary-light: 207 89% 68%;
+		--primary-dark: 210 79% 51%;
+		--secondary: 205 40% 18%;
+		--secondary-foreground: 210 60% 90%;
+		--muted: 205 35% 20%;
+		--muted-foreground: 210 30% 65%;
+		--accent: 205 40% 18%;
+		--accent-foreground: 207 89% 68%;
+		--destructive: 0 70% 50%;
+		--destructive-foreground: 0 0% 100%;
+		--success: 142 70% 45%;
+		--success-foreground: 0 0% 100%;
+		--warning: 45 100% 50%; /* Darker warning for dark mode */
+		--warning-foreground: 0 0% 10%;
+		--border: 205 35% 22%;
+		--input: 205 40% 18%;
+		--ring: 207 89% 68%;
+		--chart-1: 207 89% 68%;
+		--chart-2: 210 79% 51%;
+		--chart-3: 207 60% 55%;
+		--chart-4: 210 80% 60%;
+		--chart-5: 207 100% 75%;
+		--sidebar-background: 205 50% 6%;
+		--sidebar-foreground: 210 60% 90%;
+		--sidebar-primary: 207 89% 68%;
+		--sidebar-primary-foreground: 205 100% 8%;
+		--sidebar-accent: 205 40% 15%;
+		--sidebar-accent-foreground: 207 89% 68%;
+		--sidebar-border: 205 35% 18%;
+		--sidebar-ring: 207 89% 68%;
 	}
 }
 
@@ -87,7 +122,24 @@ body {
 		@apply border-border;
 	}
 	body {
-		@apply bg-background text-foreground;
+		@apply bg-background text-foreground antialiased;
+	}
+	/* Typography Hierarchy - PT Sans */
+	h1 {
+		@apply text-3xl md:text-4xl font-bold tracking-tight text-slate-800;
+	}
+	h2 {
+		@apply text-xl font-semibold tracking-tight text-slate-800;
+		letter-spacing: -0.015em;
+	}
+	h3 {
+		@apply text-lg font-semibold text-slate-800;
+	}
+	p {
+		@apply text-base leading-relaxed;
+	}
+	.text-secondary {
+		@apply text-sm text-slate-500;
 	}
 }
 

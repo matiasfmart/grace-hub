@@ -16,11 +16,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import type { AttendanceRecord, Member } from "@/lib/types";
+import type { AttendanceRecord } from "@/lib/types";
+
+/**
+ * Simple attendee info for attendance tracking
+ * Compatible with both Member and ExpectedAttendee types
+ */
+interface AttendeeInfo {
+	id: string;
+	firstName: string;
+	lastName: string;
+	email?: string; // Optional - used for search if available
+}
 
 interface AttendanceManagerViewProps {
 	meetingId: string;
-	initialAttendees: Member[];
+	initialAttendees: AttendeeInfo[];
 	initialAttendanceRecords: AttendanceRecord[];
 	saveAttendanceAction: (
 		meetingId: string,
@@ -28,7 +39,7 @@ interface AttendanceManagerViewProps {
 	) => Promise<{ success: boolean; message: string }>;
 }
 
-interface AttendeeState extends Member {
+interface AttendeeState extends AttendeeInfo {
 	attended: boolean;
 }
 
@@ -97,7 +108,7 @@ export default function AttendanceManagerView({
 			`${att.firstName} ${att.lastName}`
 				.toLowerCase()
 				.includes(searchTerm.toLowerCase()) ||
-			att.email.toLowerCase().includes(searchTerm.toLowerCase()),
+			(att.email?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false),
 	);
 
 	const attendedCount = attendees.filter((att) => att.attended).length;
@@ -180,9 +191,11 @@ export default function AttendanceManagerView({
 										<span className="font-medium">
 											{attendee.firstName} {attendee.lastName}
 										</span>
-										<span className="block text-xs text-muted-foreground">
-											{attendee.email}
-										</span>
+										{attendee.email && (
+											<span className="block text-xs text-muted-foreground">
+												{attendee.email}
+											</span>
+										)}
 									</Label>
 								</div>
 							))}

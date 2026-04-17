@@ -181,12 +181,10 @@ export default function MemberDetailsDialog({
 
 	const displayStatus = (status: Member["status"]) => {
 		switch (status) {
-			case "Active":
-				return "Activo";
-			case "Inactive":
-				return "Inactivo";
-			case "New":
-				return "Nuevo";
+			case "vigente":
+				return "Vigente";
+			case "eliminado":
+				return "Eliminado";
 			default:
 				return status;
 		}
@@ -207,7 +205,7 @@ export default function MemberDetailsDialog({
 		allMeetingSeries.forEach((series) => {
 			if (
 				series.seriesType === "general" &&
-				series.targetAttendeeGroups.includes("allMembers")
+				(series.targetAttendeeGroups || []).includes("allMembers")
 			) {
 				relevantSeriesIds.add(series.id); // Changed series.id to series._id
 			}
@@ -359,18 +357,14 @@ export default function MemberDetailsDialog({
 							<div className="mt-1 flex flex-wrap gap-1 items-center">
 								<Badge
 									variant={
-										member.status === "Active"
+										member.status === "vigente"
 											? "default"
-											: member.status === "Inactive"
-												? "secondary"
-												: "outline"
+											: "secondary"
 									}
 									className={
-										member.status === "Active"
+										member.status === "vigente"
 											? "bg-green-500/20 text-green-700 border-green-500/50"
-											: member.status === "Inactive"
-												? "bg-red-500/20 text-red-700 border-red-500/50"
-												: "bg-yellow-500/20 text-yellow-700 border-yellow-500/50"
+											: "bg-red-500/20 text-red-700 border-red-500/50"
 									}
 								>
 									{displayStatus(member.status)}

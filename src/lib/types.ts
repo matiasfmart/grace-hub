@@ -40,8 +40,13 @@ export type MonthlyRuleType = z.infer<typeof MonthlyRuleTypeEnum>;
 export const MeetingFrequencyEnum = z.enum(["OneTime", "Weekly", "Monthly"]);
 export type MeetingFrequencyType = z.infer<typeof MeetingFrequencyEnum>;
 
+// Legacy type - kept for backwards compatibility
 export const MeetingSeriesTypeEnum = z.enum(["general", "gdi", "ministryArea"]);
 export type MeetingSeriesType = z.infer<typeof MeetingSeriesTypeEnum>;
+
+// New audience type enum matching backend
+export const AudienceTypeEnum = z.enum(["gdi", "area", "by_categories", "all_active"]);
+export type AudienceType = z.infer<typeof AudienceTypeEnum>;
 
 // ============================================
 // CLIENT TYPES (API/UI)
@@ -64,7 +69,7 @@ export interface Member {
 	fromAnotherChurch?: boolean;
 	assignedGDIId?: string | null;
 	assignedAreaIds?: string[];
-	status: "Active" | "Inactive" | "New";
+	status: "vigente" | "eliminado";
 	address?: string;
 	roles?: MemberRoleType[];
 }
@@ -90,12 +95,21 @@ export interface MeetingSeries {
 	id: string;
 	name: string;
 	description?: string;
-	defaultTime: string;
-	defaultLocation: string;
-	seriesType: MeetingSeriesType;
+	defaultTime?: string;
+	defaultLocation?: string;
+	// New fields matching backend
+	audienceType: AudienceType;
+	gdiId?: string | null;
+	areaId?: string | null;
+	meetingTypeId?: string | null;
+	// Legacy fields - deprecated, use audienceType instead
+	seriesType?: MeetingSeriesType;
 	ownerGroupId?: string | null;
-	targetAttendeeGroups: MeetingTargetRoleType[];
+	targetAttendeeGroups?: MeetingTargetRoleType[];
+	// Scheduling fields
 	frequency: MeetingFrequencyType;
+	startDate: string;
+	endDate?: string;
 	oneTimeDate?: string;
 	cancelledDates?: string[];
 	weeklyDays?: DayOfWeekType[];
@@ -103,6 +117,8 @@ export interface MeetingSeries {
 	monthlyDayOfMonth?: number;
 	monthlyWeekOrdinal?: WeekOrdinalType;
 	monthlyDayOfWeek?: DayOfWeekType;
+	createdAt?: string;
+	updatedAt?: string;
 }
 
 export interface Meeting {
@@ -130,6 +146,13 @@ export interface TitheRecord {
 	memberId: string;
 	year: number;
 	month: number;
+}
+
+export interface ExpectedAttendee {
+	memberId: string;
+	firstName: string;
+	lastName: string;
+	fullName: string;
 }
 
 // ============================================
@@ -161,7 +184,7 @@ export type AnyMeetingInstanceUpdateData = Partial<
 // ZOD SCHEMAS FOR FORM VALIDATION
 // ============================================
 
-export const MemberStatusSchema = z.enum(["Active", "Inactive", "New"]);
+export const MemberStatusSchema = z.enum(["vigente", "eliminado"]);
 export const NONE_GDI_OPTION_VALUE = "__NONE__"; // Used in member form for "Ninguno" GDI
 export const NO_ROLE_FILTER_VALUE = "no-role-assigned";
 export const NO_GDI_FILTER_VALUE = "no-gdi-assigned";

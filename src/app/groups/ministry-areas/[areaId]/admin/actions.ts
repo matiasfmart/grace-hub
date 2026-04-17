@@ -13,6 +13,7 @@ import {
 	addMeetingSeriesForGroup,
 	deleteMeetingInstanceForGroup,
 	deleteMeetingSeriesForGroup,
+	deleteMinistryArea,
 	updateMeetingInstanceForGroup,
 	updateMeetingInstanceMinuteForGroup,
 	updateMeetingSeriesForGroup,
@@ -52,6 +53,26 @@ export async function updateMinistryAreaDetailsAction(
 		return {
 			success: false,
 			message: `Error actualizando Área Ministerial: ${error.message}`,
+		};
+	}
+}
+
+export async function deleteMinistryAreaAction(
+	areaId: string,
+): Promise<{ success: boolean; message: string }> {
+	try {
+		await deleteMinistryArea(areaId);
+		revalidatePath("/groups");
+		revalidatePath("/members");
+		return {
+			success: true,
+			message: "Área Ministerial eliminada exitosamente.",
+		};
+	} catch (error: any) {
+		console.error("Error eliminando Área Ministerial:", error);
+		return {
+			success: false,
+			message: `Error eliminando Área Ministerial: ${error.message}`,
 		};
 	}
 }

@@ -12,6 +12,7 @@ import {
 	getAllMinistryAreas,
 	getAllTitheRecords,
 } from "@/lib/api/services";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -152,16 +153,11 @@ export default async function TithesPage({ searchParams }: TithesPageProps) {
 	} = await getTithesPageData(params || {});
 
 	return (
-		<div className="container mx-auto py-8 px-4">
-			<div className="mb-8 text-center">
-				<h1 className="font-headline text-4xl font-bold text-primary">
-					Seguimiento de Diezmos
-				</h1>
-				<p className="text-muted-foreground mt-2">
-					Registre y visualice el estado de los diezmos de los miembros
-					mensualmente.
-				</p>
-			</div>
+		<div className="space-y-6">
+			<PageHeader
+				title="Diezmos"
+				description="Registro y seguimiento de diezmos por miembro."
+			/>
 			<TithesTracker
 				initialMembers={members}
 				initialTitheRecords={allTitheRecords}

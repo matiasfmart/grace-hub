@@ -25,7 +25,7 @@ import {
 	getMeetingSeriesById,
 	updateMeeting,
 	updateMeetingMinute,
-	getAllMembersNonPaginated,
+	getExpectedAttendees,
 } from "@/lib/api/services";
 
 export const dynamic = "force-dynamic";
@@ -44,16 +44,23 @@ async function getPageData(meetingId: string) {
 		(s) => s.id === meetingInstance.seriesId,
 	);
 
-	const [allMembers, currentAttendance] = await Promise.all([
-		getAllMembersNonPaginated(),
+	const [expectedAttendees, currentAttendance] = await Promise.all([
+		getExpectedAttendees(meetingId),
 		getAttendanceForMeeting(meetingId),
 	]);
+
+	// Map ExpectedAttendee to AttendeeInfo format (id instead of memberId)
+	const attendeesForView = expectedAttendees.map((a) => ({
+		id: a.memberId,
+		firstName: a.firstName,
+		lastName: a.lastName,
+	}));
 
 	return {
 		meetingInstance,
 		meetingSeries,
 		currentAttendance,
-		allMembers,
+		attendees: attendeesForView,
 	};
 }
 
@@ -192,7 +199,7 @@ export default async function MeetingAttendancePage({
 		meetingInstance,
 		meetingSeries,
 		currentAttendance,
-		allMembers,
+		attendees,
 	} = await getPageData(meetingId);
 
 	const seriesName = meetingSeries ? meetingSeries.name : "Serie Desconocida";
@@ -261,7 +268,7 @@ export default async function MeetingAttendancePage({
 
 			<AttendanceManagerView
 				meetingId={meetingInstance.id}
-				initialAttendees={allMembers}
+				initialAttendees={attendees}
 				initialAttendanceRecords={currentAttendance}
 				saveAttendanceAction={handleSaveAttendance}
 			/>

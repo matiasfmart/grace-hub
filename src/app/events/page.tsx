@@ -1,6 +1,13 @@
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { CalendarDays, LayoutGrid, ListFilter } from "lucide-react";
+import {
+	AlertTriangle,
+	CalendarCheck,
+	CalendarDays,
+	LayoutGrid,
+	ListFilter,
+	Percent,
+} from "lucide-react";
 import Link from "next/link";
 import {
 	addOccasionalMeetingAction,
@@ -10,13 +17,14 @@ import {
 } from "@/app/actions/eventActions";
 import AttendanceLineChart from "@/components/events/AttendanceFrequencySummaryTable";
 import AddOccasionalMeetingDialog from "@/components/events/add-occasional-meeting-dialog";
-import DateRangeFilter from "@/components/events/date-range-filter";
-import EventsTableFilters from "@/components/events/events-table-filters"; // Import the new component
+import EventsTableFilters from "@/components/events/events-table-filters";
+import EventsToolbar from "@/components/events/events-toolbar";
 import ManageMeetingSeriesDialog from "@/components/events/manage-meeting-series-dialog";
 import MeetingTypeAttendanceTable from "@/components/events/meeting-type-attendance-table";
 import PageSpecificAddMeetingDialog from "@/components/events/page-specific-add-meeting-dialog";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import type {
 	AttendanceRecord,
 	GDI,
@@ -306,236 +314,267 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 		})),
 	];
 
+	// Calculate KPI stats
+	const totalSeries = allSeries.length;
+	const totalInstances = totalMeetingInstances;
+	
+	// Calculate average attendance percentage
+	let avgAttendancePercent = 0;
+	if (meetingsForPage.length > 0) {
+		const attendanceByMeeting = meetingsForPage.map((meeting) => {
+			const expectedSet = expectedAttendeesMap[meeting.id] || new Set();
+			const expectedCount = expectedSet.size;
+			if (expectedCount === 0) return null;
+			const presentCount = allAttendanceRecords.filter(
+				(ar) => ar.meetingId === meeting.id && ar.wasPresent && expectedSet.has(ar.memberId)
+			).length;
+			return (presentCount / expectedCount) * 100;
+		}).filter((p): p is number => p !== null);
+		
+		if (attendanceByMeeting.length > 0) {
+			avgAttendancePercent = Math.round(
+				attendanceByMeeting.reduce((a, b) => a + b, 0) / attendanceByMeeting.length
+			);
+		}
+	}
+	
+	// Count instances without attendance records
+	const instancesWithoutRecords = meetingsForPage.filter((meeting) => {
+		return !allAttendanceRecords.some((ar) => ar.meetingId === meeting.id);
+	}).length;
+
 	return (
-		<div className="container mx-auto py-8 px-4">
-			<div className="mb-6">
-				<h1 className="font-headline text-4xl font-bold text-primary">
-					Administración de Reuniones Generales
-				</h1>
-				<p className="text-muted-foreground mt-1">
-					Defina series, programe instancias y vea el historial de asistencia
-					para eventos generales de la iglesia.
-				</p>
+		<div className="space-y-6">
+			<PageHeader
+				title="Eventos"
+				description="Seguimiento de reuniones y asistencia."
+			/>
+
+			{/* KPI Stats Cards */}
+			<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+				<Card className="border-l-4 border-l-primary">
+					<CardContent className="p-4">
+						<div className="flex items-center gap-3">
+							<div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+								<LayoutGrid className="h-5 w-5 text-primary" />
+							</div>
+							<div>
+								<p className="text-2xl font-bold">{totalSeries}</p>
+								<p className="text-xs text-muted-foreground">Series Activas</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+				<Card className="border-l-4 border-l-blue-500">
+					<CardContent className="p-4">
+						<div className="flex items-center gap-3">
+							<div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+								<CalendarCheck className="h-5 w-5 text-blue-600" />
+							</div>
+							<div>
+								<p className="text-2xl font-bold">{totalInstances}</p>
+								<p className="text-xs text-muted-foreground">Instancias</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+				<Card className={cn("border-l-4", avgAttendancePercent >= 70 ? "border-l-green-500" : avgAttendancePercent >= 50 ? "border-l-yellow-500" : "border-l-red-500")}>
+					<CardContent className="p-4">
+						<div className="flex items-center gap-3">
+							<div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", avgAttendancePercent >= 70 ? "bg-green-100" : avgAttendancePercent >= 50 ? "bg-yellow-100" : "bg-red-100")}>
+								<Percent className={cn("h-5 w-5", avgAttendancePercent >= 70 ? "text-green-600" : avgAttendancePercent >= 50 ? "text-yellow-600" : "text-red-600")} />
+							</div>
+							<div>
+								<p className="text-2xl font-bold">{avgAttendancePercent}%</p>
+								<p className="text-xs text-muted-foreground">Asist. Promedio</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+				<Card className={cn("border-l-4", instancesWithoutRecords > 0 ? "border-l-warning" : "border-l-green-500")}>
+					<CardContent className="p-4">
+						<div className="flex items-center gap-3">
+							<div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", instancesWithoutRecords > 0 ? "bg-warning/20" : "bg-green-100")}>
+								<AlertTriangle className={cn("h-5 w-5", instancesWithoutRecords > 0 ? "text-warning" : "text-green-600")} />
+							</div>
+							<div>
+								<p className="text-2xl font-bold">{instancesWithoutRecords}</p>
+								<p className="text-xs text-muted-foreground">Sin Registrar</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
 			</div>
 
-			<div className="flex flex-col md:flex-row gap-6 lg:gap-8">
-				<aside className="md:w-72 lg:w-80 flex-shrink-0 space-y-6">
-					<PageSpecificAddMeetingDialog
-						defineMeetingSeriesAction={defineMeetingSeriesAction}
-						seriesTypeContext="general"
-					/>
-					<div className="p-4 border rounded-lg shadow-sm bg-card">
-						<h2 className="text-lg font-semibold mb-3 flex items-center">
-							<LayoutGrid className="mr-2 h-5 w-5 text-primary" />
-							Series de Reuniones Generales
-						</h2>
-						{allSeries.length > 0 ? (
-							<ScrollArea className="max-h-60 md:max-h-72 lg:max-h-80 pr-3">
-								<div className="space-y-1">
-									{allSeries.map((series) => (
-										<Button
-											key={series.id}
-											variant={
-												selectedSeriesId === series.id ? "default" : "ghost"
-											}
-											className={cn(
-												"w-full justify-start text-left h-auto py-2 px-3 text-sm",
-												selectedSeriesId === series.id &&
-													"bg-primary text-primary-foreground hover:bg-primary/90",
-											)}
-											asChild
-										>
-											<Link href={createSeriesLink(series.id)}>
-												{series.name}
-											</Link>
-										</Button>
-									))}
-								</div>
-							</ScrollArea>
-						) : (
-							<p className="text-sm text-muted-foreground py-2">
-								No hay series generales definidas.
-							</p>
-						)}
-					</div>
+			{/* Toolbar: Series Select + Date Filter + New Series */}
+			<div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
+				<EventsToolbar
+					allSeries={allSeries}
+					selectedSeriesId={selectedSeriesId}
+					appliedStartDate={appliedStartDate}
+					appliedEndDate={appliedEndDate}
+				/>
+				<PageSpecificAddMeetingDialog
+					defineMeetingSeriesAction={defineMeetingSeriesAction}
+					seriesTypeContext="general"
+				/>
+			</div>
 
-					<div className="p-4 border rounded-lg shadow-sm bg-card">
-						<h2 className="text-lg font-semibold mb-3 flex items-center">
-							<ListFilter className="mr-2 h-5 w-5 text-primary" />
-							Filtrar Instancias (Columnas)
-						</h2>
-						<DateRangeFilter
-							initialStartDate={appliedStartDate}
-							initialEndDate={appliedEndDate}
-						/>
-					</div>
-				</aside>
-
-				<main className="flex-1 min-w-0">
-					{selectedSeriesObject ? (
-						<>
-							<div className="mb-6 p-4 border rounded-lg bg-card shadow-md">
-								<div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-									<div className="flex-grow">
-										<h2 className="text-2xl font-semibold text-primary">
-											{selectedSeriesObject.name}
-										</h2>
-										{selectedSeriesObject.description && (
-											<p className="text-sm text-muted-foreground mt-1 max-w-prose">
-												{selectedSeriesObject.description}
-											</p>
-										)}
-										<div className="text-xs text-muted-foreground mt-2">
-											<span>
-												Hora Pred.: {selectedSeriesObject.defaultTime} |{" "}
-											</span>
-											<span>
-												Lugar Pred.: {selectedSeriesObject.defaultLocation} |{" "}
-											</span>
-											<span>
-												Frecuencia:{" "}
-												{selectedSeriesObject.frequency === "OneTime"
-													? "Única Vez"
-													: selectedSeriesObject.frequency === "Weekly"
-														? "Semanal"
-														: "Mensual"}
-											</span>
-										</div>
-									</div>
-									<div className="flex flex-col sm:flex-row gap-2 flex-shrink-0 mt-2 sm:mt-0">
-										<AddOccasionalMeetingDialog
-											series={selectedSeriesObject}
-											addOccasionalMeetingAction={addOccasionalMeetingAction}
-										/>
-										<ManageMeetingSeriesDialog
-											series={selectedSeriesObject}
-											updateMeetingSeriesAction={updateMeetingSeriesAction}
-											deleteMeetingSeriesAction={deleteMeetingSeriesAction}
-											seriesTypeContext="general"
-										/>
-									</div>
+			{/* Main Content - Full Width */}
+			{selectedSeriesObject ? (
+				<>
+					<div className="mb-6 p-4 border rounded-lg bg-card shadow-sm">
+						<div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+							<div className="flex-grow">
+								<h2 className="text-lg font-semibold text-primary">
+									{selectedSeriesObject.name}
+								</h2>
+								{selectedSeriesObject.description && (
+									<p className="text-sm text-muted-foreground mt-1 max-w-prose">
+										{selectedSeriesObject.description}
+									</p>
+								)}
+								<div className="text-xs text-muted-foreground mt-2 flex flex-wrap gap-x-3 gap-y-1">
+									<span>
+										Hora Pred.: {selectedSeriesObject.defaultTime}
+									</span>
+									<span>
+										Lugar Pred.: {selectedSeriesObject.defaultLocation}
+									</span>
+									<span>
+										Frecuencia:{" "}
+										{selectedSeriesObject.frequency === "OneTime"
+											? "Única Vez"
+											: selectedSeriesObject.frequency === "Weekly"
+												? "Semanal"
+												: "Mensual"}
+									</span>
 								</div>
 							</div>
-
-							{meetingsForPage.length > 0 && (
-								<AttendanceLineChart
-									meetingsForSeries={meetingsForPage}
-									allAttendanceRecords={allAttendanceRecords}
-									seriesName={selectedSeriesObject.name}
-									filterStartDate={appliedStartDate}
-									filterEndDate={appliedEndDate}
-									expectedAttendeesMap={expectedAttendeesMap}
+							<div className="flex flex-row gap-2 flex-shrink-0">
+								<AddOccasionalMeetingDialog
+									series={selectedSeriesObject}
+									addOccasionalMeetingAction={addOccasionalMeetingAction}
 								/>
-							)}
+								<ManageMeetingSeriesDialog
+									series={selectedSeriesObject}
+									updateMeetingSeriesAction={updateMeetingSeriesAction}
+									deleteMeetingSeriesAction={deleteMeetingSeriesAction}
+									seriesTypeContext="general"
+								/>
+							</div>
+						</div>
+					</div>
 
-							{totalMeetingInstances > 0 ? (
-								<>
-									<h3 className="text-md font-semibold mb-2 flex items-center">
-										<ListFilter className="mr-2 h-4 w-4 text-primary" />
-										Filtrar Miembros en Tabla (Filas):
-									</h3>
-									<EventsTableFilters
-										roleFilterOptions={roleFilterOptions}
-										statusFilterOptions={statusFilterOptions}
-										gdiFilterOptions={gdiFilterOptions}
-										areaFilterOptions={areaFilterOptions}
-										currentRoleFilters={tableMemberRoleFilters}
-										currentStatusFilters={tableMemberStatusFilters}
-										currentGdiFilters={tableMemberGdiFilters}
-										currentAreaFilters={tableMemberAreaFilters}
-									/>
+					{meetingsForPage.length > 0 && (
+						<AttendanceLineChart
+							meetingsForSeries={meetingsForPage}
+							allAttendanceRecords={allAttendanceRecords}
+							seriesName={selectedSeriesObject.name}
+							filterStartDate={appliedStartDate}
+							filterEndDate={appliedEndDate}
+							expectedAttendeesMap={expectedAttendeesMap}
+						/>
+					)}
 
-									<MeetingTypeAttendanceTable
-										displayedInstances={meetingsForPage}
-										allMeetingSeries={allSeries}
-										initialRowMembers={initialRowMembers}
-										expectedAttendeesMap={expectedAttendeesMap}
-										allAttendanceRecords={allAttendanceRecords}
-										seriesName={selectedSeriesObject.name}
-										filterStartDate={appliedStartDate}
-										filterEndDate={appliedEndDate}
-										memberCurrentPage={memberCurrentPage}
-										memberPageSize={memberPageSize}
-										memberRoleFilters={tableMemberRoleFilters}
-										memberStatusFilters={tableMemberStatusFilters}
-										memberGdiFilters={tableMemberGdiFilters}
-										memberAreaFilters={tableMemberAreaFilters}
-										allMembers={allMembers}
-										allGdis={allGdis}
-										allAreas={allMinistryAreas}
-									/>
-								</>
-							) : (
-								<div className="text-center py-10">
-									<CalendarDays className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-									<h2 className="text-xl font-semibold text-muted-foreground">
-										{appliedStartDate && appliedEndDate
-											? `No hay instancias para "${selectedSeriesObject.name}" en el rango seleccionado`
-											: `No hay instancias programadas para "${selectedSeriesObject.name}"`}
-									</h2>
-									<p className="text-muted-foreground mt-2">
-										{appliedStartDate && appliedEndDate
-											? `(${format(parseISO(appliedStartDate), "dd/MM/yy", { locale: es })} - ${format(parseISO(appliedEndDate), "dd/MM/yy", { locale: es })})`
-											: "Agregue una instancia para esta serie o ajuste los filtros de fecha."}
-									</p>
-								</div>
-							)}
-							{meetingInstancesTotalPages > 1 && (
-								<div className="flex items-center justify-end space-x-2 py-4">
-									<Button
-										variant="outline"
-										size="sm"
-										asChild
-										disabled={meetingInstancesCurrentPage <= 1}
-									>
-										<Link href={createPageURL(meetingInstancesCurrentPage - 1)}>
-											Anterior (Instancias)
-										</Link>
-									</Button>
-									<span className="text-sm text-muted-foreground">
-										Página {meetingInstancesCurrentPage} de{" "}
-										{meetingInstancesTotalPages} (Instancias)
-									</span>
-									<Button
-										variant="outline"
-										size="sm"
-										asChild
-										disabled={
-											meetingInstancesCurrentPage >= meetingInstancesTotalPages
-										}
-									>
-										<Link href={createPageURL(meetingInstancesCurrentPage + 1)}>
-											Siguiente (Instancias)
-										</Link>
-									</Button>
-								</div>
-							)}
+					{totalMeetingInstances > 0 ? (
+						<>
+							<h3 className="text-md font-semibold mb-2 flex items-center">
+								<ListFilter className="mr-2 h-4 w-4 text-primary" />
+								Filtrar Miembros en Tabla (Filas):
+							</h3>
+							<EventsTableFilters
+								roleFilterOptions={roleFilterOptions}
+								statusFilterOptions={statusFilterOptions}
+								gdiFilterOptions={gdiFilterOptions}
+								areaFilterOptions={areaFilterOptions}
+								currentRoleFilters={tableMemberRoleFilters}
+								currentStatusFilters={tableMemberStatusFilters}
+								currentGdiFilters={tableMemberGdiFilters}
+								currentAreaFilters={tableMemberAreaFilters}
+							/>
+
+							<MeetingTypeAttendanceTable
+								displayedInstances={meetingsForPage}
+								allMeetingSeries={allSeries}
+								initialRowMembers={initialRowMembers}
+								expectedAttendeesMap={expectedAttendeesMap}
+								allAttendanceRecords={allAttendanceRecords}
+								seriesName={selectedSeriesObject.name}
+								filterStartDate={appliedStartDate}
+								filterEndDate={appliedEndDate}
+								memberCurrentPage={memberCurrentPage}
+								memberPageSize={memberPageSize}
+								memberRoleFilters={tableMemberRoleFilters}
+								memberStatusFilters={tableMemberStatusFilters}
+								memberGdiFilters={tableMemberGdiFilters}
+								memberAreaFilters={tableMemberAreaFilters}
+								allMembers={allMembers}
+								allGdis={allGdis}
+								allAreas={allMinistryAreas}
+							/>
 						</>
 					) : (
-						<div className="text-center py-10 flex flex-col items-center justify-center">
-							<CalendarDays className="mx-auto h-16 w-16 text-muted-foreground mb-6" />
-							<h2 className="text-2xl font-semibold text-muted-foreground">
-								{allSeries.length > 0
-									? "Seleccione una Serie"
-									: appliedStartDate && appliedEndDate
-										? "No hay reuniones para el rango seleccionado"
-										: "No hay Series de Reuniones Generales Definidas"}
+						<div className="text-center py-10">
+							<CalendarDays className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+							<h2 className="text-xl font-semibold text-muted-foreground">
+								{appliedStartDate && appliedEndDate
+									? `No hay instancias para "${selectedSeriesObject.name}" en el rango seleccionado`
+									: `No hay instancias programadas para "${selectedSeriesObject.name}"`}
 							</h2>
-							<p className="text-muted-foreground mt-3 max-w-md">
-								{allSeries.length > 0
-									? "Elija una serie de la lista de la izquierda para ver sus instancias y gestionar la asistencia."
-									: appliedStartDate &&
-											appliedEndDate &&
-											appliedStartDate === appliedEndDate
-										? `(${format(parseISO(appliedStartDate), "dd/MM/yy", { locale: es })})`
-										: appliedStartDate && appliedEndDate
-											? `(${format(parseISO(appliedStartDate), "dd/MM/yy", { locale: es })} - ${format(parseISO(appliedEndDate), "dd/MM/yy", { locale: es })})`
-											: "Defina una nueva serie de reuniones generales o ajuste los filtros de fecha."}
+							<p className="text-muted-foreground mt-2">
+								{appliedStartDate && appliedEndDate
+									? `(${format(parseISO(appliedStartDate), "dd/MM/yy", { locale: es })} - ${format(parseISO(appliedEndDate), "dd/MM/yy", { locale: es })})`
+									: "Agregue una instancia para esta serie o ajuste los filtros de fecha."}
 							</p>
 						</div>
 					)}
-				</main>
-			</div>
+					{meetingInstancesTotalPages > 1 && (
+						<div className="flex items-center justify-end space-x-2 py-4">
+							<Button
+								variant="outline"
+								size="sm"
+								asChild
+								disabled={meetingInstancesCurrentPage <= 1}
+							>
+								<Link href={createPageURL(meetingInstancesCurrentPage - 1)}>
+									Anterior (Instancias)
+								</Link>
+							</Button>
+							<span className="text-sm text-muted-foreground">
+								Página {meetingInstancesCurrentPage} de{" "}
+								{meetingInstancesTotalPages} (Instancias)
+							</span>
+							<Button
+								variant="outline"
+								size="sm"
+								asChild
+								disabled={
+									meetingInstancesCurrentPage >= meetingInstancesTotalPages
+								}
+							>
+								<Link href={createPageURL(meetingInstancesCurrentPage + 1)}>
+									Siguiente (Instancias)
+								</Link>
+							</Button>
+						</div>
+					)}
+				</>
+			) : (
+				<div className="text-center py-16 flex flex-col items-center justify-center border rounded-lg bg-muted/30">
+					<CalendarDays className="mx-auto h-16 w-16 text-muted-foreground mb-6" />
+					<h2 className="text-2xl font-semibold text-muted-foreground">
+						{allSeries.length > 0
+							? "Seleccione una Serie"
+							: "No hay Series de Reuniones Definidas"}
+					</h2>
+					<p className="text-muted-foreground mt-3 max-w-md">
+						{allSeries.length > 0
+							? "Elija una serie del selector para ver sus instancias y gestionar la asistencia."
+							: "Defina una nueva serie de reuniones usando el botón de arriba."}
+					</p>
+				</div>
+			)}
 		</div>
 	);
 }

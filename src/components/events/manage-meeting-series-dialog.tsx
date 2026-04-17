@@ -115,9 +115,9 @@ export default function ManageMeetingSeriesDialog({
 	const initialFormValues: DefineMeetingSeriesFormValues = {
 		name: series.name,
 		description: series.description || "",
-		defaultTime: series.defaultTime,
-		defaultLocation: series.defaultLocation,
-		seriesType: series.seriesType,
+		defaultTime: series.defaultTime || "09:00",
+		defaultLocation: series.defaultLocation || "",
+		seriesType: series.seriesType || "general",
 		ownerGroupId: series.ownerGroupId,
 		targetAttendeeGroups:
 			seriesTypeContext !== "general"
@@ -250,12 +250,12 @@ export default function ManageMeetingSeriesDialog({
 							<InfoItem
 								icon={Clock}
 								label="Hora Predeterminada:"
-								value={series.defaultTime}
+								value={series.defaultTime || "N/A"}
 							/>
 							<InfoItem
 								icon={MapPin}
 								label="Lugar Predeterminado:"
-								value={series.defaultLocation}
+								value={series.defaultLocation || "N/A"}
 							/>
 							<InfoItem
 								icon={Repeat}
@@ -267,7 +267,7 @@ export default function ManageMeetingSeriesDialog({
 									icon={Users}
 									label="Grupos Objetivo:"
 									value={
-										series.targetAttendeeGroups
+										(series.targetAttendeeGroups || [])
 											.map((group) => getTargetGroupLabel(group))
 											.join(", ") || "N/A"
 									}

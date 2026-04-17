@@ -52,7 +52,7 @@ export default function AttendanceBreakdownChart({
 
 			if (
 				parentSeries?.seriesType === "general" &&
-				parentSeries.targetAttendeeGroups.includes("allMembers")
+				(parentSeries.targetAttendeeGroups || []).includes("allMembers")
 			) {
 				expectedUidsForThisMeeting = allMembers.map((m) => m.id);
 			} else if (meeting.attendeeUids && meeting.attendeeUids.length > 0) {

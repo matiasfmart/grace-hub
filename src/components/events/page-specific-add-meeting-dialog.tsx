@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusCircle } from "lucide-react";
+import { Plus, PlusCircle } from "lucide-react";
 import { useState } from "react";
 import DefineMeetingSeriesForm from "@/components/events/add-meeting-form";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ interface PageSpecificAddMeetingDialogProps {
 	seriesTypeContext: MeetingSeriesType;
 	ownerGroupIdContext?: string | null;
 	onSeriesDefined?: (newSeriesId?: string) => void; // Callback to notify parent about new series
+	compact?: boolean; // Use a smaller trigger button
 }
 
 export default function PageSpecificAddMeetingDialog({
@@ -38,6 +39,7 @@ export default function PageSpecificAddMeetingDialog({
 	seriesTypeContext,
 	ownerGroupIdContext,
 	onSeriesDefined,
+	compact = false,
 }: PageSpecificAddMeetingDialogProps) {
 	const [open, setOpen] = useState(false);
 
@@ -66,11 +68,16 @@ export default function PageSpecificAddMeetingDialog({
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
-				<Button>
-					{" "}
-					{/* Removed className="w-full" */}
-					<PlusCircle className="mr-2 h-4 w-4" /> Definir Nueva Serie de Reunión
-				</Button>
+				{compact ? (
+					<Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+						<Plus className="h-4 w-4" />
+						<span className="sr-only">Nueva Serie</span>
+					</Button>
+				) : (
+					<Button>
+						<PlusCircle className="mr-2 h-4 w-4" /> Definir Nueva Serie de Reunión
+					</Button>
+				)}
 			</DialogTrigger>
 			<DialogContent className="sm:max-w-lg flex flex-col max-h-[calc(100vh-8rem)] p-0">
 				<DialogHeader className="p-6 pb-4 border-b flex-shrink-0">

@@ -2,14 +2,16 @@
  * Group Meetings Service
  *
  * Service for managing meetings associated with groups (GDIs and Ministry Areas).
- * 
- * NOTE: This is a compatibility layer. The backend doesn't fully support
- * meeting series with groups yet. Functions will emit warnings and return
- * empty/stub data where backend support is missing.
  */
 
 import { meetingsService, getAllMeetings } from './meetingsService';
-import type { Meeting, MeetingSeries, MeetingSeriesType } from '@/lib/types';
+import { meetingSeriesEndpoint } from '../endpoints/meetingSeriesEndpoint';
+import {
+  mapApiMeetingSeriesToMeetingSeries,
+  mapApiMeetingSeriesArrayToMeetingSeriesArray,
+  mapFormValuesToApiCreateRequest,
+} from '../mappers/meetingSeriesMapper';
+import type { Meeting, MeetingSeries, MeetingSeriesType, DefineMeetingSeriesFormValues } from '@/lib/types';
 
 // ==============================================
 // GROUP MEETING SERIES FUNCTIONS
@@ -17,14 +19,21 @@ import type { Meeting, MeetingSeries, MeetingSeriesType } from '@/lib/types';
 
 /**
  * Get meeting series for a group
- * Note: Backend doesn't support series yet
  */
 export async function getSeriesForGroup(
-  _groupType: 'gdi' | 'ministryArea',
-  _groupId: string
+  groupType: 'gdi' | 'ministryArea',
+  groupId: string
 ): Promise<MeetingSeries[]> {
-  console.warn('getSeriesForGroup: Backend does not support meeting series yet');
-  return [];
+  try {
+    const numericId = parseInt(groupId, 10);
+    const apiSeries = groupType === 'gdi'
+      ? await meetingSeriesEndpoint.getByGdiId(numericId)
+      : await meetingSeriesEndpoint.getByAreaId(numericId);
+    return mapApiMeetingSeriesArrayToMeetingSeriesArray(apiSeries);
+  } catch (error) {
+    console.error('getSeriesForGroup error:', error);
+    return [];
+  }
 }
 
 /**
@@ -33,25 +42,39 @@ export async function getSeriesForGroup(
 export async function getSeriesByIdForGroup(
   _groupType: 'gdi' | 'ministryArea',
   _groupId: string,
-  _seriesId: string
+  seriesId: string
 ): Promise<MeetingSeries | null> {
-  console.warn('getSeriesByIdForGroup: Backend does not support meeting series yet');
-  return null;
+  try {
+    const numericId = parseInt(seriesId, 10);
+    const apiSeries = await meetingSeriesEndpoint.getById(numericId);
+    return mapApiMeetingSeriesToMeetingSeries(apiSeries);
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Add meeting series for group
  */
 export async function addMeetingSeriesForGroup(
-  _groupType: MeetingSeriesType,
-  _groupId: string,
-  _seriesData: unknown
+  groupType: MeetingSeriesType,
+  groupId: string,
+  seriesData: DefineMeetingSeriesFormValues
 ): Promise<{ series: MeetingSeries; message: string; newInstances?: Meeting[] }> {
-  throw new Error('addMeetingSeriesForGroup: Backend does not support meeting series yet. Create individual meetings instead.');
+  const request = mapFormValuesToApiCreateRequest(groupType, groupId, seriesData);
+  const apiResponse = await meetingSeriesEndpoint.create(request);
+  const series = mapApiMeetingSeriesToMeetingSeries(apiResponse);
+
+  return {
+    series,
+    message: `Serie de reunión "${series.name}" creada exitosamente`,
+    newInstances: [], // Backend doesn't auto-generate instances yet
+  };
 }
 
 /**
  * Update meeting series for group
+ * NOTE: Backend doesn't support update yet - TODO: implement when backend supports it
  */
 export async function updateMeetingSeriesForGroup(
   _groupType: 'gdi' | 'ministryArea',
@@ -59,20 +82,19 @@ export async function updateMeetingSeriesForGroup(
   _seriesId: string,
   _updates: unknown
 ): Promise<{ updatedSeries: MeetingSeries; newlyGeneratedInstances?: Meeting[]; message: string }> {
-  throw new Error('updateMeetingSeriesForGroup: Backend does not support meeting series yet');
+  throw new Error('updateMeetingSeriesForGroup: Backend update endpoint not implemented yet');
 }
 
 /**
  * Delete meeting series for group
- * Note: Accepts 1 argument (seriesId) for backward compatibility
  */
 export async function deleteMeetingSeriesForGroup(
   seriesId: string,
   _groupType?: 'gdi' | 'ministryArea',
   _groupId?: string
 ): Promise<void> {
-  console.warn('deleteMeetingSeriesForGroup: Backend does not support meeting series yet');
-  // No-op - series don't exist
+  const numericId = parseInt(seriesId, 10);
+  await meetingSeriesEndpoint.delete(numericId);
 }
 
 // ==============================================
@@ -81,15 +103,18 @@ export async function deleteMeetingSeriesForGroup(
 
 /**
  * Get meeting instances for a group
- * Returns all meetings of the specified type
+ * Returns meetings filtered by seriesId if provided
  */
 export async function getInstancesForGroup(
-  groupType: 'gdi' | 'ministryArea',
+  _groupType: 'gdi' | 'ministryArea',
   _groupId: string,
-  _seriesId?: string
+  seriesId?: string
 ): Promise<Meeting[]> {
   try {
-    return await meetingsService.getByType(groupType);
+    if (seriesId) {
+      return await meetingsService.getBySeriesId(seriesId);
+    }
+    return await meetingsService.getAll();
   } catch {
     return [];
   }
@@ -99,8 +124,8 @@ export async function getInstancesForGroup(
  * Get group meeting instances (with pagination support)
  */
 export async function getGroupMeetingInstances(
-  groupType: 'gdi' | 'ministryArea',
-  groupId: string,
+  _groupType: 'gdi' | 'ministryArea',
+  _groupId: string,
   filterSeriesId?: string,
   startDate?: string,
   endDate?: string,
@@ -109,20 +134,15 @@ export async function getGroupMeetingInstances(
 ): Promise<{ instances: Meeting[]; totalCount: number; totalPages: number }> {
   let meetings: Meeting[];
   
-  if (startDate && endDate) {
-    meetings = await meetingsService.getByDateRange(startDate, endDate);
-  } else {
-    try {
-      meetings = await meetingsService.getByType(groupType);
-    } catch {
-      meetings = [];
-    }
-  }
-  
-  // Note: Series filtering is not supported in new architecture
+  // Use filters to get meetings
+  const filters: { seriesId?: string; startDate?: string; endDate?: string } = {};
   if (filterSeriesId && filterSeriesId !== 'all') {
-    console.warn('getGroupMeetingInstances: Series filtering is not supported in new architecture');
+    filters.seriesId = filterSeriesId;
   }
+  if (startDate) filters.startDate = startDate;
+  if (endDate) filters.endDate = endDate;
+  
+  meetings = await meetingsService.getWithFilters(filters);
   
   return {
     instances: meetings,
@@ -141,20 +161,40 @@ export async function getFilteredMeetingInstances(
   _page: number = 1,
   _pageSize: number = 10
 ): Promise<{ instances: Meeting[]; totalCount: number; totalPages: number }> {
-  let meetings: Meeting[];
-  
-  if (startDate && endDate) {
-    meetings = await meetingsService.getByDateRange(startDate, endDate);
-  } else {
-    meetings = await getAllMeetings();
+  // If single series, use filter endpoint
+  if (seriesIds.length === 1) {
+    const meetings = await meetingsService.getWithFilters({
+      seriesId: seriesIds[0],
+      startDate,
+      endDate,
+    });
+    return {
+      instances: meetings,
+      totalCount: meetings.length,
+      totalPages: 1,
+    };
   }
   
-  // Note: seriesIds filtering is not supported in the new architecture
-  // since meetings don't have series
-  if (seriesIds && seriesIds.length > 0) {
-    console.warn('getFilteredMeetingInstances: Series filtering is not supported in new architecture');
+  // For multiple series, fetch each and combine
+  if (seriesIds.length > 1) {
+    const allMeetings: Meeting[] = [];
+    for (const seriesId of seriesIds) {
+      const meetings = await meetingsService.getWithFilters({
+        seriesId,
+        startDate,
+        endDate,
+      });
+      allMeetings.push(...meetings);
+    }
+    return {
+      instances: allMeetings,
+      totalCount: allMeetings.length,
+      totalPages: 1,
+    };
   }
   
+  // No series filter - get all with date range
+  const meetings = await meetingsService.getWithFilters({ startDate, endDate });
   return {
     instances: meetings,
     totalCount: meetings.length,
@@ -166,9 +206,9 @@ export async function getFilteredMeetingInstances(
  * Add meeting instance for group
  */
 export async function addMeetingInstanceForGroup(
-  groupType: MeetingSeriesType,
+  _groupType: MeetingSeriesType,
   _groupId: string,
-  _seriesId: string,
+  seriesId: string,
   meetingData: { name: string; date: string | Date; time: string; location?: string; description?: string }
 ): Promise<Meeting> {
   const dateString = meetingData.date instanceof Date 
@@ -176,14 +216,14 @@ export async function addMeetingInstanceForGroup(
     : meetingData.date;
     
   return meetingsService.create(
+    seriesId,
     {
-      seriesId: '',
+      seriesId,
       name: meetingData.name,
       date: dateString,
       time: meetingData.time,
       location: meetingData.location || '',
-    },
-    groupType
+    }
   );
 }
 

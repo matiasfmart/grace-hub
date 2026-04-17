@@ -9,6 +9,7 @@ import type {
   ApiMeetingResponse,
   ApiCreateMeetingRequest,
   ApiUpdateMeetingRequest,
+  ApiExpectedAttendeeResponse,
 } from '../types';
 
 const ENDPOINT = '/meetings';
@@ -50,16 +51,34 @@ export const meetingsEndpoint = {
   },
 
   /**
-   * Get meetings by type
-   */
-  async getByType(type: string): Promise<ApiMeetingResponse[]> {
-    return apiClient.get<ApiMeetingResponse[]>(`${ENDPOINT}/type/${type}`);
-  },
-
-  /**
    * Get meetings by date range
    */
   async getByDateRange(startDate: string, endDate: string): Promise<ApiMeetingResponse[]> {
     return apiClient.get<ApiMeetingResponse[]>(ENDPOINT, { startDate, endDate });
+  },
+
+  /**
+   * Get meetings by series ID
+   */
+  async getBySeriesId(seriesId: number): Promise<ApiMeetingResponse[]> {
+    return apiClient.get<ApiMeetingResponse[]>(ENDPOINT, { seriesId: String(seriesId) });
+  },
+
+  /**
+   * Get meetings with filters
+   */
+  async getWithFilters(filters: { seriesId?: number; startDate?: string; endDate?: string }): Promise<ApiMeetingResponse[]> {
+    const params: Record<string, string> = {};
+    if (filters.seriesId) params.seriesId = String(filters.seriesId);
+    if (filters.startDate) params.startDate = filters.startDate;
+    if (filters.endDate) params.endDate = filters.endDate;
+    return apiClient.get<ApiMeetingResponse[]>(ENDPOINT, params);
+  },
+
+  /**
+   * Get expected attendees for a meeting
+   */
+  async getExpectedAttendees(meetingId: number): Promise<ApiExpectedAttendeeResponse[]> {
+    return apiClient.get<ApiExpectedAttendeeResponse[]>(`${ENDPOINT}/${meetingId}/expected-attendees`);
   },
 };

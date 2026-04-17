@@ -95,7 +95,7 @@ export default function MemberAttendanceLineChart({
 			if (!series) return false;
 
 			if (series.seriesType === "general") {
-				if (series.targetAttendeeGroups.includes("allMembers")) return true;
+				if ((series.targetAttendeeGroups || []).includes("allMembers")) return true;
 				return meeting.attendeeUids?.includes(memberId);
 			} else {
 				return meeting.attendeeUids?.includes(memberId);

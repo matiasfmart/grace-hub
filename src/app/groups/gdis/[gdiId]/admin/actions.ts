@@ -10,6 +10,7 @@ import type {
 } from "@/lib/types";
 import {
 	updateGdiAndSyncMembers,
+	deleteGdi,
 	addMeetingInstanceForGroup,
 	addMeetingSeriesForGroup,
 	deleteMeetingInstanceForGroup,
@@ -56,6 +57,26 @@ export async function updateGdiDetailsAction(
 		return {
 			success: false,
 			message: `Error actualizando GDI: ${error.message}`,
+		};
+	}
+}
+
+export async function deleteGdiAction(
+	gdiId: string,
+): Promise<{ success: boolean; message: string }> {
+	try {
+		await deleteGdi(gdiId);
+		revalidatePath("/groups");
+		revalidatePath("/members");
+		return {
+			success: true,
+			message: "GDI eliminado exitosamente.",
+		};
+	} catch (error: any) {
+		console.error("Error eliminando GDI:", error);
+		return {
+			success: false,
+			message: `Error eliminando GDI: ${error.message}`,
 		};
 	}
 }

@@ -166,17 +166,45 @@ export async function getGdiById(id: string): Promise<GDI | null> {
 }
 
 /**
- * Create a new GDI
+ * Create a new GDI (without member assignment)
+ * @deprecated Use createGdiAndSyncMembers for full creation with members
  */
 export async function createGdi(data: GDIWriteData): Promise<GDI> {
   return gdisService.create(data);
 }
 
 /**
- * Add a GDI (alias for createGdi)
+ * Create GDI and sync members
+ * Creates the GDI first, then assigns members if provided.
+ */
+export async function createGdiAndSyncMembers(
+  data: GDIWriteData
+): Promise<GDI> {
+  // Create the GDI
+  const newGdi = await gdisService.create(data);
+  
+  // Sync members if provided
+  const memberIds = data.memberIds ?? [];
+  if (memberIds.length > 0) {
+    // For a new GDI, we can directly add all members
+    const addPromises = memberIds.map(memberId => 
+      gdisService.assignMember(newGdi.id, memberId)
+    );
+    await Promise.all(addPromises);
+  }
+  
+  // Return with memberIds
+  return {
+    ...newGdi,
+    memberIds,
+  };
+}
+
+/**
+ * Add a GDI with members
  */
 export async function addGdi(data: GDIWriteData): Promise<GDI> {
-  return gdisService.create(data);
+  return createGdiAndSyncMembers(data);
 }
 
 /**

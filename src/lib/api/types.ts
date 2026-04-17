@@ -10,9 +10,22 @@
 // ENUMS (matching backend constants)
 // ==============================================
 
-export type ApiMemberStatus = 'Active' | 'Inactive' | 'New';
+/**
+ * Record status enum - matches backend members_record_status_enum
+ * Used for soft-delete pattern
+ */
+export type ApiRecordStatus = 'vigente' | 'eliminado';
 export type ApiMeetingType = 'general' | 'gdi' | 'ministryArea';
 export type ApiRoleType = 'Leader' | 'Worker' | 'GeneralAttendee';
+
+// MeetingSeries API enums (matching backend PascalCase values)
+export type ApiMeetingFrequency = 'OneTime' | 'Weekly' | 'Monthly';
+export type ApiDayOfWeek = 'Sunday' | 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
+export type ApiMonthlyRuleType = 'DayOfMonth' | 'DayOfWeekOfMonth';
+export type ApiWeekOrdinal = 'First' | 'Second' | 'Third' | 'Fourth' | 'Last';
+
+// Audience type for meeting series (matching backend AudienceType enum)
+export type ApiAudienceType = 'gdi' | 'area' | 'by_categories' | 'all_active';
 
 // ==============================================
 // API RESPONSE TYPES (from backend DTOs)
@@ -48,7 +61,7 @@ export interface ApiMemberResponse {
   lastName: string;
   fullName: string;
   contact?: string;
-  status: ApiMemberStatus;
+  status: ApiRecordStatus; // Now uses vigente/eliminado
   birthDate?: string;
   baptismDate?: string;
   joinDate?: string;
@@ -93,11 +106,30 @@ export interface ApiAreaResponse {
  */
 export interface ApiMeetingResponse {
   meetingId: number;
-  seriesName: string;
+  seriesId: number;
   date: string;
-  type: ApiMeetingType;
+  time?: string;
+  location?: string;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * ExpectedAttendeeResponseDto from backend
+ */
+export interface ApiExpectedAttendeeResponse {
+  memberId: number;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+}
+
+/**
+ * SeriesDateActionDto for cancel/restore date operations
+ */
+export interface ApiSeriesDateActionRequest {
+  date: string;
 }
 
 /**
@@ -143,7 +175,7 @@ export interface ApiCreateMemberRequest {
   firstName: string;
   lastName: string;
   contact?: string;
-  status?: ApiMemberStatus;
+  recordStatus?: ApiRecordStatus;
   birthDate?: string;
   baptismDate?: string;
   joinDate?: string;
@@ -156,7 +188,7 @@ export interface ApiUpdateMemberRequest {
   firstName?: string;
   lastName?: string;
   contact?: string;
-  status?: ApiMemberStatus;
+  recordStatus?: ApiRecordStatus;
   birthDate?: string;
   baptismDate?: string;
   joinDate?: string;
@@ -192,15 +224,18 @@ export interface ApiUpdateAreaRequest {
 }
 
 export interface ApiCreateMeetingRequest {
-  seriesName: string;
+  seriesId: number;
   date: string;
-  type: ApiMeetingType;
+  time?: string;
+  location?: string;
+  notes?: string;
 }
 
 export interface ApiUpdateMeetingRequest {
-  seriesName?: string;
   date?: string;
-  type?: ApiMeetingType;
+  time?: string;
+  location?: string;
+  notes?: string;
 }
 
 export interface ApiCreateAttendanceRequest {
@@ -226,6 +261,76 @@ export interface ApiCreateRoleRequest {
 
 export interface ApiUpdateRoleRequest {
   roleGeneral?: ApiRoleType;
+}
+
+// ==============================================
+// MEETING SERIES API TYPES
+// ==============================================
+
+export interface ApiCreateMeetingSeriesRequest {
+  name: string;
+  frequency: ApiMeetingFrequency;
+  startDate: string; // YYYY-MM-DD
+  audienceType: ApiAudienceType;
+  gdiId?: number;
+  areaId?: number;
+  meetingTypeId?: number;
+  endDate?: string;
+  defaultTime?: string;
+  defaultLocation?: string;
+  description?: string;
+  oneTimeDate?: string;
+  weeklyDays?: ApiDayOfWeek[];
+  monthlyRuleType?: ApiMonthlyRuleType;
+  monthlyDayOfMonth?: number;
+  monthlyWeekOrdinal?: ApiWeekOrdinal;
+  monthlyDayOfWeek?: ApiDayOfWeek;
+}
+
+export interface ApiUpdateMeetingSeriesRequest {
+  name?: string;
+  description?: string;
+  defaultTime?: string;
+  defaultLocation?: string;
+  endDate?: string;
+}
+
+export interface ApiMeetingSeriesResponse {
+  seriesId: number;
+  name: string;
+  description?: string;
+  audienceType: ApiAudienceType;
+  gdiId?: number;
+  areaId?: number;
+  meetingTypeId?: number;
+  frequency: ApiMeetingFrequency;
+  startDate: string;
+  endDate?: string;
+  defaultTime?: string;
+  defaultLocation?: string;
+  oneTimeDate?: string;
+  weeklyDays?: ApiDayOfWeek[];
+  monthlyRuleType?: ApiMonthlyRuleType;
+  monthlyDayOfMonth?: number;
+  monthlyWeekOrdinal?: ApiWeekOrdinal;
+  monthlyDayOfWeek?: ApiDayOfWeek;
+  cancelledDates: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Filters for listing meeting series
+export interface ApiMeetingSeriesFilters {
+  gdiId?: number;
+  areaId?: number;
+  audienceType?: ApiAudienceType;
+}
+
+// Filters for listing meetings
+export interface ApiMeetingsFilters {
+  seriesId?: number;
+  startDate?: string;
+  endDate?: string;
 }
 
 // ==============================================

@@ -65,9 +65,8 @@ const roleDisplayMap: Record<MemberRoleType, string> = {
 };
 
 const statusDisplayMap: Record<Member["status"], string> = {
-	Active: "Activo",
-	Inactive: "Inactivo",
-	New: "Nuevo",
+	vigente: "Vigente",
+	eliminado: "Eliminado",
 };
 
 const availableRoleFilters: {
@@ -82,9 +81,8 @@ const availableRoleFilters: {
 ];
 
 const availableStatusFilters: { value: Member["status"]; label: string }[] = [
-	{ value: "Active", label: "Activo" },
-	{ value: "Inactive", label: "Inactivo" },
-	{ value: "New", label: "Nuevo" },
+	{ value: "vigente", label: "Vigente" },
+	{ value: "eliminado", label: "Eliminado" },
 ];
 
 export default function MissedMeetingsTable({
@@ -144,7 +142,7 @@ export default function MissedMeetingsTable({
 			);
 			if (
 				parentSeries?.seriesType === "general" &&
-				parentSeries.targetAttendeeGroups.includes("allMembers")
+				(parentSeries.targetAttendeeGroups || []).includes("allMembers")
 			) {
 				expectedAttendeeIds = allMembers.map((m) => m.id);
 			}
@@ -474,11 +472,9 @@ export default function MissedMeetingsTable({
 										<TableCell>
 											<Badge
 												variant={
-													member.status === "Active"
+													member.status === "vigente"
 														? "default"
-														: member.status === "Inactive"
-															? "destructive"
-															: "secondary"
+														: "destructive"
 												}
 											>
 												{statusDisplayMap[member.status] || member.status}

@@ -7,14 +7,22 @@ import {
 	CheckCircle2,
 	ChevronLeft,
 	ChevronRight,
+	ClipboardList,
 	HelpCircle,
 	MinusCircle,
+	MoreVertical,
 	XCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
 	Select,
@@ -335,17 +343,39 @@ export default function MeetingTypeAttendanceTable({
 										key={meeting.id}
 										className="text-center min-w-[100px] p-2 whitespace-normal"
 									>
-										<Link
-											href={`/events/${meeting.id}/attendance`}
-											className="hover:underline text-primary font-medium block"
-											title={meeting.name}
-										>
-											{formatMeetingHeader(
-												meeting.date,
-												meeting.time,
-												isDuplicateDate,
-											)}
-										</Link>
+										<div className="flex items-center justify-center gap-1">
+											<Link
+												href={`/events/${meeting.id}/attendance`}
+												className="hover:underline text-primary font-medium"
+												title={meeting.name}
+											>
+												{formatMeetingHeader(
+													meeting.date,
+													meeting.time,
+													isDuplicateDate,
+												)}
+											</Link>
+											<DropdownMenu>
+												<DropdownMenuTrigger asChild>
+													<Button
+														variant="ghost"
+														size="sm"
+														className="h-5 w-5 p-0 opacity-50 hover:opacity-100"
+													>
+														<MoreVertical className="h-3 w-3" />
+														<span className="sr-only">Opciones</span>
+													</Button>
+												</DropdownMenuTrigger>
+												<DropdownMenuContent align="center">
+													<DropdownMenuItem asChild>
+														<Link href={`/events/${meeting.id}/attendance`}>
+															<ClipboardList className="mr-2 h-4 w-4" />
+															Ver Asistencia
+														</Link>
+													</DropdownMenuItem>
+												</DropdownMenuContent>
+											</DropdownMenu>
+										</div>
 									</TableHead>
 								);
 							})}

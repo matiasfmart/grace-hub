@@ -84,7 +84,7 @@ export function mapMemberToApiCreateRequest(member: MemberWriteData): ApiCreateM
     firstName: member.firstName,
     lastName: member.lastName,
     contact: member.phone || member.email,
-    status: member.status,
+    recordStatus: member.status,
     // Dates are already strings in YYYY-MM-DD format (from Member type)
     birthDate: member.birthDate,
     baptismDate: member.baptismDate,
@@ -106,7 +106,7 @@ export function mapMemberToApiUpdateRequest(member: Partial<MemberWriteData>): A
   if (member.phone !== undefined || member.email !== undefined) {
     request.contact = member.phone || member.email;
   }
-  if (member.status !== undefined) request.status = member.status;
+  if (member.status !== undefined) request.recordStatus = member.status;
   // Dates are already strings in YYYY-MM-DD format (from Member type)
   if (member.birthDate !== undefined) request.birthDate = member.birthDate;
   if (member.baptismDate !== undefined) request.baptismDate = member.baptismDate;

@@ -35,6 +35,8 @@ export {
   mapApiMeetingsToMeetings,
   mapMeetingToApiCreateRequest,
   mapMeetingToApiUpdateRequest,
+  mapApiExpectedAttendeeToExpectedAttendee,
+  mapApiExpectedAttendeesToExpectedAttendees,
 } from './meetingMapper';
 
 // Attendance mappers
@@ -62,3 +64,11 @@ export {
   getMemberRoleTypes,
   type MemberRole,
 } from './roleMapper';
+
+// Meeting Series mappers
+export {
+  mapApiMeetingSeriesToMeetingSeries,
+  mapApiMeetingSeriesArrayToMeetingSeriesArray,
+  mapFormValuesToApiCreateRequest as mapMeetingSeriesFormToApiCreateRequest,
+  mapMeetingSeriesToApiUpdateRequest,
+} from './meetingSeriesMapper';

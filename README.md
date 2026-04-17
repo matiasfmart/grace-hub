@@ -28,7 +28,11 @@ Página principal que ofrece una visión general de la actividad y participació
 *   **Agregar Miembros**: Permite añadir nuevos miembros individualmente o mediante una herramienta de carga masiva. El campo email es opcional.
 *   **Detalles del Miembro**: Muestra información completa de cada miembro, incluyendo datos de contacto, fechas importantes (nacimiento, ingreso, bautismo), estado, roles, GDI y áreas de ministerio asignadas. Incluye una pestaña de "Historial de Asistencia" con filtros por serie y rango de fechas, mostrando un resumen y una tendencia mensual de asistencia del miembro a las reuniones a las que fue convocado. Permite imprimir el historial de asistencia.
 *   **Edición de Miembros**: Facilita la actualización de la información de los miembros.
-*   **Gestión de Roles**: Los roles (Asistente General, Obrero, Líder) se calculan y asignan automáticamente basados en la participación en GDIs y Ministerios.
+*   **Gestión de Roles**: Los roles (Asistente General, Obrero, Líder, Mentor) se calculan y asignan automáticamente basados en la participación en GDIs y Áreas:
+    *   **Guía de GDI**: Asignado en formulario de GDI
+    *   **Líder de Área**: Asignado en formulario de Área
+    *   **Mentor**: Asignado en formulario de GDI o Área
+    *   **Obrero**: Cualquier Guía, Líder, Integrante de Área, o Mentor
 
 ### 3. Grupos (Groups)
 Esta sección permite administrar dos tipos principales de agrupaciones:
@@ -36,7 +40,7 @@ Esta sección permite administrar dos tipos principales de agrupaciones:
     *   Crea y gestiona áreas de servicio o ministerio (ej. Alabanza, Jóvenes, Misiones).
     *   Desde la página principal de "Grupos", se pueden agregar o eliminar áreas.
     *   **Página de Administración del Área (`/groups/ministry-areas/[areaId]/admin`)**:
-        *   **Detalles del Área**: Edita el nombre, descripción, líder y miembros del área.
+        *   **Detalles del Área**: Edita el nombre, descripción, líder, mentor y miembros del área.
         *   **Gestión de Reuniones del Área**:
             *   Define series de reuniones específicas para el área (recurrentes o de única vez).
             *   Programa instancias adicionales para las series del área.
@@ -47,7 +51,7 @@ Esta sección permite administrar dos tipos principales de agrupaciones:
     *   Crea y gestiona grupos pequeños de integración y discipulado.
     *   Desde la página principal de "Grupos", se pueden agregar o eliminar GDIs.
     *   **Página de Administración del GDI (`/groups/gdis/[gdiId]/admin`)**:
-        *   **Detalles del GDI**: Edita el nombre, guía y miembros del GDI.
+        *   **Detalles del GDI**: Edita el nombre, guía, mentor y miembros del GDI.
         *   **Gestión de Reuniones del GDI**:
             *   Define series de reuniones específicas para el GDI (recurrentes o de única vez).
             *   Programa instancias adicionales para las series del GDI.
@@ -78,11 +82,11 @@ Proporciona información sobre la misión, visión y valores detrás de Grace Hu
 
 ## Tecnologías Utilizadas
 
-*   **Frontend**: Next.js (con App Router), React, TypeScript.
+*   **Frontend**: Next.js 15 (con App Router), React 18, TypeScript.
 *   **UI**: ShadCN UI Components, Tailwind CSS.
 *   **Gestión de Estado (Cliente)**: React Hooks (`useState`, `useEffect`, `useContext`), `useRouter`, `useSearchParams`.
-*   **IA (Opcional/Futuro)**: Genkit (para funcionalidades de IA generativa).
-*   **Persistencia de Datos**: Archivos JSON locales (`members-db.json`, `gdis-db.json`, `ministry-areas-db.json`, `meeting-series-db.json`, `meetings-db.json`, `attendance-db.json`) para simular una base de datos en este prototipo.
+*   **Backend**: NestJS 10 + TypeORM 0.3.20 + PostgreSQL (Neon Cloud)
+*   **Comunicación**: REST API via fetch wrapper
 
 ## Cómo Empezar
 
@@ -143,11 +147,13 @@ Proporciona información sobre la misión, visión y valores detrás de Grace Hu
     *   `src/components/ui/`: Componentes de UI de ShadCN.
     *   `src/components/layout/`: Componentes de la estructura principal (Header, Footer).
     *   Subdirectorios para componentes específicos: `members`, `groups`, `events`, `dashboard`.
-*   `src/lib/`: Lógica de negocio, tipos, utilidades y "bases de datos" JSON.
-    *   `types.ts`: Definiciones de tipos e interfaces TypeScript, y esquemas Zod para validación. Incluye `cancelledDates` en `MeetingSeries`.
-    *   `*-db.json`: Archivos JSON que actúan como almacenamiento de datos.
-    *   `placeholder-data.ts`: Datos iniciales de ejemplo.
-    *   `db-utils.ts`: Funciones para leer y escribir en los archivos JSON.
+*   `src/lib/`: Lógica de negocio, tipos, utilidades y capa de API.
+    *   `types.ts`: Definiciones de tipos e interfaces TypeScript, y esquemas Zod para validación.
+    *   `api/`: Capa de comunicación con el backend NestJS.
+        *   `client.ts`: Wrapper de fetch con manejo de errores.
+        *   `endpoints/`: Definiciones de llamadas HTTP por entidad.
+        *   `mappers/`: Transformación de datos API ↔ Frontend.
+        *   `services/`: Orquestación y lógica de negocio frontend.
     *   `roleUtils.ts`: Lógica para calcular roles de miembros.
 *   `src/services/`: Funciones de "servicio" que interactúan con los archivos JSON.
     *   `memberService.ts`: Lógica para miembros.

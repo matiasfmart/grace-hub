@@ -1,20 +1,32 @@
 "use client";
 
 import {
-	Home,
+	ChevronDown,
+	ChevronUp,
 	ListChecks,
 	Loader2,
+	Pencil,
 	Save,
 	Trash2,
-	Undo2,
 	Users,
+	X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useCallback, useState, useTransition } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import {
 	Table,
 	TableBody,
@@ -30,8 +42,8 @@ import type {
 	Member,
 	MemberWriteData,
 	MinistryArea,
-} from "@/lib/types"; // Added AddMemberFormValues
-import { NONE_GDI_OPTION_VALUE } from "@/lib/types"; // Added NONE_GDI_OPTION_VALUE
+} from "@/lib/types";
+import { NONE_GDI_OPTION_VALUE } from "@/lib/types";
 import AddMemberForm from "./add-member-form";
 
 interface BulkAddMembersViewProps {
@@ -53,19 +65,58 @@ export default function BulkAddMembersView({
 	const [recentlyProcessedMembers, setRecentlyProcessedMembers] = useState<
 		Member[]
 	>([]);
+	const [editingMember, setEditingMember] = useState<Member | null>(null);
+	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+	const [showProcessed, setShowProcessed] = useState(true);
 	const { toast } = useToast();
-	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
 
 	const handleStageMember = useCallback(
-		(newMemberData: AddMemberFormValues) => {
+		(newMemberData: AddMemberFormValues, memberId?: string) => {
+			// If editing an existing staged member
+			if (memberId) {
+				setStagedMembers((prev) =>
+					prev.map((m) =>
+						m.id === memberId
+							? {
+									...m,
+									firstName: newMemberData.firstName,
+									lastName: newMemberData.lastName,
+									email: newMemberData.email || "",
+									phone: newMemberData.phone,
+									birthDate: newMemberData.birthDate?.toISOString().split("T")[0],
+									churchJoinDate: newMemberData.churchJoinDate?.toISOString().split("T")[0],
+									baptismDate: newMemberData.baptismDate?.toISOString().split("T")[0],
+									attendsLifeSchool: newMemberData.attendsLifeSchool,
+									attendsBibleInstitute: newMemberData.attendsBibleInstitute,
+									fromAnotherChurch: newMemberData.fromAnotherChurch,
+									status: newMemberData.status,
+									address: newMemberData.address || "",
+									assignedGDIId:
+										newMemberData.assignedGDIId === NONE_GDI_OPTION_VALUE
+											? null
+											: newMemberData.assignedGDIId,
+									assignedAreaIds: newMemberData.assignedAreaIds || [],
+								}
+							: m,
+					),
+				);
+				setIsEditDialogOpen(false);
+				setEditingMember(null);
+				toast({
+					title: "Miembro Actualizado",
+					description: `${newMemberData.firstName} ${newMemberData.lastName} ha sido actualizado.`,
+				});
+				return;
+			}
+
+			// Adding new member
 			const memberWithStagingId: Member = {
 				id: `staged-${Date.now()}-${stagedMembers.length}`,
 				firstName: newMemberData.firstName,
 				lastName: newMemberData.lastName,
 				email: newMemberData.email || "",
 				phone: newMemberData.phone,
-				// Convert Date from form to string for Member type (YYYY-MM-DD format)
 				birthDate: newMemberData.birthDate?.toISOString().split("T")[0],
 				churchJoinDate: newMemberData.churchJoinDate?.toISOString().split("T")[0],
 				baptismDate: newMemberData.baptismDate?.toISOString().split("T")[0],
@@ -88,6 +139,11 @@ export default function BulkAddMembersView({
 		},
 		[toast, stagedMembers.length],
 	);
+
+	const handleEditStagedMember = (member: Member) => {
+		setEditingMember(member);
+		setIsEditDialogOpen(true);
+	};
 
 	const handleRemoveStagedMember = (memberId: string) => {
 		setStagedMembers((prev) => prev.filter((member) => member.id !== memberId));
@@ -135,26 +191,11 @@ export default function BulkAddMembersView({
 	};
 
 	const getGdiGuideNameFromList = (member: Member): string => {
-		if (!member.assignedGDIId) return "No asignado";
+		if (!member.assignedGDIId) return "Sin GDI";
 		const gdi = allGDIs.find((g) => g.id === member.assignedGDIId);
 		if (!gdi) return "GDI no encontrado";
 		const guide = allMembers.find((m) => m.id === gdi.guideId);
-		return guide
-			? `${guide.firstName} ${guide.lastName}`
-			: "Guía no encontrado";
-	};
-
-	const displayStatus = (status: Member["status"]) => {
-		switch (status) {
-			case "Active":
-				return "Activo";
-			case "Inactive":
-				return "Inactivo";
-			case "New":
-				return "Nuevo";
-			default:
-				return status;
-		}
+		return guide ? `${guide.firstName} ${guide.lastName}` : gdi.name;
 	};
 
 	const handleClearProcessedList = () => {
@@ -166,25 +207,20 @@ export default function BulkAddMembersView({
 		});
 	};
 
-	const handleReturnToDirectory = () => {
-		router.push("/members");
-	};
-
 	const renderMembersTable = (
 		membersToList: Member[],
 		isStagedTable: boolean,
 	) => (
-		<div className="overflow-x-auto max-h-[calc(100vh-400px)]">
+		<div className="overflow-x-auto max-h-[300px]">
 			<Table>
 				<TableHeader>
 					<TableRow>
-						<TableHead className="w-[60px]">Avatar</TableHead>
-						<TableHead>Nombre Completo</TableHead>
+						<TableHead className="w-[40px]"></TableHead>
+						<TableHead>Nombre</TableHead>
 						<TableHead>Teléfono</TableHead>
-						<TableHead>Guía GDI</TableHead>
-						<TableHead>Estado</TableHead>
+						<TableHead className="hidden md:table-cell">GDI</TableHead>
 						{isStagedTable && (
-							<TableHead className="text-right">Acción</TableHead>
+							<TableHead className="text-right w-[100px]">Acciones</TableHead>
 						)}
 					</TableRow>
 				</TableHeader>
@@ -192,49 +228,44 @@ export default function BulkAddMembersView({
 					{membersToList.map((member) => (
 						<TableRow key={member.id}>
 							<TableCell>
-								<Avatar className="h-9 w-9">
-									<AvatarFallback>
+								<Avatar className="h-8 w-8">
+									<AvatarFallback className="text-xs">
 										{member.firstName.substring(0, 1)}
 										{member.lastName.substring(0, 1)}
 									</AvatarFallback>
 								</Avatar>
 							</TableCell>
-							<TableCell>
+							<TableCell className="font-medium">
 								{member.firstName} {member.lastName}
 							</TableCell>
-							<TableCell>{member.phone}</TableCell>
-							<TableCell>{getGdiGuideNameFromList(member)}</TableCell>
-							<TableCell>
-								<Badge
-									variant={
-										member.status === "Active"
-											? "default"
-											: member.status === "Inactive"
-												? "secondary"
-												: "outline"
-									}
-									className={
-										member.status === "Active"
-											? "bg-green-500/20 text-green-700 border-green-500/50"
-											: member.status === "Inactive"
-												? "bg-red-500/20 text-red-700 border-red-500/50"
-												: "bg-yellow-500/20 text-yellow-700 border-yellow-500/50"
-									}
-								>
-									{displayStatus(member.status)}
-								</Badge>
+							<TableCell className="text-muted-foreground">{member.phone}</TableCell>
+							<TableCell className="hidden md:table-cell text-muted-foreground">
+								{getGdiGuideNameFromList(member)}
 							</TableCell>
 							{isStagedTable && (
 								<TableCell className="text-right">
-									<Button
-										variant="ghost"
-										size="icon"
-										onClick={() => handleRemoveStagedMember(member.id)}
-										title="Remover de la lista"
-										disabled={isPending}
-									>
-										<Trash2 className="h-4 w-4 text-destructive" />
-									</Button>
+									<div className="flex justify-end gap-1">
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-8 w-8"
+											onClick={() => handleEditStagedMember(member)}
+											title="Editar"
+											disabled={isPending}
+										>
+											<Pencil className="h-3.5 w-3.5" />
+										</Button>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-8 w-8"
+											onClick={() => handleRemoveStagedMember(member.id)}
+											title="Remover"
+											disabled={isPending}
+										>
+											<Trash2 className="h-3.5 w-3.5 text-destructive" />
+										</Button>
+									</div>
 								</TableCell>
 							)}
 						</TableRow>
@@ -245,106 +276,136 @@ export default function BulkAddMembersView({
 	);
 
 	return (
-		<div className="space-y-8">
-			<div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-				<div className="lg:col-span-1">
-					<Card className="sticky top-4">
-						<CardHeader>
-							<CardTitle>Formulario de Nuevo Miembro</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<div className="max-h-[calc(100vh-250px)] overflow-y-auto pr-2">
-								<AddMemberForm
-									onSubmitMember={handleStageMember}
-									allGDIs={allGDIs}
-									allMinistryAreas={allMinistryAreas}
-									allMembers={allMembers}
-									submitButtonText="Preparar Miembro"
-									cancelButtonText="Limpiar Formulario"
-								/>
-							</div>
-						</CardContent>
-					</Card>
-				</div>
-
-				<div className="lg:col-span-2 space-y-8">
-					<Card>
-						<CardHeader>
-							<div className="flex justify-between items-center">
-								<CardTitle className="flex items-center">
-									<Users className="mr-2 h-6 w-6" /> Miembros Preparados (
-									{stagedMembers.length})
-								</CardTitle>
-								<Button
-									onClick={handleSaveAllStagedMembers}
-									disabled={stagedMembers.length === 0 || isPending}
-									size="lg"
-								>
-									{isPending ? (
-										<Loader2 className="mr-2 h-5 w-5 animate-spin" />
-									) : (
-										<Save className="mr-2 h-5 w-5" />
-									)}
-									{isPending ? "Guardando..." : "Guardar Lote Actual"}
-								</Button>
-							</div>
-						</CardHeader>
-						<CardContent>
-							{stagedMembers.length > 0 ? (
-								renderMembersTable(stagedMembers, true)
-							) : (
-								<div className="text-center py-10 text-muted-foreground">
-									<Users className="mx-auto h-12 w-12 mb-4" />
-									<p>No hay miembros en la lista de preparación.</p>
-									<p>
-										Use el formulario de la izquierda para agregar miembros.
-									</p>
-								</div>
-							)}
-						</CardContent>
-					</Card>
-
-					{recentlyProcessedMembers.length > 0 && (
-						<Card>
-							<CardHeader>
-								<div className="flex justify-between items-center">
-									<CardTitle className="flex items-center">
-										<ListChecks className="mr-2 h-6 w-6 text-green-600" />{" "}
-										Miembros Recientemente Procesados (
-										{recentlyProcessedMembers.length})
-									</CardTitle>
-									<div className="flex gap-2">
-										<Button
-											onClick={handleClearProcessedList}
-											variant="outline"
-											disabled={isPending}
-										>
-											<Undo2 className="mr-2 h-4 w-4" /> Limpiar Lista de
-											Procesados
-										</Button>
-									</div>
-								</div>
-								<p className="text-sm text-muted-foreground pt-2">
-									Estos miembros han sido procesados en esta sesión.
-								</p>
+		<>
+			<div className="space-y-6">
+				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+					<div className="lg:col-span-1">
+						<Card className="sticky top-20">
+							<CardHeader className="pb-3">
+								<CardTitle className="text-lg">Nuevo Miembro</CardTitle>
 							</CardHeader>
 							<CardContent>
-								{renderMembersTable(recentlyProcessedMembers, false)}
+								<div className="max-h-[calc(100vh-280px)] overflow-y-auto pr-2">
+									<AddMemberForm
+										onSubmitMember={handleStageMember}
+										allGDIs={allGDIs}
+										allMinistryAreas={allMinistryAreas}
+										allMembers={allMembers}
+										submitButtonText="+ Agregar a Lista"
+										cancelButtonText="Limpiar"
+									/>
+								</div>
 							</CardContent>
 						</Card>
-					)}
+					</div>
+
+					<div className="lg:col-span-2 space-y-4">
+						<Card>
+							<CardHeader className="pb-3">
+								<div className="flex justify-between items-center">
+									<CardTitle className="flex items-center text-lg">
+										<Users className="mr-2 h-5 w-5" /> 
+										Preparados
+										{stagedMembers.length > 0 && (
+											<Badge variant="secondary" className="ml-2">
+												{stagedMembers.length}
+											</Badge>
+										)}
+									</CardTitle>
+									<Button
+										onClick={handleSaveAllStagedMembers}
+										disabled={stagedMembers.length === 0 || isPending}
+									>
+										{isPending ? (
+											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+										) : (
+											<Save className="mr-2 h-4 w-4" />
+										)}
+										{isPending ? "Guardando..." : "Guardar Lote"}
+									</Button>
+								</div>
+							</CardHeader>
+							<CardContent>
+								{stagedMembers.length > 0 ? (
+									renderMembersTable(stagedMembers, true)
+								) : (
+									<div className="text-center py-8 text-muted-foreground">
+										<Users className="mx-auto h-10 w-10 mb-3 opacity-50" />
+										<p className="text-sm">Lista de preparación vacía</p>
+										<p className="text-xs">Use el formulario para agregar miembros</p>
+									</div>
+								)}
+							</CardContent>
+						</Card>
+
+						{recentlyProcessedMembers.length > 0 && (
+							<Collapsible open={showProcessed} onOpenChange={setShowProcessed}>
+								<Card>
+									<CardHeader className="pb-3">
+										<div className="flex justify-between items-center">
+											<CollapsibleTrigger asChild>
+												<button className="flex items-center gap-2 hover:text-primary transition-colors">
+													<CardTitle className="flex items-center text-lg cursor-pointer">
+														<ListChecks className="mr-2 h-5 w-5 text-green-600" />
+														Procesados
+														<Badge variant="outline" className="ml-2 bg-green-50 text-green-700">
+															{recentlyProcessedMembers.length}
+														</Badge>
+													</CardTitle>
+													{showProcessed ? (
+														<ChevronUp className="h-4 w-4" />
+													) : (
+														<ChevronDown className="h-4 w-4" />
+													)}
+												</button>
+											</CollapsibleTrigger>
+											<Button
+												onClick={handleClearProcessedList}
+												variant="ghost"
+												size="sm"
+												disabled={isPending}
+											>
+												<X className="mr-1 h-3.5 w-3.5" /> Limpiar
+											</Button>
+										</div>
+									</CardHeader>
+									<CollapsibleContent>
+										<CardContent className="pt-0">
+											{renderMembersTable(recentlyProcessedMembers, false)}
+										</CardContent>
+									</CollapsibleContent>
+								</Card>
+							</Collapsible>
+						)}
+					</div>
 				</div>
 			</div>
-			<div className="text-center mt-8 lg:col-span-3 pb-8">
-				<Button
-					onClick={handleReturnToDirectory}
-					variant="outline"
-					size="lg"
-					disabled={isPending}
-				>
-					<Home className="mr-2 h-4 w-4" /> Volver al Directorio de Miembros
-				</Button>
-			</div>
-		</div>
+
+			{/* Edit Dialog */}
+			<Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+				<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>
+							Editar: {editingMember?.firstName} {editingMember?.lastName}
+						</DialogTitle>
+					</DialogHeader>
+					{editingMember && (
+						<AddMemberForm
+							onSubmitMember={handleStageMember}
+							onDialogClose={() => {
+								setIsEditDialogOpen(false);
+								setEditingMember(null);
+							}}
+							initialMemberData={editingMember}
+							allGDIs={allGDIs}
+							allMinistryAreas={allMinistryAreas}
+							allMembers={allMembers}
+							submitButtonText="Guardar Cambios"
+							cancelButtonText="Cancelar"
+						/>
+					)}
+				</DialogContent>
+			</Dialog>
+		</>
 	);
 }

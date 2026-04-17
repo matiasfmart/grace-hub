@@ -10,7 +10,6 @@ import {
   mapApiAttendancesToAttendanceRecords,
   mapAttendanceRecordToApiCreateRequest,
   mapAttendanceRecordToApiUpdateRequest,
-  mapBulkAttendanceToApiRequests,
 } from '../mappers';
 import type { AttendanceRecord, AttendanceRecordWriteData } from '@/lib/types';
 
@@ -73,14 +72,18 @@ export const attendanceService = {
   },
 
   /**
-   * Bulk create attendance records for a meeting
+   * Save attendance records for a meeting
    */
   async bulkCreate(
     meetingId: string,
     attendees: Array<{ memberId: string; attended: boolean }>
   ): Promise<AttendanceRecord[]> {
-    const requests = mapBulkAttendanceToApiRequests(meetingId, attendees);
-    const apiAttendances = await attendanceEndpoint.bulkCreate(requests);
+    // Map frontend format to backend format
+    const attendances = attendees.map(a => ({
+      memberId: Number(a.memberId),
+      wasPresent: a.attended,
+    }));
+    const apiAttendances = await attendanceEndpoint.saveForMeeting(Number(meetingId), attendances);
     return mapApiAttendancesToAttendanceRecords(apiAttendances);
   },
 

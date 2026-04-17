@@ -58,18 +58,18 @@ export const membersService = {
   },
 
   /**
-   * Get members by status
+   * Get members by record status
    */
-  async getByStatus(status: 'Active' | 'Inactive' | 'New'): Promise<Member[]> {
-    const apiMembers = await membersEndpoint.getByStatus(status);
+  async getByRecordStatus(recordStatus: 'vigente' | 'eliminado'): Promise<Member[]> {
+    const apiMembers = await membersEndpoint.getByStatus(recordStatus);
     return mapApiMembersToMembers(apiMembers);
   },
 
   /**
-   * Get active members
+   * Get active (vigente) members
    */
   async getActive(): Promise<Member[]> {
-    return this.getByStatus('Active');
+    return this.getByRecordStatus('vigente');
   },
 };
 

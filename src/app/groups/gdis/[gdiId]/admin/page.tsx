@@ -1,7 +1,5 @@
 "use client";
-import { format, parseISO } from "date-fns";
-import { es } from "date-fns/locale";
-import { ArrowLeft, CalendarDays, Edit, Loader2 } from "lucide-react";
+import { CalendarDays, ChevronRight, LayoutDashboard, Loader2, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import {
 	notFound,
@@ -9,38 +7,24 @@ import {
 	useSearchParams as useNextSearchParams,
 	useRouter,
 } from "next/navigation";
-import { useEffect, useState } from "react";
-import AttendanceLineChart from "@/components/events/AttendanceFrequencySummaryTable";
-import AddOccasionalMeetingDialog from "@/components/events/add-occasional-meeting-dialog";
-import DateRangeFilter from "@/components/events/date-range-filter";
-import ManageMeetingSeriesDialog from "@/components/events/manage-meeting-series-dialog";
-import MeetingTypeAttendanceTable from "@/components/events/meeting-type-attendance-table";
-import PageSpecificAddMeetingDialog from "@/components/events/page-specific-add-meeting-dialog";
-import ManageSingleGdiView from "@/components/groups/manage-single-gdi-view";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+	GroupAdminSummaryTab,
+	GroupAdminMembersTab,
+	GroupAdminMeetingsTab,
+	GroupAdminSettingsTab,
+} from "@/components/groups/admin";
 import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbLink,
+	BreadcrumbList,
+	BreadcrumbPage,
+	BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 import type {
 	AttendanceRecord,
 	DefineMeetingSeriesFormValues,
@@ -52,17 +36,19 @@ import type {
 import {
 	getAllAttendanceRecords,
 	getAllGdis,
+	getAllMeetings,
 	getGdiById,
-	getGroupMeetingInstances,
 	getSeriesForGroup,
 	getAllMembersNonPaginated,
 } from "@/lib/api/services";
+import { gdisService } from "@/lib/api/services/gdisService";
 import {
 	handleAddGdiMeetingSeriesAction,
 	handleAddMeetingForCurrentGDIAction,
 	handleDeleteGdiMeetingSeriesAction,
 	handleUpdateGdiMeetingSeriesAction,
 	updateGdiDetailsAction,
+	deleteGdiAction,
 } from "./actions";
 
 type GdiAdminPageProps = {};
@@ -73,36 +59,12 @@ interface GdiAdminPageData {
 	activeMembers: Member[];
 	allGdis: GDI[];
 	groupMeetingSeries: MeetingSeries[];
-	meetingsForChart: Meeting[];
-	meetingsForTable: Meeting[];
+	allMeetings: Meeting[];
 	allAttendanceRecords: AttendanceRecord[];
-	initialRowMembersForTable: Member[];
-	expectedAttendeesMapForTable: Record<string, Set<string>>;
-	memberCurrentPageForTable: number;
-	memberPageSizeForTable: number;
-	appliedStartDate?: string;
-	appliedEndDate?: string;
-	activeSeriesId?: string;
+	gdiMembers: Member[];
 }
 
-async function getData(
-	gdiId: string,
-	searchParams: {
-		activeSeriesId?: string;
-		startDate?: string;
-		endDate?: string;
-		mPage?: string;
-		mPSize?: string;
-	},
-): Promise<GdiAdminPageData> {
-	const {
-		activeSeriesId: spActiveSeriesId,
-		startDate: spStartDate,
-		endDate: spEndDate,
-		mPage: spMPage,
-		mPSize: spMPSize,
-	} = searchParams;
-
+async function getData(gdiId: string): Promise<GdiAdminPageData> {
 	const gdiDetails = await getGdiById(gdiId);
 	if (!gdiDetails) notFound();
 
@@ -111,78 +73,40 @@ async function getData(
 		allGdisData,
 		allAttendanceRecordsData,
 		groupSeriesData,
+		allMeetingsData,
 	] = await Promise.all([
 		getAllMembersNonPaginated(),
 		getAllGdis(),
 		getAllAttendanceRecords(),
 		getSeriesForGroup("gdi", gdiId),
+		getAllMeetings(),
 	]);
 
 	const sortedGroupSeries = groupSeriesData.sort((a, b) =>
 		a.name.localeCompare(b.name),
 	);
 
-	const actualActiveSeriesId =
-		spActiveSeriesId && sortedGroupSeries.some((s) => s.id === spActiveSeriesId)
-			? spActiveSeriesId
-			: spActiveSeriesId === "all"
-				? "all"
-				: sortedGroupSeries.length > 0
-					? sortedGroupSeries[0].id
-					: undefined;
+	// Filter meetings that belong to this GDI's series
+	const seriesIds = new Set(sortedGroupSeries.map(s => s.id));
+	const gdiMeetings = allMeetingsData.filter(m => seriesIds.has(m.seriesId));
 
-	let meetingsForChartAndTable: Meeting[] = [];
-	if (gdiDetails) {
-		const result = await getGroupMeetingInstances(
-			"gdi",
-			gdiId,
-			actualActiveSeriesId === "all" ? undefined : actualActiveSeriesId,
-			spStartDate,
-			spEndDate,
-			1,
-			Infinity,
-		);
-		meetingsForChartAndTable = result.instances;
-	}
-
-	const memberCurrentPage = Number(spMPage) || 1;
-	let memberPageSize = Number(spMPSize) || 10;
-	if (Number.isNaN(memberPageSize) || memberPageSize < 1) memberPageSize = 10;
-
-	// ---MODIFIED LOGIC FOR ROWS---
-	// The rows should be all current members of THIS GDI.
+	// Get GDI members
 	const gdiMemberIds = new Set([gdiDetails.guideId, ...gdiDetails.memberIds]);
-	const initialRowMembers = allMembersData
+	const gdiMembers = allMembersData
 		.filter((member) => gdiMemberIds.has(member.id))
 		.sort((a, b) =>
-			`${a.firstName} ${a.lastName}`.localeCompare(
-				`${b.firstName} ${b.lastName}`,
-			),
+			`${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`),
 		);
-
-	const expectedAttendeesMap: Record<string, Set<string>> = {};
-	for (const meeting of meetingsForChartAndTable) {
-		// Use the historical snapshot of attendees stored in the meeting instance
-		expectedAttendeesMap[meeting.id] = new Set(meeting.attendeeUids || []);
-	}
-	// ---END MODIFIED LOGIC---
 
 	return {
 		gdi: gdiDetails,
 		allMembers: allMembersData,
-		activeMembers: allMembersData.filter((m) => m.status === "Active"),
+		activeMembers: allMembersData.filter((m) => m.status === "vigente"),
 		allGdis: allGdisData,
 		groupMeetingSeries: sortedGroupSeries,
-		meetingsForChart: meetingsForChartAndTable,
-		meetingsForTable: meetingsForChartAndTable,
+		allMeetings: gdiMeetings,
 		allAttendanceRecords: allAttendanceRecordsData,
-		initialRowMembersForTable: initialRowMembers,
-		expectedAttendeesMapForTable: expectedAttendeesMap,
-		memberCurrentPageForTable: memberCurrentPage,
-		memberPageSizeForTable: memberPageSize,
-		appliedStartDate: spStartDate,
-		appliedEndDate: spEndDate,
-		activeSeriesId: actualActiveSeriesId,
+		gdiMembers,
 	};
 }
 
@@ -190,74 +114,103 @@ export default function GdiAdminPage({}: GdiAdminPageProps) {
 	const router = useRouter();
 	const paramsFromHook = useNextParams();
 	const currentHookSearchParams = useNextSearchParams();
+	const { toast } = useToast();
 
 	const gdiId = paramsFromHook.gdiId as string;
-
-	const spActiveSeriesId =
-		currentHookSearchParams.get("activeSeriesId") || undefined;
-	const spStartDate = currentHookSearchParams.get("startDate") || undefined;
-	const spEndDate = currentHookSearchParams.get("endDate") || undefined;
-	const spMPage = currentHookSearchParams.get("mPage") || undefined;
-	const spMPSize = currentHookSearchParams.get("mPSize") || undefined;
+	const activeTab = currentHookSearchParams.get("tab") || "summary";
 
 	const [pageData, setPageData] = useState<GdiAdminPageData | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const [isEditGdiDetailsOpen, setIsEditGdiDetailsOpen] = useState(false);
+	const [isUpdating, startTransition] = useTransition();
 
-	useEffect(() => {
+	const refreshData = useCallback(async () => {
 		if (!gdiId) return;
 		setIsLoading(true);
 		setError(null);
-
-		getData(gdiId, {
-			activeSeriesId: spActiveSeriesId,
-			startDate: spStartDate,
-			endDate: spEndDate,
-			mPage: spMPage,
-			mPSize: spMPSize,
-		})
-			.then((data) => {
-				setPageData(data);
-			})
-			.catch((err) => {
-				console.error("Failed to load GDI admin data:", err);
-				if (err.message.includes("notFound")) {
-					notFound();
-				} else {
-					setError(err.message || "Error al cargar datos del GDI.");
-				}
-			})
-			.finally(() => {
-				setIsLoading(false);
-			});
-	}, [gdiId, spActiveSeriesId, spStartDate, spEndDate, spMPage, spMPSize]);
-
-	const handleSeriesDefined = (newSeriesId?: string) => {
-		if (newSeriesId) {
-			const params = new URLSearchParams(currentHookSearchParams.toString());
-			params.set("activeSeriesId", newSeriesId);
-			params.delete("mPage");
-			router.push(`/groups/gdis/${gdiId}/admin?${params.toString()}`);
-		} else {
-			router.refresh();
+		try {
+			const data = await getData(gdiId);
+			setPageData(data);
+		} catch (err) {
+			console.error("Failed to load GDI admin data:", err);
+			setError((err as Error).message || "Error al cargar datos del GDI.");
+		} finally {
+			setIsLoading(false);
 		}
-	};
+	}, [gdiId]);
 
-	const handleSeriesDeleted = () => {
+	useEffect(() => {
+		refreshData();
+	}, [refreshData]);
+
+	const handleTabChange = (value: string) => {
 		const params = new URLSearchParams(currentHookSearchParams.toString());
-		params.delete("activeSeriesId");
-		params.delete("mPage");
+		params.set("tab", value);
 		router.push(`/groups/gdis/${gdiId}/admin?${params.toString()}`);
 	};
 
-	const createSeriesLink = (seriesIdToLink: string) => {
-		const params = new URLSearchParams(currentHookSearchParams.toString());
-		params.set("activeSeriesId", seriesIdToLink);
-		if (spStartDate) params.set("startDate", spStartDate);
-		if (spEndDate) params.set("endDate", spEndDate);
-		if (spMPSize) params.set("mPSize", spMPSize);
-		return `/groups/gdis/${gdiId}/admin?${params.toString()}`;
+	const handleAddMembers = (memberIds: string[]) => {
+		if (!pageData) return;
+		startTransition(async () => {
+			try {
+				// Add each member
+				for (const memberId of memberIds) {
+					await gdisService.assignMember(gdiId, memberId);
+				}
+				toast({ title: "Éxito", description: `${memberIds.length} miembro(s) agregado(s)` });
+				await refreshData();
+			} catch (err) {
+				toast({
+					title: "Error",
+					description: (err as Error).message || "Error al agregar miembros",
+					variant: "destructive",
+				});
+			}
+		});
+	};
+
+	const handleRemoveMember = (memberId: string) => {
+		startTransition(async () => {
+			try {
+				await gdisService.removeMember(gdiId, memberId);
+				toast({ title: "Éxito", description: "Miembro removido del GDI" });
+				await refreshData();
+			} catch (err) {
+				toast({
+					title: "Error",
+					description: (err as Error).message || "Error al remover miembro",
+					variant: "destructive",
+				});
+			}
+		});
+	};
+
+	const handleUpdateGdi = async (data: {
+		name: string;
+		leaderId: string;
+		mentorId?: string;
+	}) => {
+		const result = await updateGdiDetailsAction(gdiId, {
+			name: data.name,
+			guideId: data.leaderId,
+			mentorId: data.mentorId,
+		});
+		if (result.success) {
+			await refreshData();
+		}
+		return result;
+	};
+
+	const handleDeleteGdi = async () => {
+		const result = await deleteGdiAction(gdiId);
+		if (result.success) {
+			router.push("/groups");
+		}
+		return result;
+	};
+
+	const handleSeriesChanged = (newSeriesId?: string) => {
+		refreshData();
 	};
 
 	if (isLoading) {
@@ -290,307 +243,136 @@ export default function GdiAdminPage({}: GdiAdminPageProps) {
 		activeMembers,
 		allGdis,
 		groupMeetingSeries,
-		meetingsForChart,
-		meetingsForTable,
+		allMeetings,
 		allAttendanceRecords,
-		initialRowMembersForTable,
-		expectedAttendeesMapForTable,
-		memberCurrentPageForTable,
-		memberPageSizeForTable,
-		appliedStartDate,
-		appliedEndDate,
-		activeSeriesId,
+		gdiMembers,
 	} = pageData;
 
-	const selectedSeriesObject =
-		activeSeriesId && activeSeriesId !== "all"
-			? groupMeetingSeries.find((s) => s.id === activeSeriesId)
-			: undefined;
+	const guide = allMembers.find(m => m.id === gdi.guideId);
+	const mentor = gdi.mentorId ? allMembers.find(m => m.id === gdi.mentorId) : null;
 
 	return (
-		<div className="container mx-auto py-8 px-4">
-			<div className="mb-6 flex justify-start items-center">
-				{" "}
-				{/* Removed justify-between */}
-				<Button asChild variant="outline">
-					<Link href="/groups">
-						<ArrowLeft className="mr-2 h-4 w-4" />
-						Volver a Grupos
-					</Link>
-				</Button>
-				{/* Edit GDI Dialog trigger moved to CardHeader below */}
-			</div>
-			<Card className="mb-8 shadow-lg">
-				<CardHeader className="flex flex-row justify-between items-start">
-					<div>
-						<CardTitle className="font-headline text-3xl text-primary">
-							Administrar GDI: {gdi.name}
-						</CardTitle>
-						<CardDescription>
-							Guía: {allMembers.find((m) => m.id === gdi.guideId)?.firstName}{" "}
-							{allMembers.find((m) => m.id === gdi.guideId)?.lastName}
-						</CardDescription>
-					</div>
-					<Dialog
-						open={isEditGdiDetailsOpen}
-						onOpenChange={setIsEditGdiDetailsOpen}
-					>
-						<DialogTrigger asChild>
-							<Button variant="outline">
-								<Edit className="mr-2 h-4 w-4" />
-								Editar Detalles
-							</Button>
-						</DialogTrigger>
-						<DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
-							<DialogHeader className="p-6 pb-4 border-b">
-								<DialogTitle>Editar Detalles: {gdi.name}</DialogTitle>
-								<DialogDescription>
-									Modifique los detalles del GDI. Los cambios se guardarán al
-									hacer clic en &quot;Guardar Cambios&quot;.
-								</DialogDescription>
-							</DialogHeader>
-							<div className="flex-grow overflow-y-auto p-1 sm:p-6">
-								<ManageSingleGdiView
-									gdi={gdi}
-									allMembers={allMembers}
-									activeMembers={activeMembers}
-									allGdis={allGdis}
-									updateGdiAction={async (gdiIdOrNewData, updatedData) => {
-										if (typeof gdiIdOrNewData !== "string" || !updatedData) {
-											throw new Error(
-												"updateGdiAction: Firma inválida para edición de GDI",
-											);
-										}
-										return updateGdiDetailsAction(gdiIdOrNewData, updatedData);
-									}}
-									onSuccess={async () => {
-										setIsEditGdiDetailsOpen(false);
-										// Refresca los datos locales tras editar
-										if (!gdiId) return;
-										setIsLoading(true);
-										setError(null);
-										try {
-											const data = await getData(gdiId, {
-												activeSeriesId: spActiveSeriesId,
-												startDate: spStartDate,
-												endDate: spEndDate,
-												mPage: spMPage,
-												mPSize: spMPSize,
-											});
-											setPageData(data);
-										} catch (err) {
-											setError(
-												(err as any).message ||
-													"Error al cargar datos del GDI.",
-											);
-										} finally {
-											setIsLoading(false);
-										}
-									}}
-								/>
-							</div>
-						</DialogContent>
-					</Dialog>
+		<div className="container mx-auto py-6 px-4 space-y-6">
+			{/* Breadcrumbs */}
+			<Breadcrumb>
+				<BreadcrumbList>
+					<BreadcrumbItem>
+						<BreadcrumbLink href="/groups">Grupos</BreadcrumbLink>
+					</BreadcrumbItem>
+					<BreadcrumbSeparator>
+						<ChevronRight className="h-4 w-4" />
+					</BreadcrumbSeparator>
+					<BreadcrumbItem>
+						<BreadcrumbLink href="/groups?tab=gdis">GDIs</BreadcrumbLink>
+					</BreadcrumbItem>
+					<BreadcrumbSeparator>
+						<ChevronRight className="h-4 w-4" />
+					</BreadcrumbSeparator>
+					<BreadcrumbItem>
+						<BreadcrumbPage>{gdi.name}</BreadcrumbPage>
+					</BreadcrumbItem>
+				</BreadcrumbList>
+			</Breadcrumb>
+
+			{/* Header */}
+			<Card>
+				<CardHeader className="pb-4">
+					<CardTitle className="text-2xl md:text-3xl text-primary">{gdi.name}</CardTitle>
+					<CardDescription className="flex flex-wrap gap-x-4 gap-y-1">
+						<span>Guía: {guide ? `${guide.firstName} ${guide.lastName}` : "No asignado"}</span>
+						{mentor && <span>· Mentor: {mentor.firstName} {mentor.lastName}</span>}
+						<span>· {gdiMembers.length} miembros</span>
+					</CardDescription>
 				</CardHeader>
 			</Card>
 
-			<Card className="mt-8 shadow-lg">
-				<CardHeader>
-					<div className="flex justify-between items-start">
-						<div>
-							<CardTitle className="font-headline text-2xl text-primary flex items-center">
-								<CalendarDays className="mr-2 h-5 w-5" /> Reuniones del GDI:{" "}
-								{gdi.name}
-							</CardTitle>
-							<CardDescription>
-								Defina series de reuniones recurrentes, programe instancias y
-								gestione la asistencia para este GDI.
-							</CardDescription>
-						</div>
-						<PageSpecificAddMeetingDialog
-							defineMeetingSeriesAction={(
-								data: DefineMeetingSeriesFormValues,
-							) => handleAddGdiMeetingSeriesAction(gdi.id, data)}
-							seriesTypeContext="gdi"
-							ownerGroupIdContext={gdi.id}
-							onSeriesDefined={handleSeriesDefined}
-						/>
-					</div>
-				</CardHeader>
-				<CardContent className="space-y-6">
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start border-t pt-6">
-						<div className="md:col-span-1 space-y-4">
-							<div>
-								<Label
-									htmlFor="gdiSeriesFilter"
-									className="text-sm font-medium"
-								>
-									Seleccionar Serie del GDI:
-								</Label>
-								<Select
-									value={
-										activeSeriesId ||
-										(groupMeetingSeries.length > 0 ? "all" : "")
-									}
-									onValueChange={(value) =>
-										router.push(createSeriesLink(value))
-									}
-									disabled={groupMeetingSeries.length === 0}
-								>
-									<SelectTrigger id="gdiSeriesFilter" className="mt-1">
-										<SelectValue placeholder="Filtrar por serie..." />
-									</SelectTrigger>
-									<SelectContent>
-										{groupMeetingSeries.length > 0 && (
-											<SelectItem value="all">
-												Todas las Series de este GDI
-											</SelectItem>
-										)}
-										{groupMeetingSeries.map((series) => (
-											<SelectItem key={series.id} value={series.id}>
-												{series.name}
-											</SelectItem>
-										))}
-										{groupMeetingSeries.length === 0 && (
-											<SelectItem value="no-gdi-series-placeholder" disabled>
-												No hay series para este GDI
-											</SelectItem>
-										)}
-									</SelectContent>
-								</Select>
-							</div>
-							<DateRangeFilter
-								initialStartDate={appliedStartDate}
-								initialEndDate={appliedEndDate}
-							/>
-						</div>
+			{/* Tabs */}
+			<Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+				<TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+					<TabsTrigger value="summary" className="gap-2">
+						<LayoutDashboard className="h-4 w-4 hidden sm:inline" />
+						Resumen
+					</TabsTrigger>
+					<TabsTrigger value="members" className="gap-2">
+						<Users className="h-4 w-4 hidden sm:inline" />
+						Miembros
+					</TabsTrigger>
+					<TabsTrigger value="meetings" className="gap-2">
+						<CalendarDays className="h-4 w-4 hidden sm:inline" />
+						Reuniones
+					</TabsTrigger>
+					<TabsTrigger value="settings" className="gap-2">
+						<Settings className="h-4 w-4 hidden sm:inline" />
+						Config
+					</TabsTrigger>
+				</TabsList>
 
-						<div className="md:col-span-2">
-							{selectedSeriesObject ? (
-								<div className="mb-6 p-4 border rounded-lg bg-card shadow-sm">
-									<div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-										<div>
-											<h3 className="text-xl font-semibold text-primary">
-												{selectedSeriesObject.name}
-											</h3>
-											{selectedSeriesObject.description && (
-												<p className="text-xs text-muted-foreground mt-1 max-w-prose">
-													{selectedSeriesObject.description}
-												</p>
-											)}
-											<div className="text-xs text-muted-foreground mt-1.5">
-												<span>Hora: {selectedSeriesObject.defaultTime} | </span>
-												<span>
-													Lugar: {selectedSeriesObject.defaultLocation} |{" "}
-												</span>
-												<span>
-													Frec:{" "}
-													{selectedSeriesObject.frequency === "OneTime"
-														? "Única Vez"
-														: selectedSeriesObject.frequency === "Weekly"
-															? "Semanal"
-															: "Mensual"}
-												</span>
-											</div>
-										</div>
-										<div className="flex flex-col sm:flex-row gap-2 flex-shrink-0 mt-2 sm:mt-0">
-											<AddOccasionalMeetingDialog
-												series={selectedSeriesObject}
-												addOccasionalMeetingAction={(seriesId, formData) =>
-													handleAddMeetingForCurrentGDIAction(
-														gdi.id,
-														seriesId,
-														formData,
-													)
-												}
-												onSuccess={() => router.refresh()}
-											/>
-											<ManageMeetingSeriesDialog
-												series={selectedSeriesObject}
-												updateMeetingSeriesAction={(seriesIdToUpdate, data) =>
-													handleUpdateGdiMeetingSeriesAction(
-														gdi.id,
-														seriesIdToUpdate,
-														data,
-													)
-												}
-												deleteMeetingSeriesAction={(seriesIdToDelete) =>
-													handleDeleteGdiMeetingSeriesAction(
-														gdi.id,
-														seriesIdToDelete,
-													)
-												}
-												seriesTypeContext="gdi"
-												ownerGroupIdContext={gdi.id}
-												onDeleteSuccess={handleSeriesDeleted}
-											/>
-										</div>
-									</div>
-								</div>
-							) : (
-								activeSeriesId &&
-								activeSeriesId !== "all" && (
-									<p className="text-muted-foreground text-center py-4">
-										La serie seleccionada no se encontró o no pertenece a este
-										GDI.
-									</p>
-								)
-							)}
+				<TabsContent value="summary">
+					<GroupAdminSummaryTab
+						groupName={gdi.name}
+						groupType="gdi"
+						members={gdiMembers}
+						leaderId={gdi.guideId}
+						leaderLabel="Guía"
+						mentorId={gdi.mentorId}
+						meetingSeries={groupMeetingSeries}
+						recentMeetings={allMeetings}
+						allAttendanceRecords={allAttendanceRecords}
+						allMembers={allMembers}
+					/>
+				</TabsContent>
 
-							{meetingsForChart.length > 0 && (
-								<AttendanceLineChart
-									meetingsForSeries={meetingsForChart}
-									allAttendanceRecords={allAttendanceRecords}
-									seriesName={
-										selectedSeriesObject?.name || "Todas las Series del GDI"
-									}
-									filterStartDate={appliedStartDate}
-									filterEndDate={appliedEndDate}
-									expectedAttendeesMap={expectedAttendeesMapForTable}
-								/>
-							)}
+				<TabsContent value="members">
+					<GroupAdminMembersTab
+						groupType="gdi"
+						leaderId={gdi.guideId}
+						leaderLabel="Guía"
+						mentorId={gdi.mentorId}
+						memberIds={gdi.memberIds}
+						allMembers={allMembers}
+						activeMembers={activeMembers}
+						onAddMembers={handleAddMembers}
+						onRemoveMember={handleRemoveMember}
+						isUpdating={isUpdating}
+					/>
+				</TabsContent>
 
-							{meetingsForTable.length > 0 ? (
-								<MeetingTypeAttendanceTable
-									displayedInstances={meetingsForTable}
-									allMeetingSeries={groupMeetingSeries}
-									initialRowMembers={initialRowMembersForTable}
-									expectedAttendeesMap={expectedAttendeesMapForTable}
-									allAttendanceRecords={allAttendanceRecords}
-									seriesName={
-										selectedSeriesObject?.name || "Todas las Series del GDI"
-									}
-									filterStartDate={appliedStartDate}
-									filterEndDate={appliedEndDate}
-									memberCurrentPage={memberCurrentPageForTable}
-									memberPageSize={memberPageSizeForTable}
-									allMembers={allMembers}
-									allGdis={allGdis}
-									allAreas={[]}
-								/>
-							) : (
-								<div className="text-center py-10">
-									<CalendarDays className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-									<h2 className="text-xl font-semibold text-muted-foreground">
-										{groupMeetingSeries.length === 0
-											? "No hay series de reuniones definidas para este GDI."
-											: appliedStartDate && appliedEndDate
-												? `No hay instancias para &quot;${selectedSeriesObject?.name || "la selección actual"}&quot; en el rango de fechas`
-												: `No hay instancias programadas para &quot;${selectedSeriesObject?.name || "la selección actual"}&quot;`}
-									</h2>
-									<p className="text-muted-foreground mt-2">
-										{groupMeetingSeries.length === 0
-											? "Defina una nueva serie para comenzar."
-											: appliedStartDate && appliedEndDate
-												? `(${format(parseISO(appliedStartDate), "dd/MM/yy", { locale: es })} - ${format(parseISO(appliedEndDate), "dd/MM/yy", { locale: es })})`
-												: "Agregue instancias o ajuste los filtros."}
-									</p>
-								</div>
-							)}
-						</div>
-					</div>
-				</CardContent>
-			</Card>
+				<TabsContent value="meetings">
+					<GroupAdminMeetingsTab
+						groupId={gdi.id}
+						groupType="gdi"
+						meetingSeries={groupMeetingSeries}
+						allMeetings={allMeetings}
+						allAttendanceRecords={allAttendanceRecords}
+						members={gdiMembers}
+						onCreateSeries={(data: DefineMeetingSeriesFormValues) =>
+							handleAddGdiMeetingSeriesAction(gdi.id, data)
+						}
+						onUpdateSeries={(seriesId, data) =>
+							handleUpdateGdiMeetingSeriesAction(gdi.id, seriesId, data)
+						}
+						onDeleteSeries={(seriesId) =>
+							handleDeleteGdiMeetingSeriesAction(gdi.id, seriesId)
+						}
+						onAddMeeting={(seriesId, data) =>
+							handleAddMeetingForCurrentGDIAction(gdi.id, seriesId, data)
+						}
+						onSeriesChanged={handleSeriesChanged}
+					/>
+				</TabsContent>
+
+				<TabsContent value="settings">
+					<GroupAdminSettingsTab
+						groupType="gdi"
+						group={gdi}
+						allMembers={allMembers}
+						activeMembers={activeMembers}
+						allGroups={allGdis}
+						onUpdate={handleUpdateGdi}
+						onDelete={handleDeleteGdi}
+					/>
+				</TabsContent>
+			</Tabs>
 		</div>
 	);
 }

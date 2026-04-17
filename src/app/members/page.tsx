@@ -5,6 +5,7 @@ import {
 	updateMemberAction,
 } from "@/app/actions/memberActions";
 import MembersListView from "@/components/members/members-list-view";
+import { PageHeader } from "@/components/ui/page-header";
 import {
 	getAllAttendanceRecords,
 	getAllGdis,
@@ -142,15 +143,11 @@ async function MembersPageContent({
 	} = removeSymbols(rawData);
 
 	return (
-		<div className="container mx-auto py-8 px-4">
-			<div className="mb-8 text-center">
-				<h1 className="font-headline text-4xl font-bold text-primary">
-					Directorio de Miembros
-				</h1>
-				<p className="text-muted-foreground mt-2">
-					Visualice, busque, filtre y administre la información de los miembros.
-				</p>
-			</div>
+		<div className="space-y-6">
+			<PageHeader
+				title="Miembros"
+				description="Gestiona la información de los miembros de la congregación."
+			/>
 			<MembersListView
 				key={viewKey}
 				initialMembers={members}

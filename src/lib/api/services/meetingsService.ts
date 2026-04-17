@@ -5,13 +5,19 @@
  */
 
 import { meetingsEndpoint } from '../endpoints';
+import { meetingSeriesEndpoint } from '../endpoints/meetingSeriesEndpoint';
 import {
   mapApiMeetingToMeeting,
   mapApiMeetingsToMeetings,
   mapMeetingToApiCreateRequest,
   mapMeetingToApiUpdateRequest,
+  mapApiMeetingSeriesToMeetingSeries,
+  mapApiMeetingSeriesArrayToMeetingSeriesArray,
+  mapMeetingSeriesFormToApiCreateRequest,
+  mapMeetingSeriesToApiUpdateRequest,
+  mapApiExpectedAttendeesToExpectedAttendees,
 } from '../mappers';
-import type { Meeting, MeetingWriteData, MeetingSeriesType, MeetingSeries, MeetingSeriesWriteData } from '@/lib/types';
+import type { Meeting, MeetingWriteData, MeetingSeriesType, MeetingSeries, MeetingSeriesWriteData, AudienceType, ExpectedAttendee } from '@/lib/types';
 
 export const meetingsService = {
   /**
@@ -33,8 +39,8 @@ export const meetingsService = {
   /**
    * Create a new meeting
    */
-  async create(data: MeetingWriteData, type: MeetingSeriesType = 'general'): Promise<Meeting> {
-    const request = mapMeetingToApiCreateRequest(data, type);
+  async create(seriesId: string, data: MeetingWriteData): Promise<Meeting> {
+    const request = mapMeetingToApiCreateRequest(Number(seriesId), data);
     const apiMeeting = await meetingsEndpoint.create(request);
     return mapApiMeetingToMeeting(apiMeeting);
   },
@@ -42,8 +48,8 @@ export const meetingsService = {
   /**
    * Update a meeting
    */
-  async update(id: string, data: Partial<MeetingWriteData>, type?: MeetingSeriesType): Promise<Meeting> {
-    const request = mapMeetingToApiUpdateRequest(data, type);
+  async update(id: string, data: Partial<MeetingWriteData>): Promise<Meeting> {
+    const request = mapMeetingToApiUpdateRequest(data);
     const apiMeeting = await meetingsEndpoint.update(Number(id), request);
     return mapApiMeetingToMeeting(apiMeeting);
   },
@@ -56,10 +62,22 @@ export const meetingsService = {
   },
 
   /**
-   * Get meetings by type
+   * Get meetings by series ID
    */
-  async getByType(type: MeetingSeriesType): Promise<Meeting[]> {
-    const apiMeetings = await meetingsEndpoint.getByType(type);
+  async getBySeriesId(seriesId: string): Promise<Meeting[]> {
+    const apiMeetings = await meetingsEndpoint.getBySeriesId(Number(seriesId));
+    return mapApiMeetingsToMeetings(apiMeetings);
+  },
+
+  /**
+   * Get meetings with filters
+   */
+  async getWithFilters(filters: { seriesId?: string; startDate?: string; endDate?: string }): Promise<Meeting[]> {
+    const apiFilters: { seriesId?: number; startDate?: string; endDate?: string } = {};
+    if (filters.seriesId) apiFilters.seriesId = Number(filters.seriesId);
+    if (filters.startDate) apiFilters.startDate = filters.startDate;
+    if (filters.endDate) apiFilters.endDate = filters.endDate;
+    const apiMeetings = await meetingsEndpoint.getWithFilters(apiFilters);
     return mapApiMeetingsToMeetings(apiMeetings);
   },
 
@@ -75,21 +93,45 @@ export const meetingsService = {
    * Get general meetings
    */
   async getGeneralMeetings(): Promise<Meeting[]> {
-    return this.getByType('general');
+    return this.getAll();
   },
 
   /**
    * Get GDI meetings
    */
   async getGdiMeetings(): Promise<Meeting[]> {
-    return this.getByType('gdi');
+    return this.getAll();
   },
 
   /**
    * Get ministry area meetings
    */
   async getAreaMeetings(): Promise<Meeting[]> {
-    return this.getByType('ministryArea');
+    return this.getAll();
+  },
+
+  /**
+   * Get expected attendees for a meeting
+   */
+  async getExpectedAttendees(meetingId: string): Promise<ExpectedAttendee[]> {
+    const apiAttendees = await meetingsEndpoint.getExpectedAttendees(Number(meetingId));
+    return mapApiExpectedAttendeesToExpectedAttendees(apiAttendees);
+  },
+
+  /**
+   * Cancel a date in a meeting series
+   */
+  async cancelSeriesDate(seriesId: string, date: string): Promise<MeetingSeries> {
+    const apiSeries = await meetingSeriesEndpoint.cancelDate(Number(seriesId), date);
+    return mapApiMeetingSeriesToMeetingSeries(apiSeries);
+  },
+
+  /**
+   * Restore a cancelled date in a meeting series
+   */
+  async restoreSeriesDate(seriesId: string, date: string): Promise<MeetingSeries> {
+    const apiSeries = await meetingSeriesEndpoint.restoreDate(Number(seriesId), date);
+    return mapApiMeetingSeriesToMeetingSeries(apiSeries);
   },
 };
 
@@ -117,23 +159,54 @@ export async function getMeetingById(id: string): Promise<Meeting | null> {
 
 /**
  * Get all meeting series
- * Note: Backend doesn't support series yet, returning empty array
- * The meetings themselves are available via getAllMeetings()
  */
 export async function getAllMeetingSeries(): Promise<MeetingSeries[]> {
-  // Backend doesn't have meeting series concept yet
-  // Return empty array - components should adapt to use meetings directly
-  console.warn('getAllMeetingSeries: Backend does not support meeting series. Use getAllMeetings() instead.');
-  return [];
+  const apiSeries = await meetingSeriesEndpoint.getAll();
+  return mapApiMeetingSeriesArrayToMeetingSeriesArray(apiSeries);
 }
 
 /**
  * Get meeting series by ID
- * Note: Backend doesn't support series yet, returning null
  */
-export async function getMeetingSeriesById(_id: string): Promise<MeetingSeries | null> {
-  console.warn('getMeetingSeriesById: Backend does not support meeting series.');
-  return null;
+export async function getMeetingSeriesById(id: string): Promise<MeetingSeries | null> {
+  try {
+    const apiSeries = await meetingSeriesEndpoint.getById(Number(id));
+    return mapApiMeetingSeriesToMeetingSeries(apiSeries);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get meeting series by audience type
+ */
+export async function getMeetingSeriesByAudienceType(audienceType: AudienceType): Promise<MeetingSeries[]> {
+  const apiSeries = await meetingSeriesEndpoint.getAll({ audienceType });
+  return mapApiMeetingSeriesArrayToMeetingSeriesArray(apiSeries);
+}
+
+/**
+ * Get meeting series for a GDI
+ */
+export async function getMeetingSeriesByGdiId(gdiId: string): Promise<MeetingSeries[]> {
+  const apiSeries = await meetingSeriesEndpoint.getByGdiId(Number(gdiId));
+  return mapApiMeetingSeriesArrayToMeetingSeriesArray(apiSeries);
+}
+
+/**
+ * Get meeting series for an area
+ */
+export async function getMeetingSeriesByAreaId(areaId: string): Promise<MeetingSeries[]> {
+  const apiSeries = await meetingSeriesEndpoint.getByAreaId(Number(areaId));
+  return mapApiMeetingSeriesArrayToMeetingSeriesArray(apiSeries);
+}
+
+/**
+ * Get general meeting series (all_active or by_categories)
+ */
+export async function getGeneralMeetingSeries(): Promise<MeetingSeries[]> {
+  const apiSeries = await meetingSeriesEndpoint.getGeneralSeries();
+  return mapApiMeetingSeriesArrayToMeetingSeriesArray(apiSeries);
 }
 
 /**
@@ -159,65 +232,71 @@ export async function deleteMeetingInstance(id: string): Promise<void> {
 
 /**
  * Add a meeting series
- * Note: Backend doesn't support series yet - creates individual meeting instead
  */
 export async function addMeetingSeries(
   seriesData: MeetingSeriesWriteData
 ): Promise<{ series: MeetingSeries; newInstances?: Meeting[] }> {
-  console.warn('addMeetingSeries: Backend does not support meeting series. Creating individual meeting instead.');
+  // Determine groupType and groupId from the data
+  let groupType: MeetingSeriesType = seriesData.seriesType || 'general';
+  let groupId = seriesData.ownerGroupId || '0';
   
-  // Create individual meeting with the series data
-  const meeting = await meetingsService.create({
-    seriesId: '',
-    name: seriesData.name,
-    date: seriesData.oneTimeDate || new Date().toISOString().split('T')[0],
-    time: seriesData.defaultTime,
-    location: seriesData.defaultLocation || '',
-  }, seriesData.seriesType);
-
-  // Return a fake series object for compatibility
-  const fakeSeries: MeetingSeries = {
-    id: meeting.id,
+  // Create the API request with required fields
+  const requestData = {
     name: seriesData.name,
     description: seriesData.description,
-    seriesType: seriesData.seriesType,
-    ownerGroupId: seriesData.ownerGroupId,
     frequency: seriesData.frequency,
-    defaultTime: seriesData.defaultTime,
-    defaultLocation: seriesData.defaultLocation,
-    targetAttendeeGroups: seriesData.targetAttendeeGroups || [],
-    oneTimeDate: seriesData.oneTimeDate,
+    defaultTime: seriesData.defaultTime || '09:00',
+    defaultLocation: seriesData.defaultLocation || '',
+    seriesType: groupType,
+    targetAttendeeGroups: seriesData.targetAttendeeGroups || ['allMembers' as const],
+    oneTimeDate: seriesData.oneTimeDate ? new Date(seriesData.oneTimeDate) : undefined,
     weeklyDays: seriesData.weeklyDays,
     monthlyRuleType: seriesData.monthlyRuleType,
     monthlyDayOfMonth: seriesData.monthlyDayOfMonth,
     monthlyWeekOrdinal: seriesData.monthlyWeekOrdinal,
     monthlyDayOfWeek: seriesData.monthlyDayOfWeek,
   };
+  
+  const apiRequest = mapMeetingSeriesFormToApiCreateRequest(groupType, groupId, requestData);
+  const apiSeries = await meetingSeriesEndpoint.create(apiRequest);
+  const series = mapApiMeetingSeriesToMeetingSeries(apiSeries);
 
-  return { series: fakeSeries, newInstances: [meeting] };
+  return { series, newInstances: [] };
 }
 
 /**
  * Update a meeting series
- * Note: Backend doesn't support series yet
  */
 export async function updateMeetingSeries(
-  _seriesId: string,
-  _updates: Partial<MeetingSeriesWriteData>
+  seriesId: string,
+  updates: Partial<{
+    name: string;
+    description: string;
+    defaultTime: string;
+    defaultLocation: string;
+    endDate: string;
+  }>
 ): Promise<{ 
   updatedSeries: MeetingSeries; 
   newlyGeneratedInstances?: Meeting[];
   message: string 
 }> {
-  throw new Error('updateMeetingSeries: Backend does not support meeting series. Update individual meetings instead.');
+  const apiRequest = mapMeetingSeriesToApiUpdateRequest(updates);
+  const apiSeries = await meetingSeriesEndpoint.update(Number(seriesId), apiRequest);
+  const updatedSeries = mapApiMeetingSeriesToMeetingSeries(apiSeries);
+  
+  return {
+    updatedSeries,
+    newlyGeneratedInstances: [],
+    message: 'Meeting series updated successfully',
+  };
 }
 
 /**
  * Delete a meeting series
- * Note: Backend doesn't support series yet
  */
-export async function deleteMeetingSeries(_seriesId: string): Promise<void> {
-  throw new Error('deleteMeetingSeries: Backend does not support meeting series. Delete individual meetings instead.');
+export async function deleteMeetingSeries(seriesId: string): Promise<void> {
+  await meetingSeriesEndpoint.delete(Number(seriesId));
 }
 
 /**
@@ -227,13 +306,34 @@ export async function addMeetingInstance(
   seriesId: string,
   instanceData: { name: string; date: string; time: string; location?: string; description?: string }
 ): Promise<Meeting> {
-  return meetingsService.create({
+  return meetingsService.create(seriesId, {
     seriesId,
     name: instanceData.name,
     date: instanceData.date,
     time: instanceData.time,
     location: instanceData.location || '',
   });
+}
+
+/**
+ * Get expected attendees for a meeting
+ */
+export async function getExpectedAttendees(meetingId: string): Promise<ExpectedAttendee[]> {
+  return meetingsService.getExpectedAttendees(meetingId);
+}
+
+/**
+ * Cancel a date in a meeting series
+ */
+export async function cancelSeriesDate(seriesId: string, date: string): Promise<MeetingSeries> {
+  return meetingsService.cancelSeriesDate(seriesId, date);
+}
+
+/**
+ * Restore a cancelled date in a meeting series
+ */
+export async function restoreSeriesDate(seriesId: string, date: string): Promise<MeetingSeries> {
+  return meetingsService.restoreSeriesDate(seriesId, date);
 }
 
 export default meetingsService;

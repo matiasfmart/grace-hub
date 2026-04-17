@@ -75,59 +75,51 @@ export default function TitheSummaryCards({
 	}, [filteredMembers, allTitheRecords, months]);
 
 	return (
-		<div className="mb-6">
-			<h3 className="text-lg font-semibold flex items-center mb-2">
-				<Calendar className="mr-2 h-5 w-5 text-primary" />
-				Resumen para:{" "}
-				<span className="capitalize ml-1 font-bold">
-					{summaryData.selectedMonthLabel}
-				</span>
-			</h3>
-			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-				<Card>
-					<CardHeader className="pb-2">
-						<CardDescription className="text-xs font-medium flex items-center">
-							<Users className="mr-2 h-4 w-4" />
-							Miembros (Filtrados)
-						</CardDescription>
-						<CardTitle className="text-3xl">
-							{summaryData.totalFilteredMembers}
-						</CardTitle>
-					</CardHeader>
-				</Card>
-				<Card>
-					<CardHeader className="pb-2">
-						<CardDescription className="text-xs font-medium flex items-center">
-							<UserCheck className="mr-2 h-4 w-4 text-green-600" />
-							Diezmaron
-						</CardDescription>
-						<CardTitle className="text-3xl text-green-700">
-							{summaryData.tithersThisMonth}
-						</CardTitle>
-					</CardHeader>
-				</Card>
-				<Card>
-					<CardHeader className="pb-2">
-						<CardDescription className="text-xs font-medium flex items-center">
-							<UserX className="mr-2 h-4 w-4 text-red-600" />
-							No Registrado
-						</CardDescription>
-						<CardTitle className="text-3xl text-red-700">
-							{summaryData.nonTithersThisMonth}
-						</CardTitle>
-					</CardHeader>
-				</Card>
-				<Card>
-					<CardHeader className="pb-2">
-						<CardDescription className="text-xs font-medium flex items-center">
-							<Percent className="mr-2 h-4 w-4 text-primary" />% que Diezmó
-						</CardDescription>
-						<CardTitle className="text-3xl">
-							{summaryData.tithersPercentage.toFixed(0)}%
-						</CardTitle>
-					</CardHeader>
-				</Card>
-			</div>
+		<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+			<Card className="border-l-4 border-l-primary">
+				<CardHeader className="pb-2">
+					<CardDescription className="text-xs font-medium flex items-center">
+						<Users className="mr-2 h-4 w-4" />
+						Miembros (Filtrados)
+					</CardDescription>
+					<CardTitle className="text-3xl">
+						{summaryData.totalFilteredMembers}
+					</CardTitle>
+				</CardHeader>
+			</Card>
+			<Card className="border-l-4 border-l-green-500">
+				<CardHeader className="pb-2">
+					<CardDescription className="text-xs font-medium flex items-center">
+						<UserCheck className="mr-2 h-4 w-4 text-green-600" />
+						Diezmaron
+					</CardDescription>
+					<CardTitle className="text-3xl text-green-700">
+						{summaryData.tithersThisMonth}
+					</CardTitle>
+				</CardHeader>
+			</Card>
+			<Card className="border-l-4 border-l-red-500">
+				<CardHeader className="pb-2">
+					<CardDescription className="text-xs font-medium flex items-center">
+						<UserX className="mr-2 h-4 w-4 text-red-600" />
+						No Registrado
+					</CardDescription>
+					<CardTitle className="text-3xl text-red-700">
+						{summaryData.nonTithersThisMonth}
+					</CardTitle>
+				</CardHeader>
+			</Card>
+			<Card className={`border-l-4 ${summaryData.tithersPercentage >= 70 ? "border-l-green-500" : summaryData.tithersPercentage >= 50 ? "border-l-yellow-500" : "border-l-red-500"}`}>
+				<CardHeader className="pb-2">
+					<CardDescription className="text-xs font-medium flex items-center">
+						<Percent className={`mr-2 h-4 w-4 ${summaryData.tithersPercentage >= 70 ? "text-green-600" : summaryData.tithersPercentage >= 50 ? "text-yellow-600" : "text-red-600"}`} />
+						% Cumplimiento
+					</CardDescription>
+					<CardTitle className={`text-3xl ${summaryData.tithersPercentage >= 70 ? "text-green-700" : summaryData.tithersPercentage >= 50 ? "text-yellow-700" : "text-red-700"}`}>
+						{summaryData.tithersPercentage.toFixed(0)}%
+					</CardTitle>
+				</CardHeader>
+			</Card>
 		</div>
 	);
 }

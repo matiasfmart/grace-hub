@@ -14,10 +14,13 @@ import {
 	Briefcase,
 	Check,
 	CheckCircle2,
+	ChevronDown,
 	ChevronLeft,
 	ChevronRight,
 	Filter,
 	Loader2,
+	MoreVertical,
+	Pencil,
 	Search,
 	ShieldCheck,
 	Users,
@@ -47,11 +50,17 @@ import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
+	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
 	Select,
@@ -289,185 +298,396 @@ export function TithesTracker({
 		filters.currentGdiFilters.length > 0 ||
 		filters.currentAreaFilters.length > 0;
 
+	const activeFilterCount =
+		selectedStatuses.length +
+		selectedRoles.length +
+		selectedGuideIds.length +
+		selectedAreaIds.length;
+
+	const [filtersPopoverOpen, setFiltersPopoverOpen] = useState(false);
+
+	const removeFilterChip = (
+		type: "status" | "role" | "gdi" | "area",
+		value: string,
+	) => {
+		let newStatuses = selectedStatuses;
+		let newRoles = selectedRoles;
+		let newGuides = selectedGuideIds;
+		let newAreas = selectedAreaIds;
+
+		switch (type) {
+			case "status":
+				newStatuses = selectedStatuses.filter((s) => s !== value);
+				setSelectedStatuses(newStatuses);
+				break;
+			case "role":
+				newRoles = selectedRoles.filter((s) => s !== value);
+				setSelectedRoles(newRoles);
+				break;
+			case "gdi":
+				newGuides = selectedGuideIds.filter((s) => s !== value);
+				setSelectedGuideIds(newGuides);
+				break;
+			case "area":
+				newAreas = selectedAreaIds.filter((s) => s !== value);
+				setSelectedAreaIds(newAreas);
+				break;
+		}
+
+		// Auto-apply when removing chip
+		const params = new URLSearchParams(searchParams.toString());
+		params.set("page", "1");
+		if (searchInput) params.set("search", searchInput);
+		else params.delete("search");
+		if (newStatuses.length > 0) params.set("status", newStatuses.join(","));
+		else params.delete("status");
+		if (newRoles.length > 0) params.set("role", newRoles.join(","));
+		else params.delete("role");
+		if (newGuides.length > 0) params.set("guide", newGuides.join(","));
+		else params.delete("guide");
+		if (newAreas.length > 0) params.set("area", newAreas.join(","));
+		else params.delete("area");
+		if (startDate) params.set("startDate", format(startDate, "yyyy-MM-dd"));
+		if (endDate) params.set("endDate", format(endDate, "yyyy-MM-dd"));
+		router.push(`${pathname}?${params.toString()}`);
+	};
+
+	const getFilterLabel = (
+		type: "status" | "role" | "gdi" | "area",
+		value: string,
+	) => {
+		switch (type) {
+			case "status":
+				return (
+					filters.statusFilterOptions.find((o) => o.value === value)?.label ||
+					value
+				);
+			case "role":
+				return (
+					filters.roleFilterOptions.find((o) => o.value === value)?.label ||
+					value
+				);
+			case "gdi":
+				return (
+					filters.gdiFilterOptions.find((o) => o.value === value)?.label ||
+					value
+				);
+			case "area":
+				return (
+					filters.areaFilterOptions.find((o) => o.value === value)?.label ||
+					value
+				);
+		}
+	};
+
 	return (
 		<>
 			<div className="space-y-6">
-				<div className="space-y-4 p-4 border rounded-lg bg-card shadow-sm">
-					<h3 className="text-lg font-semibold flex items-center">
-						<Filter className="mr-2 h-5 w-5 text-primary" /> Filtros
-					</h3>
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-						<Input
-							placeholder="Buscar miembro..."
-							value={searchInput}
-							onChange={(e) => setSearchInput(e.target.value)}
-						/>
-						<DatePicker
-							date={startDate}
-							setDate={setStartDate}
-							placeholder="Mes de Inicio"
-						/>
-						<DatePicker
-							date={endDate}
-							setDate={setEndDate}
-							placeholder="Mes de Fin"
-						/>
-					</div>
-					<div className="flex flex-wrap items-center gap-2">
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button variant="outline" size="sm" className="text-xs">
-									<Activity className="mr-1.5 h-3.5 w-3.5" /> Estado (
-									{selectedStatuses.length})
+				{/* Compact Toolbar */}
+				<div className="space-y-3">
+					<div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+						{/* Search */}
+						<div className="relative flex-1 min-w-0 max-w-xs">
+							<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+							<Input
+								placeholder="Buscar miembro..."
+								value={searchInput}
+								onChange={(e) => setSearchInput(e.target.value)}
+								onKeyDown={(e) => e.key === "Enter" && handleApplyFilters()}
+								className="pl-9 h-9"
+							/>
+						</div>
+
+						{/* Date Range */}
+						<div className="flex items-center gap-2">
+							<DatePicker
+								date={startDate}
+								setDate={setStartDate}
+								placeholder="Desde"
+							/>
+							<span className="text-muted-foreground text-sm">-</span>
+							<DatePicker
+								date={endDate}
+								setDate={setEndDate}
+								placeholder="Hasta"
+							/>
+						</div>
+
+						{/* Filters Popover */}
+						<Popover open={filtersPopoverOpen} onOpenChange={setFiltersPopoverOpen}>
+							<PopoverTrigger asChild>
+								<Button
+									variant={activeFilterCount > 0 ? "secondary" : "outline"}
+									size="sm"
+									className="h-9"
+								>
+									<Filter className="h-4 w-4 mr-2" />
+									Filtros
+									{activeFilterCount > 0 && (
+										<span className="ml-2 bg-primary text-primary-foreground rounded-full h-5 w-5 flex items-center justify-center text-[10px]">
+											{activeFilterCount}
+										</span>
+									)}
 								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent>
-								<DropdownMenuLabel>Estado</DropdownMenuLabel>
-								<DropdownMenuSeparator />
-								{filters.statusFilterOptions.map((opt) => (
-									<DropdownMenuCheckboxItem
-										key={opt.value}
-										checked={selectedStatuses.includes(opt.value)}
-										onCheckedChange={() =>
-											setSelectedStatuses((prev) =>
-												prev.includes(opt.value)
-													? prev.filter((s) => s !== opt.value)
-													: [...prev, opt.value],
-											)
-										}
-									>
-										{opt.label}
-									</DropdownMenuCheckboxItem>
-								))}
-							</DropdownMenuContent>
-						</DropdownMenu>
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button variant="outline" size="sm" className="text-xs">
-									<ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Rol (
-									{selectedRoles.length})
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent>
-								<DropdownMenuLabel>Rol</DropdownMenuLabel>
-								<DropdownMenuSeparator />
-								{filters.roleFilterOptions.map((opt) => (
-									<DropdownMenuCheckboxItem
-										key={opt.value}
-										checked={selectedRoles.includes(opt.value)}
-										onCheckedChange={() =>
-											setSelectedRoles((prev) =>
-												prev.includes(opt.value)
-													? prev.filter((s) => s !== opt.value)
-													: [...prev, opt.value],
-											)
-										}
-									>
-										{opt.label}
-									</DropdownMenuCheckboxItem>
-								))}
-							</DropdownMenuContent>
-						</DropdownMenu>
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button variant="outline" size="sm" className="text-xs">
-									<Users className="mr-1.5 h-3.5 w-3.5" /> GDI (
-									{selectedGuideIds.length})
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent className="w-64 p-0">
-								<Command>
-									<CommandInput
-										placeholder="Buscar GDI..."
-										className="h-9 border-0 shadow-none focus-visible:ring-0"
-									/>
-									<CommandList>
-										{filters.gdiFilterOptions.map((opt) => (
-											<CommandItem
-												key={opt.value}
-												onSelect={() =>
-													setSelectedGuideIds((prev) =>
-														prev.includes(opt.value)
-															? prev.filter((s) => s !== opt.value)
-															: [...prev, opt.value],
-													)
-												}
-												className="text-xs cursor-pointer"
-											>
-												<Check
+							</PopoverTrigger>
+							<PopoverContent className="w-80 p-4" align="end">
+								<div className="space-y-4">
+									<h4 className="font-medium text-sm">Filtros de Miembros</h4>
+
+									{/* Status Filter */}
+									<div className="space-y-2">
+										<label className="text-xs font-medium text-muted-foreground flex items-center">
+											<Activity className="h-3.5 w-3.5 mr-1.5" />
+											Estado
+										</label>
+										<div className="flex flex-wrap gap-1">
+											{filters.statusFilterOptions.map((opt) => (
+												<span
+													key={opt.value}
+													onClick={() =>
+														setSelectedStatuses((prev) =>
+															prev.includes(opt.value)
+																? prev.filter((s) => s !== opt.value)
+																: [...prev, opt.value],
+														)
+													}
 													className={cn(
-														"mr-2 h-3.5 w-3.5",
-														selectedGuideIds.includes(opt.value)
-															? "opacity-100"
-															: "opacity-0",
+														"cursor-pointer text-xs px-2 py-1 rounded-md border transition-colors",
+														selectedStatuses.includes(opt.value)
+															? "bg-primary text-primary-foreground border-primary"
+															: "bg-background hover:bg-muted border-input"
 													)}
-												/>{" "}
-												<span className="truncate">{opt.label}</span>
-											</CommandItem>
-										))}
-									</CommandList>
-								</Command>
-							</DropdownMenuContent>
-						</DropdownMenu>
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button variant="outline" size="sm" className="text-xs">
-									<Briefcase className="mr-1.5 h-3.5 w-3.5" /> Área (
-									{selectedAreaIds.length})
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent className="w-64 p-0">
-								<Command>
-									<CommandInput
-										placeholder="Buscar Área..."
-										className="h-9 border-0 shadow-none focus-visible:ring-0"
-									/>
-									<CommandList>
-										{filters.areaFilterOptions.map((opt) => (
-											<CommandItem
-												key={opt.value}
-												onSelect={() =>
-													setSelectedAreaIds((prev) =>
-														prev.includes(opt.value)
-															? prev.filter((s) => s !== opt.value)
-															: [...prev, opt.value],
-													)
-												}
-												className="text-xs cursor-pointer"
-											>
-												<Check
+												>
+													{opt.label}
+												</span>
+											))}
+										</div>
+									</div>
+
+									{/* Role Filter */}
+									<div className="space-y-2">
+										<label className="text-xs font-medium text-muted-foreground flex items-center">
+											<ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
+											Rol
+										</label>
+										<div className="flex flex-wrap gap-1">
+											{filters.roleFilterOptions.map((opt) => (
+												<span
+													key={opt.value}
+													onClick={() =>
+														setSelectedRoles((prev) =>
+															prev.includes(opt.value)
+																? prev.filter((s) => s !== opt.value)
+																: [...prev, opt.value],
+														)
+													}
 													className={cn(
-														"mr-2 h-3.5 w-3.5",
-														selectedAreaIds.includes(opt.value)
-															? "opacity-100"
-															: "opacity-0",
+														"cursor-pointer text-xs px-2 py-1 rounded-md border transition-colors",
+														selectedRoles.includes(opt.value)
+															? "bg-primary text-primary-foreground border-primary"
+															: "bg-background hover:bg-muted border-input"
 													)}
-												/>{" "}
-												<span className="truncate">{opt.label}</span>
-											</CommandItem>
-										))}
-									</CommandList>
-								</Command>
-							</DropdownMenuContent>
-						</DropdownMenu>
+												>
+													{opt.label}
+												</span>
+											))}
+										</div>
+									</div>
+
+									{/* GDI Filter */}
+									<div className="space-y-2">
+										<label className="text-xs font-medium text-muted-foreground flex items-center">
+											<Users className="h-3.5 w-3.5 mr-1.5" />
+											GDI ({selectedGuideIds.length})
+										</label>
+										<Command className="border rounded-md">
+											<CommandInput
+												placeholder="Buscar GDI..."
+												className="h-8 text-xs"
+											/>
+											<CommandList className="max-h-24">
+												{filters.gdiFilterOptions.map((opt) => (
+													<CommandItem
+														key={opt.value}
+														onSelect={() =>
+															setSelectedGuideIds((prev) =>
+																prev.includes(opt.value)
+																	? prev.filter((s) => s !== opt.value)
+																	: [...prev, opt.value],
+															)
+														}
+														className="text-xs cursor-pointer"
+													>
+														<Check
+															className={cn(
+																"mr-2 h-3 w-3",
+																selectedGuideIds.includes(opt.value)
+																	? "opacity-100"
+																	: "opacity-0",
+															)}
+														/>
+														<span className="truncate">{opt.label}</span>
+													</CommandItem>
+												))}
+											</CommandList>
+										</Command>
+									</div>
+
+									{/* Area Filter */}
+									<div className="space-y-2">
+										<label className="text-xs font-medium text-muted-foreground flex items-center">
+											<Briefcase className="h-3.5 w-3.5 mr-1.5" />
+											Área ({selectedAreaIds.length})
+										</label>
+										<Command className="border rounded-md">
+											<CommandInput
+												placeholder="Buscar Área..."
+												className="h-8 text-xs"
+											/>
+											<CommandList className="max-h-24">
+												{filters.areaFilterOptions.map((opt) => (
+													<CommandItem
+														key={opt.value}
+														onSelect={() =>
+															setSelectedAreaIds((prev) =>
+																prev.includes(opt.value)
+																	? prev.filter((s) => s !== opt.value)
+																	: [...prev, opt.value],
+															)
+														}
+														className="text-xs cursor-pointer"
+													>
+														<Check
+															className={cn(
+																"mr-2 h-3 w-3",
+																selectedAreaIds.includes(opt.value)
+																	? "opacity-100"
+																	: "opacity-0",
+															)}
+														/>
+														<span className="truncate">{opt.label}</span>
+													</CommandItem>
+												))}
+											</CommandList>
+										</Command>
+									</div>
+
+									{/* Apply Button */}
+									<div className="flex justify-end gap-2 pt-2 border-t">
+										{activeFilterCount > 0 && (
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => {
+													setSelectedStatuses([]);
+													setSelectedRoles([]);
+													setSelectedGuideIds([]);
+													setSelectedAreaIds([]);
+												}}
+											>
+												Limpiar
+											</Button>
+										)}
+										<Button size="sm" onClick={() => {
+											handleApplyFilters();
+											setFiltersPopoverOpen(false);
+										}}>
+											Aplicar
+										</Button>
+									</div>
+								</div>
+							</PopoverContent>
+						</Popover>
+
+						{/* Apply Button */}
+						<Button size="sm" className="h-9" onClick={handleApplyFilters}>
+							<Search className="h-4 w-4 mr-2" />
+							Buscar
+						</Button>
+
+						{/* Clear All */}
 						{hasActiveMemberFilters && (
 							<Button
-								variant="link"
+								variant="ghost"
 								size="sm"
+								className="h-9 text-destructive hover:text-destructive/80"
 								onClick={clearMemberFilters}
-								className="text-xs h-auto px-1 text-destructive hover:text-destructive/80"
 							>
-								<X className="mr-1 h-3 w-3" />
+								<X className="h-4 w-4 mr-1" />
 								Limpiar
 							</Button>
 						)}
 					</div>
-					<div className="flex justify-end">
-						<Button onClick={handleApplyFilters}>
-							<Search className="mr-2 h-4 w-4" />
-							Aplicar Filtros
-						</Button>
-					</div>
+
+					{/* Active Filter Chips */}
+					{activeFilterCount > 0 && (
+						<div className="flex flex-wrap gap-1.5">
+							{selectedStatuses.map((status) => (
+								<span
+									key={`status-${status}`}
+									className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 text-xs bg-secondary text-secondary-foreground rounded-md"
+								>
+									<Activity className="h-3 w-3" />
+									{getFilterLabel("status", status)}
+									<button
+										type="button"
+										onClick={() => removeFilterChip("status", status)}
+										className="ml-1 hover:bg-muted rounded-full p-0.5"
+									>
+										<X className="h-3 w-3" />
+									</button>
+								</span>
+							))}
+							{selectedRoles.map((role) => (
+								<span
+									key={`role-${role}`}
+									className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 text-xs bg-secondary text-secondary-foreground rounded-md"
+								>
+									<ShieldCheck className="h-3 w-3" />
+									{getFilterLabel("role", role)}
+									<button
+										type="button"
+										onClick={() => removeFilterChip("role", role)}
+										className="ml-1 hover:bg-muted rounded-full p-0.5"
+									>
+										<X className="h-3 w-3" />
+									</button>
+								</span>
+							))}
+							{selectedGuideIds.map((gdi) => (
+								<span
+									key={`gdi-${gdi}`}
+									className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 text-xs bg-secondary text-secondary-foreground rounded-md"
+								>
+									<Users className="h-3 w-3" />
+									{getFilterLabel("gdi", gdi)}
+									<button
+										type="button"
+										onClick={() => removeFilterChip("gdi", gdi)}
+										className="ml-1 hover:bg-muted rounded-full p-0.5"
+									>
+										<X className="h-3 w-3" />
+									</button>
+								</span>
+							))}
+							{selectedAreaIds.map((area) => (
+								<span
+									key={`area-${area}`}
+									className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 text-xs bg-secondary text-secondary-foreground rounded-md"
+								>
+									<Briefcase className="h-3 w-3" />
+									{getFilterLabel("area", area)}
+									<button
+										type="button"
+										onClick={() => removeFilterChip("area", area)}
+										className="ml-1 hover:bg-muted rounded-full p-0.5"
+									>
+										<X className="h-3 w-3" />
+									</button>
+								</span>
+							))}
+						</div>
+					)}
 				</div>
 
 				<TitheSummaryCards
@@ -490,19 +710,54 @@ export function TithesTracker({
 									<TableHead className="sticky left-0 bg-card z-10 w-[250px] min-w-[250px]">
 										Miembro
 									</TableHead>
-									{months.map((month) => (
+									{months.map((month) => {
+										const year = month.getFullYear();
+										const monthNum = month.getMonth() + 1;
+										const monthTithers = titheRecords.filter(
+											(r) => r.year === year && r.month === monthNum,
+										).length;
+										const percentage = initialMembers.length > 0
+											? Math.round((monthTithers / initialMembers.length) * 100)
+											: 0;
+										return (
 										<TableHead
 											key={month.toISOString()}
-											className="text-center min-w-[120px] capitalize"
+											className="text-center min-w-[120px]"
 										>
-											<button
-												onClick={() => handleMonthClick(month)}
-												className="w-full h-full p-2 font-semibold text-primary hover:bg-muted rounded-md"
-											>
-												{format(month, "MMM yyyy", { locale: es })}
-											</button>
+											<DropdownMenu>
+												<DropdownMenuTrigger asChild>
+													<button
+														className="w-full h-full p-2 font-semibold hover:bg-muted rounded-md flex flex-col items-center justify-center gap-0.5"
+													>
+														<span className="capitalize text-primary">
+															{format(month, "MMM yyyy", { locale: es })}
+														</span>
+														<span className={cn(
+															"text-[10px] font-normal",
+															percentage >= 70 ? "text-green-600" :
+															percentage >= 50 ? "text-yellow-600" : "text-red-600"
+														)}>
+															{percentage}% ({monthTithers})
+														</span>
+													</button>
+												</DropdownMenuTrigger>
+												<DropdownMenuContent align="center">
+													<DropdownMenuLabel className="capitalize">
+														{format(month, "MMMM yyyy", { locale: es })}
+													</DropdownMenuLabel>
+													<DropdownMenuSeparator />
+													<DropdownMenuItem
+														onClick={() => handleMonthClick(month)}
+														className="cursor-pointer"
+													>
+														<Pencil className="h-4 w-4 mr-2" />
+														Editar Diezmos
+													</DropdownMenuItem>
+												</DropdownMenuContent>
+											</DropdownMenu>
 										</TableHead>
-									))}
+									);
+									})}
 								</TableRow>
 							</TableHeader>
 							<TableBody>

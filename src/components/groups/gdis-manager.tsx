@@ -1,17 +1,26 @@
 "use client";
 
-import { Phone, Settings, Trash2, UserCheck, UserCircle, Users } from "lucide-react";
+import { AlertTriangle, MoreVertical, Settings, Trash2, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
-	CardDescription,
 	CardFooter,
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import type { GDI, Member } from "@/lib/types";
 import DeleteGroupAlert from "./delete-group-alert";
 
@@ -56,88 +65,118 @@ export default function GdisManager({
 	return (
 		<div>
 			{gdis.length > 0 ? (
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 					{gdis.map((gdi) => {
 						const guide = getGuideDetails(gdi.guideId);
 						const mentor = getMentorDetails(gdi.mentorId);
+						const hasMentor = !!mentor;
+						const guideInitials = guide 
+							? `${guide.firstName[0]}${guide.lastName[0]}`.toUpperCase()
+							: "??";
+						
 						return (
 							<Card
 								key={gdi.id}
-								className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300"
+								className={cn(
+									"flex flex-col overflow-hidden transition-all duration-300 hover:shadow-lg",
+									hasMentor 
+										? "border-l-4 border-l-green-500" 
+										: "border-l-4 border-l-warning"
+								)}
 							>
-								<CardHeader>
-									<CardTitle className="font-headline text-2xl text-primary flex items-center">
-										<Users className="mr-2 h-6 w-6" /> {gdi.name}
-									</CardTitle>
+								<CardHeader className="pb-3">
+									<div className="flex items-start justify-between">
+										<div className="flex items-center gap-3">
+											<div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+												<Users className="h-5 w-5 text-primary" />
+											</div>
+											<div>
+												<CardTitle className="text-lg font-semibold">
+													{gdi.name}
+												</CardTitle>
+												<p className="text-xs text-muted-foreground">
+													{gdi.memberIds.length} miembros
+												</p>
+											</div>
+										</div>
+										<DropdownMenu>
+											<DropdownMenuTrigger asChild>
+												<Button variant="ghost" size="icon" className="h-8 w-8">
+													<MoreVertical className="h-4 w-4" />
+												</Button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align="end">
+												<DropdownMenuItem asChild>
+													<Link href={`/groups/gdis/${gdi.id}/admin`}>
+														<Settings className="mr-2 h-4 w-4" />
+														Administrar
+													</Link>
+												</DropdownMenuItem>
+												<DropdownMenuSeparator />
+												<DropdownMenuItem 
+													onClick={() => handleDeleteClick(gdi)}
+													className="text-destructive focus:text-destructive"
+												>
+													<Trash2 className="mr-2 h-4 w-4" />
+													Eliminar
+												</DropdownMenuItem>
+											</DropdownMenuContent>
+										</DropdownMenu>
+									</div>
 								</CardHeader>
-								<CardContent className="flex-grow space-y-3">
-									<div>
-										<h4 className="font-semibold text-sm mb-1 flex items-center">
-											<UserCheck className="mr-2 h-4 w-4 text-muted-foreground" />{" "}
-											Guía del GDI:
-										</h4>
-										<p className="text-muted-foreground text-sm">
-											{guide ? `${guide.firstName} ${guide.lastName}` : "N/A"}
-										</p>
-									</div>
-									{guide && (
-										<div>
-											<h4 className="font-semibold text-sm mb-1 flex items-center">
-												<Phone className="mr-2 h-4 w-4 text-muted-foreground" />{" "}
-												Teléfono del Guía:
-											</h4>
-											<a
-												href={`tel:${guide.phone}`}
-												className="text-primary hover:underline text-sm"
-											>
-												{guide.phone}
-											</a>
+								<CardContent className="flex-grow space-y-4 pb-4">
+									{/* Guide */}
+									<div className="flex items-center gap-3">
+										<Avatar className="h-8 w-8">
+											<AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
+												{guideInitials}
+											</AvatarFallback>
+										</Avatar>
+										<div className="flex-1 min-w-0">
+											<p className="text-sm font-medium truncate">
+												{guide ? `${guide.firstName} ${guide.lastName}` : "Sin asignar"}
+											</p>
+											<p className="text-xs text-muted-foreground">Guía</p>
 										</div>
-									)}
-									<div>
-										<h4 className="font-semibold text-sm mb-1 flex items-center">
-											<UserCircle className="mr-2 h-4 w-4 text-muted-foreground" />{" "}
-											Mentor del GDI:
-										</h4>
-										<p className="text-muted-foreground text-sm">
-											{mentor ? `${mentor.firstName} ${mentor.lastName}` : "Sin asignar"}
-										</p>
 									</div>
-									{mentor && (
-										<div>
-											<h4 className="font-semibold text-sm mb-1 flex items-center">
-												<Phone className="mr-2 h-4 w-4 text-muted-foreground" />{" "}
-												Teléfono del Mentor:
-											</h4>
-											<a
-												href={`tel:${mentor.phone}`}
-												className="text-primary hover:underline text-sm"
-											>
-												{mentor.phone}
-											</a>
-										</div>
-									)}
-									<CardDescription className="text-sm">
-										Miembros: {gdi.memberIds.length}
-									</CardDescription>
+									{/* Mentor */}
+									<div className="flex items-center gap-3">
+										{mentor ? (
+											<>
+												<Avatar className="h-8 w-8">
+													<AvatarFallback className="bg-blue-100 text-blue-600 text-xs font-medium">
+														{`${mentor.firstName[0]}${mentor.lastName[0]}`.toUpperCase()}
+													</AvatarFallback>
+												</Avatar>
+												<div className="flex-1 min-w-0">
+													<p className="text-sm font-medium truncate">
+														{mentor.firstName} {mentor.lastName}
+													</p>
+													<p className="text-xs text-muted-foreground">Mentor</p>
+												</div>
+											</>
+										) : (
+											<>
+												<div className="h-8 w-8 rounded-full border-2 border-dashed border-warning flex items-center justify-center">
+													<AlertTriangle className="h-4 w-4 text-warning" />
+												</div>
+												<div className="flex-1">
+													<Badge variant="warning" className="text-xs">Sin mentor</Badge>
+												</div>
+											</>
+										)}
+									</div>
 								</CardContent>
-								<CardFooter className="flex flex-col sm:flex-row gap-2">
+								<CardFooter className="pt-0">
 									<Button
 										asChild
 										variant="outline"
-										className="w-full border-primary text-primary hover:bg-primary/10"
+										size="sm"
+										className="w-full"
 									>
 										<Link href={`/groups/gdis/${gdi.id}/admin`}>
 											<Settings className="mr-2 h-4 w-4" /> Administrar
 										</Link>
-									</Button>
-									<Button
-										variant="destructive"
-										size="icon"
-										onClick={() => handleDeleteClick(gdi)}
-										title={`Eliminar GDI ${gdi.name}`}
-									>
-										<Trash2 className="h-4 w-4" />
 									</Button>
 								</CardFooter>
 							</Card>

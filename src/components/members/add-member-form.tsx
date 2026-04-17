@@ -68,7 +68,7 @@ export default function AddMemberForm({
 		attendsLifeSchool: initialMemberData?.attendsLifeSchool || false,
 		attendsBibleInstitute: initialMemberData?.attendsBibleInstitute || false,
 		fromAnotherChurch: initialMemberData?.fromAnotherChurch || false,
-		status: initialMemberData?.status || "New",
+		status: initialMemberData?.status || "vigente",
 		address: initialMemberData?.address || "",
 		assignedGDIId:
 			initialMemberData?.assignedGDIId === null
@@ -95,7 +95,7 @@ export default function AddMemberForm({
 			attendsLifeSchool: initialMemberData?.attendsLifeSchool || false,
 			attendsBibleInstitute: initialMemberData?.attendsBibleInstitute || false,
 			fromAnotherChurch: initialMemberData?.fromAnotherChurch || false,
-			status: initialMemberData?.status || "New",
+			status: initialMemberData?.status || "vigente",
 			address: initialMemberData?.address || "",
 			assignedGDIId:
 				initialMemberData?.assignedGDIId === null
@@ -127,7 +127,7 @@ export default function AddMemberForm({
 				attendsLifeSchool: false,
 				attendsBibleInstitute: false,
 				fromAnotherChurch: false,
-				status: "New",
+				status: "vigente",
 				address: "",
 				assignedGDIId: NONE_GDI_OPTION_VALUE,
 				assignedAreaIds: [],
@@ -293,9 +293,8 @@ export default function AddMemberForm({
 											</SelectTrigger>
 										</FormControl>
 										<SelectContent>
-											<SelectItem value="New">Nuevo</SelectItem>
-											<SelectItem value="Active">Activo</SelectItem>
-											<SelectItem value="Inactive">Inactivo</SelectItem>
+											<SelectItem value="vigente">Vigente</SelectItem>
+											<SelectItem value="eliminado">Eliminado</SelectItem>
 										</SelectContent>
 									</Select>
 									<FormMessage />

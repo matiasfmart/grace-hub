@@ -1,5 +1,6 @@
 import { addBulkMembersAction } from "@/app/actions/memberActions";
 import BulkAddMembersView from "@/components/members/bulk-add-members-view";
+import { PageHeader } from "@/components/ui/page-header";
 import type { GDI, Member, MinistryArea } from "@/lib/types";
 import {
 	getAllGdis,
@@ -25,20 +26,18 @@ export default async function BulkAddMembersPage() {
 	const { members, gdis, ministryAreas } = await getData();
 
 	return (
-		<div className="container mx-auto py-8 px-4">
-			<div className="mb-8 text-center">
-				<h1 className="font-headline text-4xl font-bold text-primary">
-					Agregar Múltiples Miembros
-				</h1>
-				<p className="text-muted-foreground mt-2">
-					Utilice el formulario para agregar miembros a la lista de preparación.
-					Luego, guarde todos los miembros a la vez.
-				</p>
-			</div>
+		<div className="container mx-auto py-6 px-4">
+			<PageHeader
+				title="Agregar Múltiples Miembros"
+				breadcrumbs={[
+					{ label: "Miembros", href: "/members" },
+					{ label: "Agregar Múltiples" },
+				]}
+			/>
 			<BulkAddMembersView
 				allGDIs={gdis}
 				allMinistryAreas={ministryAreas}
-				allMembers={members} // This will now be an array
+				allMembers={members}
 				addBulkMembersAction={addBulkMembersAction}
 			/>
 		</div>

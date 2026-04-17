@@ -34,6 +34,7 @@ export {
   getAllGdis,
   getGdiById,
   createGdi,
+  createGdiAndSyncMembers,
   addGdi,
   updateGdiAndSyncMembers,
   deleteGdi,
@@ -44,6 +45,7 @@ export {
   getAllMinistryAreas,
   getMinistryAreaById,
   createMinistryArea,
+  createMinistryAreaAndSyncMembers,
   addMinistryArea,
   updateMinistryAreaAndSyncMembers,
   deleteMinistryArea,
@@ -62,6 +64,9 @@ export {
   updateMeetingSeries,
   deleteMeetingSeries,
   addMeetingInstance,
+  getExpectedAttendees,
+  cancelSeriesDate,
+  restoreSeriesDate,
 } from './meetingsService';
 
 // Attendance

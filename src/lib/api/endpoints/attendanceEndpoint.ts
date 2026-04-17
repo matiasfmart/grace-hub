@@ -53,20 +53,27 @@ export const attendanceEndpoint = {
    * Get attendance by meeting
    */
   async getByMeeting(meetingId: number): Promise<ApiAttendanceResponse[]> {
-    return apiClient.get<ApiAttendanceResponse[]>(`${ENDPOINT}/meeting/${meetingId}`);
+    return apiClient.get<ApiAttendanceResponse[]>(`${ENDPOINT}?meetingId=${meetingId}`);
   },
 
   /**
    * Get attendance by member
    */
   async getByMember(memberId: number): Promise<ApiAttendanceResponse[]> {
-    return apiClient.get<ApiAttendanceResponse[]>(`${ENDPOINT}/member/${memberId}`);
+    return apiClient.get<ApiAttendanceResponse[]>(`${ENDPOINT}?memberId=${memberId}`);
   },
 
   /**
-   * Bulk create attendance records
+   * Save attendance for a meeting
+   * Uses POST /attendance/meeting/:meetingId endpoint
    */
-  async bulkCreate(records: ApiCreateAttendanceRequest[]): Promise<ApiAttendanceResponse[]> {
-    return apiClient.post<ApiAttendanceResponse[]>(`${ENDPOINT}/bulk`, records);
+  async saveForMeeting(
+    meetingId: number,
+    attendances: Array<{ memberId: number; wasPresent: boolean }>
+  ): Promise<ApiAttendanceResponse[]> {
+    return apiClient.post<ApiAttendanceResponse[]>(
+      `${ENDPOINT}/meeting/${meetingId}`,
+      { attendances }
+    );
   },
 };

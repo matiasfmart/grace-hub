@@ -166,17 +166,45 @@ export async function getMinistryAreaById(id: string): Promise<MinistryArea | nu
 }
 
 /**
- * Create a ministry area
+ * Create a ministry area (without member assignment)
+ * @deprecated Use createMinistryAreaAndSyncMembers for full creation with members
  */
 export async function createMinistryArea(data: MinistryAreaWriteData): Promise<MinistryArea> {
   return areasService.create(data);
 }
 
 /**
- * Add a ministry area (alias for createMinistryArea)
+ * Create ministry area and sync members
+ * Creates the area first, then assigns members if provided.
+ */
+export async function createMinistryAreaAndSyncMembers(
+  data: MinistryAreaWriteData
+): Promise<MinistryArea> {
+  // Create the area
+  const newArea = await areasService.create(data);
+  
+  // Sync members if provided
+  const memberIds = data.memberIds ?? [];
+  if (memberIds.length > 0) {
+    // For a new area, we can directly add all members
+    const addPromises = memberIds.map(memberId => 
+      areasService.assignMember(newArea.id, memberId)
+    );
+    await Promise.all(addPromises);
+  }
+  
+  // Return with memberIds
+  return {
+    ...newArea,
+    memberIds,
+  };
+}
+
+/**
+ * Add a ministry area with members
  */
 export async function addMinistryArea(data: MinistryAreaWriteData): Promise<MinistryArea> {
-  return areasService.create(data);
+  return createMinistryAreaAndSyncMembers(data);
 }
 
 /**
