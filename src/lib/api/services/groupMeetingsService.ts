@@ -102,6 +102,43 @@ export async function deleteMeetingSeriesForGroup(
 // ==============================================
 
 /**
+ * Enrich meetings with expected attendees (attendeeUids)
+ * Fetches expected attendees for each meeting and populates attendeeUids field
+ * This is a private helper function used by other functions in this service
+ */
+async function enrichMeetingsWithExpectedAttendees(meetings: Meeting[]): Promise<Meeting[]> {
+  if (meetings.length === 0) return meetings;
+
+  // Fetch expected attendees for all meetings in parallel for efficiency
+  const attendeesPromises = meetings.map(async (meeting) => {
+    try {
+      const expectedAttendees = await meetingsService.getExpectedAttendees(meeting.id);
+      return {
+        meetingId: meeting.id,
+        attendeeUids: expectedAttendees.map((a) => a.memberId),
+      };
+    } catch {
+      // If fetching fails, return empty array to avoid breaking the flow
+      return { meetingId: meeting.id, attendeeUids: [] };
+    }
+  });
+
+  const attendeesResults = await Promise.all(attendeesPromises);
+
+  // Create a map for O(1) lookup
+  const attendeesMap = new Map<string, string[]>();
+  for (const result of attendeesResults) {
+    attendeesMap.set(result.meetingId, result.attendeeUids);
+  }
+
+  // Enrich meetings with attendeeUids
+  return meetings.map((meeting) => ({
+    ...meeting,
+    attendeeUids: attendeesMap.get(meeting.id) || [],
+  }));
+}
+
+/**
  * Get meeting instances for a group
  * Returns meetings filtered by seriesId if provided
  */
@@ -122,6 +159,7 @@ export async function getInstancesForGroup(
 
 /**
  * Get group meeting instances (with pagination support)
+ * Returns meetings enriched with expected attendees (attendeeUids)
  */
 export async function getGroupMeetingInstances(
   _groupType: 'gdi' | 'ministryArea',
@@ -130,10 +168,9 @@ export async function getGroupMeetingInstances(
   startDate?: string,
   endDate?: string,
   _page: number = 1,
-  _pageSize: number = 10
+  _pageSize: number = 10,
+  includeExpectedAttendees: boolean = false
 ): Promise<{ instances: Meeting[]; totalCount: number; totalPages: number }> {
-  let meetings: Meeting[];
-  
   // Use filters to get meetings
   const filters: { seriesId?: string; startDate?: string; endDate?: string } = {};
   if (filterSeriesId && filterSeriesId !== 'all') {
@@ -142,7 +179,12 @@ export async function getGroupMeetingInstances(
   if (startDate) filters.startDate = startDate;
   if (endDate) filters.endDate = endDate;
   
-  meetings = await meetingsService.getWithFilters(filters);
+  let meetings = await meetingsService.getWithFilters(filters);
+  
+  // Optionally enrich with expected attendees (for performance, only when needed)
+  if (includeExpectedAttendees) {
+    meetings = await enrichMeetingsWithExpectedAttendees(meetings);
+  }
   
   return {
     instances: meetings,
@@ -153,6 +195,7 @@ export async function getGroupMeetingInstances(
 
 /**
  * Get filtered meeting instances
+ * Returns meetings enriched with expected attendees (attendeeUids)
  */
 export async function getFilteredMeetingInstances(
   seriesIds: string[],
@@ -161,43 +204,38 @@ export async function getFilteredMeetingInstances(
   _page: number = 1,
   _pageSize: number = 10
 ): Promise<{ instances: Meeting[]; totalCount: number; totalPages: number }> {
+  let meetings: Meeting[];
+
   // If single series, use filter endpoint
   if (seriesIds.length === 1) {
-    const meetings = await meetingsService.getWithFilters({
+    meetings = await meetingsService.getWithFilters({
       seriesId: seriesIds[0],
       startDate,
       endDate,
     });
-    return {
-      instances: meetings,
-      totalCount: meetings.length,
-      totalPages: 1,
-    };
-  }
-  
-  // For multiple series, fetch each and combine
-  if (seriesIds.length > 1) {
+  } else if (seriesIds.length > 1) {
+    // For multiple series, fetch each and combine
     const allMeetings: Meeting[] = [];
     for (const seriesId of seriesIds) {
-      const meetings = await meetingsService.getWithFilters({
+      const seriesMeetings = await meetingsService.getWithFilters({
         seriesId,
         startDate,
         endDate,
       });
-      allMeetings.push(...meetings);
+      allMeetings.push(...seriesMeetings);
     }
-    return {
-      instances: allMeetings,
-      totalCount: allMeetings.length,
-      totalPages: 1,
-    };
+    meetings = allMeetings;
+  } else {
+    // No series filter - get all with date range
+    meetings = await meetingsService.getWithFilters({ startDate, endDate });
   }
-  
-  // No series filter - get all with date range
-  const meetings = await meetingsService.getWithFilters({ startDate, endDate });
+
+  // Enrich meetings with expected attendees for proper metrics display
+  const enrichedMeetings = await enrichMeetingsWithExpectedAttendees(meetings);
+
   return {
-    instances: meetings,
-    totalCount: meetings.length,
+    instances: enrichedMeetings,
+    totalCount: enrichedMeetings.length,
     totalPages: 1,
   };
 }
@@ -267,6 +305,43 @@ export async function deleteMeetingInstanceForGroup(
   await meetingsService.delete(meetingId);
 }
 
+/**
+ * Get all meetings for a group with expected attendees populated
+ * This function gets all meetings belonging to series of the group and enriches them with attendeeUids
+ * Use this for admin views that need to display attendance data
+ */
+export async function getMeetingsForGroupWithAttendees(
+  groupType: 'gdi' | 'ministryArea',
+  groupId: string,
+  seriesIds?: string[]
+): Promise<Meeting[]> {
+  try {
+    // If no seriesIds provided, get series for the group first
+    let effectiveSeriesIds = seriesIds;
+    if (!effectiveSeriesIds || effectiveSeriesIds.length === 0) {
+      const series = await getSeriesForGroup(groupType, groupId);
+      effectiveSeriesIds = series.map(s => s.id);
+    }
+
+    if (effectiveSeriesIds.length === 0) {
+      return [];
+    }
+
+    // Get all meetings (we'll filter client-side)
+    const allMeetings = await meetingsService.getAll();
+    
+    // Filter by series
+    const seriesIdSet = new Set(effectiveSeriesIds);
+    const groupMeetings = allMeetings.filter(m => seriesIdSet.has(m.seriesId));
+
+    // Enrich with expected attendees
+    return await enrichMeetingsWithExpectedAttendees(groupMeetings);
+  } catch (error) {
+    console.error('getMeetingsForGroupWithAttendees error:', error);
+    return [];
+  }
+}
+
 export default {
   getSeriesForGroup,
   getSeriesByIdForGroup,
@@ -280,4 +355,5 @@ export default {
   updateMeetingInstanceForGroup,
   updateMeetingInstanceMinuteForGroup,
   deleteMeetingInstanceForGroup,
+  getMeetingsForGroupWithAttendees,
 };

@@ -29,18 +29,20 @@ export default function GlobalAddMeetingTrigger() {
 					Crear Reunión
 				</Button>
 			</DialogTrigger>
-			<DialogContent className="sm:max-w-lg">
-				<DialogHeader>
+				<DialogContent className="sm:max-w-lg flex flex-col max-h-[calc(100vh-8rem)] overflow-hidden p-0">
+				<DialogHeader className="flex-shrink-0 border-b p-6 pb-4">
 					<DialogTitle>Agregar Nueva Reunión Globalmente</DialogTitle>
 					<DialogDescription>
 						Complete los detalles para la nueva reunión.
 					</DialogDescription>
 				</DialogHeader>
-				<DefineMeetingSeriesForm
-					defineMeetingSeriesAction={defineMeetingSeriesAction}
-					onSuccess={handleFormSuccess}
-					seriesTypeContext="general"
-				/>
+				<div className="flex-grow flex flex-col min-h-0">
+					<DefineMeetingSeriesForm
+						defineMeetingSeriesAction={defineMeetingSeriesAction}
+						onSuccess={handleFormSuccess}
+						seriesTypeContext="general"
+					/>
+				</div>
 			</DialogContent>
 		</Dialog>
 	);

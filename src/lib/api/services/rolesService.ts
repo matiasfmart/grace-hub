@@ -90,10 +90,16 @@ export const rolesService = {
   },
 
   /**
-   * Get all leaders
+   * Get all leaders (GDI guides, GDI mentors, Area leaders, Area mentors)
    */
   async getLeaders(): Promise<MemberRole[]> {
-    return this.getByRoleType('Leader');
+    const [gdiGuides, gdiMentors, areaLeaders, areaMentors] = await Promise.all([
+      this.getByRoleType('GdiGuide'),
+      this.getByRoleType('GdiMentor'),
+      this.getByRoleType('AreaLeader'),
+      this.getByRoleType('AreaMentor'),
+    ]);
+    return [...gdiGuides, ...gdiMentors, ...areaLeaders, ...areaMentors];
   },
 
   /**

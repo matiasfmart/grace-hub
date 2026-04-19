@@ -1,10 +1,13 @@
 import { Suspense } from "react";
+import Link from "next/link";
+import { Tag } from "lucide-react";
 import {
 	addSingleMemberAction,
 	deleteMemberAction,
 	updateMemberAction,
 } from "@/app/actions/memberActions";
 import MembersListView from "@/components/members/members-list-view";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import {
 	getAllAttendanceRecords,
@@ -14,6 +17,7 @@ import {
 	getAllMembers,
 	getAllMembersNonPaginated,
 	getAllMinistryAreas,
+	getAllRoleTypes,
 	getAllTitheRecords,
 } from "@/lib/api/services";
 
@@ -61,6 +65,7 @@ async function getMembersPageData(
 	const allMeetingSeriesData = await getAllMeetingSeries();
 	const allAttendanceRecordsData = await getAllAttendanceRecords();
 	const allTitheRecordsData = await getAllTitheRecords();
+	const allRoleTypesData = await getAllRoleTypes();
 	const absoluteTotalMembers = allMembersForDropdowns.length;
 
 	return {
@@ -74,6 +79,7 @@ async function getMembersPageData(
 		allMeetingSeries: allMeetingSeriesData,
 		allAttendanceRecords: allAttendanceRecordsData,
 		allTitheRecords: allTitheRecordsData,
+		allRoleTypes: allRoleTypesData,
 		absoluteTotalMembers, // New prop: absolute total
 	};
 }
@@ -139,6 +145,7 @@ async function MembersPageContent({
 		allMeetingSeries,
 		allAttendanceRecords,
 		allTitheRecords,
+		allRoleTypes,
 		absoluteTotalMembers,
 	} = removeSymbols(rawData);
 
@@ -147,6 +154,14 @@ async function MembersPageContent({
 			<PageHeader
 				title="Miembros"
 				description="Gestiona la información de los miembros de la congregación."
+				actions={
+					<Button variant="outline" size="sm" asChild>
+						<Link href="/members/settings/role-types">
+							<Tag className="h-4 w-4 mr-2" />
+							Etiquetas
+						</Link>
+					</Button>
+				}
 			/>
 			<MembersListView
 				key={viewKey}
@@ -158,6 +173,7 @@ async function MembersPageContent({
 				allMeetingSeries={allMeetingSeries}
 				allAttendanceRecords={allAttendanceRecords}
 				allTitheRecords={allTitheRecords}
+				allRoleTypes={allRoleTypes}
 				addSingleMemberAction={addSingleMemberAction}
 				updateMemberAction={updateMemberAction}
 				deleteMemberAction={deleteMemberAction}

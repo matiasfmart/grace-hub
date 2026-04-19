@@ -14,11 +14,13 @@ import type {
   ApiMonthlyRuleType,
   ApiMeetingFrequency,
   ApiAudienceType,
+  ApiAudienceConfig,
 } from '../types';
 import type {
   MeetingSeries,
   MeetingSeriesType,
   AudienceType,
+  AudienceConfig,
   DayOfWeekType,
   WeekOrdinalType,
   MonthlyRuleType,
@@ -69,6 +71,21 @@ function audienceTypeToApi(type: AudienceType): ApiAudienceType {
 
 function audienceTypeFromApi(type: ApiAudienceType): AudienceType {
   return type as AudienceType;
+}
+
+/**
+ * Safely formats a date value to YYYY-MM-DD string
+ * Handles both Date objects and already-formatted strings
+ */
+function formatDateToYYYYMMDD(date: Date | string | undefined): string {
+  if (!date) {
+    return new Date().toISOString().split('T')[0];
+  }
+  if (typeof date === 'string') {
+    // Already a string, return as-is (assuming it's already formatted)
+    return date.split('T')[0];
+  }
+  return date.toISOString().split('T')[0];
 }
 
 /**
@@ -131,10 +148,11 @@ export function mapApiMeetingSeriesToMeetingSeries(api: ApiMeetingSeriesResponse
     gdiId: api.gdiId ? String(api.gdiId) : null,
     areaId: api.areaId ? String(api.areaId) : null,
     meetingTypeId: api.meetingTypeId ? String(api.meetingTypeId) : null,
+    audienceConfig: api.audienceConfig || null,
     // Legacy fields for compatibility
     seriesType,
     ownerGroupId,
-    targetAttendeeGroups: ['allMembers'], // Default - backend doesn't track this yet
+    targetAttendeeGroups: ['allMembers'], // Deprecated - use audienceType
     // Scheduling fields
     frequency: frequencyFromApi(api.frequency),
     startDate: api.startDate,
@@ -166,39 +184,55 @@ export function mapApiMeetingSeriesArrayToMeetingSeriesArray(
 
 /**
  * Maps frontend form values to API create request
+ * 
+ * Priority for audienceType:
+ * 1. If groupType is 'gdi' → audienceType='gdi'
+ * 2. If groupType is 'ministryArea' → audienceType='area'
+ * 3. Otherwise, use seriesData.audienceType (from form selection)
  */
 export function mapFormValuesToApiCreateRequest(
   groupType: MeetingSeriesType,
   groupId: string,
   seriesData: DefineMeetingSeriesFormValues
 ): ApiCreateMeetingSeriesRequest {
-  const numericGroupId = parseInt(groupId, 10);
+  const numericGroupId = groupId ? parseInt(groupId, 10) : undefined;
   
-  // Convert legacy seriesType to audienceType
-  const audienceType = legacySeriesTypeToAudienceType(groupType);
+  // Determine audienceType based on context
+  let audienceType: AudienceType;
+  if (groupType === 'gdi') {
+    audienceType = 'gdi';
+  } else if (groupType === 'ministryArea') {
+    audienceType = 'area';
+  } else {
+    // For general meetings, use the form value directly
+    audienceType = seriesData.audienceType || 'all_active';
+  }
   
   const request: ApiCreateMeetingSeriesRequest = {
     name: seriesData.name,
     frequency: frequencyToApi(seriesData.frequency),
     audienceType: audienceTypeToApi(audienceType),
-    startDate: seriesData.oneTimeDate 
-      ? seriesData.oneTimeDate.toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0],
+    startDate: formatDateToYYYYMMDD(seriesData.oneTimeDate),
     defaultTime: seriesData.defaultTime,
     defaultLocation: seriesData.defaultLocation,
     description: seriesData.description,
   };
 
   // Set group ownership
-  if (groupType === 'gdi') {
+  if (groupType === 'gdi' && numericGroupId) {
     request.gdiId = numericGroupId;
-  } else if (groupType === 'ministryArea') {
+  } else if (groupType === 'ministryArea' && numericGroupId) {
     request.areaId = numericGroupId;
+  }
+
+  // Include audienceConfig for by_categories type
+  if (audienceType === 'by_categories' && seriesData.audienceConfig) {
+    request.audienceConfig = seriesData.audienceConfig as ApiAudienceConfig;
   }
 
   // Map recurrence fields
   if (seriesData.oneTimeDate) {
-    request.oneTimeDate = seriesData.oneTimeDate.toISOString().split('T')[0];
+    request.oneTimeDate = formatDateToYYYYMMDD(seriesData.oneTimeDate);
   }
   
   if (seriesData.weeklyDays && seriesData.weeklyDays.length > 0) {
@@ -234,6 +268,8 @@ export function mapMeetingSeriesToApiUpdateRequest(
     defaultTime: string;
     defaultLocation: string;
     endDate: string;
+    audienceType: AudienceType;
+    audienceConfig?: AudienceConfig | null;
   }>
 ): ApiUpdateMeetingSeriesRequest {
   const request: ApiUpdateMeetingSeriesRequest = {};
@@ -243,6 +279,8 @@ export function mapMeetingSeriesToApiUpdateRequest(
   if (data.defaultTime !== undefined) request.defaultTime = data.defaultTime;
   if (data.defaultLocation !== undefined) request.defaultLocation = data.defaultLocation;
   if (data.endDate !== undefined) request.endDate = data.endDate;
+  if (data.audienceType !== undefined) request.audienceType = audienceTypeToApi(data.audienceType);
+  if (data.audienceConfig !== undefined) request.audienceConfig = data.audienceConfig || undefined;
   
   return request;
 }

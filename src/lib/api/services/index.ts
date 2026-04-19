@@ -13,6 +13,7 @@ export { meetingsService } from './meetingsService';
 export { attendanceService } from './attendanceService';
 export { tithesService } from './tithesService';
 export { rolesService } from './rolesService';
+export { roleTypesService } from './roleTypesService';
 
 // ==============================================
 // CONVENIENCE FUNCTIONS (backward compatibility)
@@ -83,6 +84,12 @@ export {
   batchUpdateTithesForMonth,
 } from './tithesService';
 
+// Role Types (Ecclesiastical Labels) - convenience function
+export async function getAllRoleTypes() {
+  const { roleTypesService } = await import('./roleTypesService');
+  return roleTypesService.getAll();
+}
+
 // Group Meetings
 export {
   getSeriesForGroup,
@@ -97,4 +104,5 @@ export {
   updateMeetingInstanceForGroup,
   updateMeetingInstanceMinuteForGroup,
   deleteMeetingInstanceForGroup,
+  getMeetingsForGroupWithAttendees,
 } from './groupMeetingsService';

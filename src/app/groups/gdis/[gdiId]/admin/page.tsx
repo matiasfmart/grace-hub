@@ -36,10 +36,10 @@ import type {
 import {
 	getAllAttendanceRecords,
 	getAllGdis,
-	getAllMeetings,
 	getGdiById,
 	getSeriesForGroup,
 	getAllMembersNonPaginated,
+	getMeetingsForGroupWithAttendees,
 } from "@/lib/api/services";
 import { gdisService } from "@/lib/api/services/gdisService";
 import {
@@ -73,22 +73,18 @@ async function getData(gdiId: string): Promise<GdiAdminPageData> {
 		allGdisData,
 		allAttendanceRecordsData,
 		groupSeriesData,
-		allMeetingsData,
+		gdiMeetingsData,
 	] = await Promise.all([
 		getAllMembersNonPaginated(),
 		getAllGdis(),
 		getAllAttendanceRecords(),
 		getSeriesForGroup("gdi", gdiId),
-		getAllMeetings(),
+		getMeetingsForGroupWithAttendees("gdi", gdiId),
 	]);
 
 	const sortedGroupSeries = groupSeriesData.sort((a, b) =>
 		a.name.localeCompare(b.name),
 	);
-
-	// Filter meetings that belong to this GDI's series
-	const seriesIds = new Set(sortedGroupSeries.map(s => s.id));
-	const gdiMeetings = allMeetingsData.filter(m => seriesIds.has(m.seriesId));
 
 	// Get GDI members
 	const gdiMemberIds = new Set([gdiDetails.guideId, ...gdiDetails.memberIds]);
@@ -104,7 +100,7 @@ async function getData(gdiId: string): Promise<GdiAdminPageData> {
 		activeMembers: allMembersData.filter((m) => m.status === "vigente"),
 		allGdis: allGdisData,
 		groupMeetingSeries: sortedGroupSeries,
-		allMeetings: gdiMeetings,
+		allMeetings: gdiMeetingsData,
 		allAttendanceRecords: allAttendanceRecordsData,
 		gdiMembers,
 	};
@@ -288,22 +284,22 @@ export default function GdiAdminPage({}: GdiAdminPageProps) {
 
 			{/* Tabs */}
 			<Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-				<TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
-					<TabsTrigger value="summary" className="gap-2">
-						<LayoutDashboard className="h-4 w-4 hidden sm:inline" />
-						Resumen
+				<TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid bg-white/60 shadow-sm border">
+					<TabsTrigger value="summary" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+						<LayoutDashboard className="h-4 w-4" />
+						<span className="hidden sm:inline">Resumen</span>
 					</TabsTrigger>
-					<TabsTrigger value="members" className="gap-2">
-						<Users className="h-4 w-4 hidden sm:inline" />
-						Miembros
+					<TabsTrigger value="members" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+						<Users className="h-4 w-4" />
+						<span className="hidden sm:inline">Miembros</span>
 					</TabsTrigger>
-					<TabsTrigger value="meetings" className="gap-2">
-						<CalendarDays className="h-4 w-4 hidden sm:inline" />
-						Reuniones
+					<TabsTrigger value="meetings" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+						<CalendarDays className="h-4 w-4" />
+						<span className="hidden sm:inline">Reuniones</span>
 					</TabsTrigger>
-					<TabsTrigger value="settings" className="gap-2">
-						<Settings className="h-4 w-4 hidden sm:inline" />
-						Config
+					<TabsTrigger value="settings" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+						<Settings className="h-4 w-4" />
+						<span className="hidden sm:inline">Config</span>
 					</TabsTrigger>
 				</TabsList>
 
@@ -345,6 +341,7 @@ export default function GdiAdminPage({}: GdiAdminPageProps) {
 						allMeetings={allMeetings}
 						allAttendanceRecords={allAttendanceRecords}
 						members={gdiMembers}
+						leaderId={gdi.guideId}
 						onCreateSeries={(data: DefineMeetingSeriesFormValues) =>
 							handleAddGdiMeetingSeriesAction(gdi.id, data)
 						}

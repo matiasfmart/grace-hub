@@ -20,9 +20,11 @@ export const revalidate = 0;
 import { TithesTracker } from "@/components/tithes/TithesTracker";
 
 const roleDisplayMap: Record<MemberRoleType, string> = {
-	Leader: "Líder",
+	GdiGuide: "Guía GDI",
+	GdiMentor: "Mentor GDI",
+	AreaLeader: "Líder Área",
+	AreaMentor: "Mentor Área",
 	Worker: "Obrero",
-	GeneralAttendee: "Asistente General",
 };
 const roleFilterOptions: {
 	value: MemberRoleType | typeof NO_ROLE_FILTER_VALUE;
@@ -36,9 +38,8 @@ const roleFilterOptions: {
 ];
 
 const statusDisplayMap: Record<Member["status"], string> = {
-	Active: "Activo",
-	Inactive: "Inactivo",
-	New: "Nuevo",
+	vigente: "Vigente",
+	eliminado: "Eliminado",
 };
 const statusFilterOptions: { value: Member["status"]; label: string }[] =
 	Object.entries(statusDisplayMap).map(([value, label]) => ({

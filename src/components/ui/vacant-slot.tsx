@@ -27,22 +27,17 @@ function VacantSlot({
 	onAssign,
 	...props 
 }: VacantSlotProps) {
-	const Comp = onAssign ? "button" : "div";
-	
-	return (
-		<Comp 
-			className={cn(
-				"flex items-center gap-3 rounded-xl p-4",
-				"border-2 border-dashed border-slate-300",
-				"bg-slate-50/50",
-				"text-slate-500",
-				onAssign && "cursor-pointer hover:border-[#64B5F6]/50 hover:bg-[#E3F2FD]/30 transition-colors",
-				className
-			)} 
-			onClick={onAssign}
-			type={onAssign ? "button" : undefined}
-			{...props}
-		>
+	const baseClassName = cn(
+		"flex items-center gap-3 rounded-xl p-4",
+		"border-2 border-dashed border-slate-300",
+		"bg-slate-50/50",
+		"text-slate-500",
+		onAssign && "cursor-pointer hover:border-[#64B5F6]/50 hover:bg-[#E3F2FD]/30 transition-colors",
+		className
+	);
+
+	const content = (
+		<>
 			<div className="flex-shrink-0 rounded-full bg-slate-200 p-2">
 				{icon || <UserPlus className="h-4 w-4 text-slate-400" />}
 			</div>
@@ -52,7 +47,25 @@ function VacantSlot({
 					<p className="text-xs text-slate-400">{description}</p>
 				)}
 			</div>
-		</Comp>
+		</>
+	);
+
+	if (onAssign) {
+		return (
+			<button
+				type="button"
+				className={baseClassName}
+				onClick={onAssign}
+			>
+				{content}
+			</button>
+		);
+	}
+	
+	return (
+		<div className={baseClassName} {...props}>
+			{content}
+		</div>
 	);
 }
 

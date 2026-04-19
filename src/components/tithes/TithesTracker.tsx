@@ -156,7 +156,7 @@ export function TithesTracker({
 			: endOfMonth(new Date()),
 	);
 
-	const [titheRecords, setTitheRecords] = useState(initialTitheRecords);
+	const [titheRecords] = useState(initialTitheRecords);
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 	const [editingMonth, setEditingMonth] = useState<{
 		year: number;
@@ -264,23 +264,10 @@ export function TithesTracker({
 			);
 
 			if (result.success) {
-				const updatedRecords = titheRecords.filter(
-					(r) =>
-						!(r.year === editingMonth.year && r.month === editingMonth.month),
-				);
-				const newRecordsForMonth = updates
-					.filter((update) => update.didTithe)
-					.map((update) => ({
-						id: `${update.memberId}-${editingMonth.year}-${editingMonth.month}`,
-						memberId: update.memberId,
-						year: editingMonth.year,
-						month: editingMonth.month,
-					}));
-				setTitheRecords([...updatedRecords, ...newRecordsForMonth]);
-
 				toast({ title: "Éxito", description: result.message });
 				setIsEditDialogOpen(false);
 				setEditingMonth(null);
+				router.refresh();
 			} else {
 				toast({
 					title: "Error",

@@ -89,6 +89,7 @@ import type {
 	MinistryArea,
 	TitheRecord,
 } from "@/lib/types";
+import type { RoleType } from "@/lib/api/mappers";
 import {
 	NO_AREA_FILTER_VALUE,
 	NO_GDI_FILTER_VALUE,
@@ -108,6 +109,7 @@ interface MembersListViewProps {
 	allMeetingSeries: MeetingSeries[];
 	allAttendanceRecords: AttendanceRecord[];
 	allTitheRecords: TitheRecord[];
+	allRoleTypes: RoleType[];
 	addSingleMemberAction: (
 		newMemberData: MemberWriteData,
 	) => Promise<{ success: boolean; message: string; newMember?: Member }>;
@@ -142,14 +144,28 @@ type SortKey =
 			| "baptismDate"
 			| "roles"
 	  >
-	| "fullName";
+	| "fullName"
+	| "lastAttendance";
 type SortOrder = "asc" | "desc";
 
+// Role display names aligned with backend roles
 const roleDisplayMap: Record<MemberRoleType, string> = {
-	Leader: "Líder",
+	GdiGuide: "Guía GDI",
+	GdiMentor: "Mentor GDI",
+	AreaLeader: "Líder Área",
+	AreaMentor: "Mentor Área",
 	Worker: "Obrero",
-	GeneralAttendee: "Asistente General",
 };
+
+// Role badge colors for visual distinction
+const roleBadgeColors: Record<MemberRoleType, string> = {
+	GdiGuide: "bg-blue-100 text-blue-700 border-blue-200",
+	GdiMentor: "bg-purple-100 text-purple-700 border-purple-200",
+	AreaLeader: "bg-emerald-100 text-emerald-700 border-emerald-200",
+	AreaMentor: "bg-violet-100 text-violet-700 border-violet-200",
+	Worker: "bg-amber-100 text-amber-700 border-amber-200",
+};
+
 const roleFilterOptions: {
 	value: MemberRoleType | typeof NO_ROLE_FILTER_VALUE;
 	label: string;
@@ -180,6 +196,7 @@ export default function MembersListView({
 	allMeetingSeries,
 	allAttendanceRecords,
 	allTitheRecords,
+	allRoleTypes,
 	addSingleMemberAction,
 	updateMemberAction,
 	deleteMemberAction,
@@ -233,6 +250,48 @@ export default function MembersListView({
 			withoutArea: withoutArea.length,
 		};
 	}, [allMembersForDropdowns, absoluteTotalMembers]);
+
+	// Calculate last attendance date for each member
+	const memberLastAttendance = useMemo(() => {
+		const lastAttendanceMap = new Map<string, { date: Date; daysAgo: number }>();
+		const now = new Date();
+		
+		for (const record of allAttendanceRecords) {
+			if (!record.attended) continue;
+			
+			const meeting = allMeetings.find(m => m.id === record.meetingId);
+			if (!meeting) continue;
+			
+			const meetingDate = new Date(meeting.date);
+			const memberId = record.memberId;
+			
+			const existing = lastAttendanceMap.get(memberId);
+			if (!existing || meetingDate > existing.date) {
+				const daysAgo = Math.floor((now.getTime() - meetingDate.getTime()) / (1000 * 60 * 60 * 24));
+				lastAttendanceMap.set(memberId, { date: meetingDate, daysAgo });
+			}
+		}
+		
+		return lastAttendanceMap;
+	}, [allAttendanceRecords, allMeetings]);
+
+	// Get attendance status color and label
+	const getAttendanceStatus = useCallback((memberId: string) => {
+		const attendance = memberLastAttendance.get(memberId);
+		if (!attendance) {
+			return { label: "Sin registro", color: "text-gray-400", bgColor: "bg-gray-100", daysAgo: -1 };
+		}
+		const { daysAgo, date } = attendance;
+		const dateStr = date.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+		
+		if (daysAgo <= 7) {
+			return { label: dateStr, color: "text-green-700", bgColor: "bg-green-100", daysAgo };
+		} else if (daysAgo <= 30) {
+			return { label: dateStr, color: "text-yellow-700", bgColor: "bg-yellow-100", daysAgo };
+		} else {
+			return { label: dateStr, color: "text-red-700", bgColor: "bg-red-100", daysAgo };
+		}
+	}, [memberLastAttendance]);
 
 	useEffect(() => {
 		setMembers(initialMembers);
@@ -288,31 +347,101 @@ export default function MembersListView({
 		setter(newArray);
 	};
 
-	const handleFilterOrSearch = () => {
+	// Auto-apply filter function - applies filters immediately
+	const applyFiltersWithValues = useCallback((
+		statuses: string[],
+		roles: string[],
+		gdiIds: string[],
+		areaIds: string[],
+		search: string = searchInput
+	) => {
 		const params = new URLSearchParams();
 		params.set("page", "1");
-
 		params.set("pageSize", pageSize.toString());
 
-		if (searchInput.trim()) params.set("search", searchInput.trim());
-
-		if (selectedStatuses.length > 0)
-			params.set("memberStatus", selectedStatuses.join(","));
-		else params.delete("memberStatus");
-
-		if (selectedRoles.length > 0) params.set("role", selectedRoles.join(","));
-		else params.delete("role");
-
-		if (selectedGuideIds.length > 0)
-			params.set("guide", selectedGuideIds.join(","));
-		else params.delete("guide");
-
-		if (selectedAreaIds.length > 0)
-			params.set("area", selectedAreaIds.join(","));
-		else params.delete("area");
+		if (search.trim()) params.set("search", search.trim());
+		if (statuses.length > 0) params.set("memberStatus", statuses.join(","));
+		if (roles.length > 0) params.set("role", roles.join(","));
+		if (gdiIds.length > 0) params.set("guide", gdiIds.join(","));
+		if (areaIds.length > 0) params.set("area", areaIds.join(","));
 
 		router.push(`${pathname}?${params.toString()}`);
 		router.refresh();
+	}, [pathname, router, pageSize, searchInput]);
+
+	// Auto-apply toggle for each filter type
+	const toggleStatusFilter = (value: string) => {
+		const newStatuses = selectedStatuses.includes(value)
+			? selectedStatuses.filter(s => s !== value)
+			: [...selectedStatuses, value];
+		setSelectedStatuses(newStatuses);
+		applyFiltersWithValues(newStatuses, selectedRoles, selectedGuideIds, selectedAreaIds);
+	};
+
+	const toggleRoleFilter = (value: string) => {
+		const newRoles = selectedRoles.includes(value)
+			? selectedRoles.filter(r => r !== value)
+			: [...selectedRoles, value];
+		setSelectedRoles(newRoles);
+		applyFiltersWithValues(selectedStatuses, newRoles, selectedGuideIds, selectedAreaIds);
+	};
+
+	const toggleGdiFilter = (value: string) => {
+		const newGdiIds = selectedGuideIds.includes(value)
+			? selectedGuideIds.filter(g => g !== value)
+			: [...selectedGuideIds, value];
+		setSelectedGuideIds(newGdiIds);
+		applyFiltersWithValues(selectedStatuses, selectedRoles, newGdiIds, selectedAreaIds);
+	};
+
+	const toggleAreaFilter = (value: string) => {
+		const newAreaIds = selectedAreaIds.includes(value)
+			? selectedAreaIds.filter(a => a !== value)
+			: [...selectedAreaIds, value];
+		setSelectedAreaIds(newAreaIds);
+		applyFiltersWithValues(selectedStatuses, selectedRoles, selectedGuideIds, newAreaIds);
+	};
+
+	// Remove single filter chip
+	const removeFilterChip = (type: 'status' | 'role' | 'gdi' | 'area', value: string) => {
+		switch (type) {
+			case 'status':
+				toggleStatusFilter(value);
+				break;
+			case 'role':
+				toggleRoleFilter(value);
+				break;
+			case 'gdi':
+				toggleGdiFilter(value);
+				break;
+			case 'area':
+				toggleAreaFilter(value);
+				break;
+		}
+	};
+
+	// Get label for filter value
+	const getFilterLabel = (type: 'status' | 'role' | 'gdi' | 'area', value: string): string => {
+		switch (type) {
+			case 'status':
+				return statusDisplayMap[value as Member["status"]] || value;
+			case 'role':
+				return value === NO_ROLE_FILTER_VALUE ? "Sin Rol" : (roleDisplayMap[value as MemberRoleType] || value);
+			case 'gdi':
+				if (value === NO_GDI_FILTER_VALUE) return "Sin GDI";
+				const gdi = allGDIs.find(g => g.id === value);
+				return gdi?.name || value;
+			case 'area':
+				if (value === NO_AREA_FILTER_VALUE) return "Sin Área";
+				const area = allMinistryAreas.find(a => a.id === value);
+				return area?.name || value;
+			default:
+				return value;
+		}
+	};
+
+	const handleFilterOrSearch = () => {
+		applyFiltersWithValues(selectedStatuses, selectedRoles, selectedGuideIds, selectedAreaIds);
 	};
 
 	const handleClearAllFilters = () => {
@@ -413,6 +542,41 @@ export default function MembersListView({
 			prevMembers.map((m) => (m.id === updatedMember.id ? updatedMember : m)),
 		);
 		router.refresh();
+	};
+
+	// Handler to open edit dialog (uses details dialog which has edit mode)
+	const handleOpenEditDialog = (member: Member) => {
+		setSelectedMember(member);
+		setIsDetailsDialogOpen(true);
+		// Note: The MemberDetailsDialog has internal edit mode that user can access
+	};
+
+	// Handler to delete a member with confirmation
+	const handleDeleteMember = async (memberId: string) => {
+		const memberToDelete = members.find(m => m.id === memberId);
+		if (!memberToDelete) return;
+
+		// Confirm before deleting
+		const confirmed = window.confirm(
+			`¿Está seguro de que desea eliminar a ${memberToDelete.firstName} ${memberToDelete.lastName}? Esta acción no se puede deshacer.`
+		);
+		
+		if (!confirmed) return;
+
+		startMemberTransition(async () => {
+			const result = await deleteMemberAction(memberId);
+			if (result.success) {
+				toast({ title: "Éxito", description: result.message });
+				setMembers(prevMembers => prevMembers.filter(m => m.id !== memberId));
+				router.refresh();
+			} else {
+				toast({
+					title: "Error al Eliminar",
+					description: result.message,
+					variant: "destructive",
+				});
+			}
+		});
 	};
 
 	const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {
@@ -578,13 +742,7 @@ export default function MembersListView({
 								<DropdownMenuCheckboxItem
 									key={opt.value}
 									checked={selectedStatuses.includes(opt.value)}
-									onCheckedChange={() =>
-										toggleFilterItem(
-											opt.value,
-											selectedStatuses,
-											setSelectedStatuses,
-										)
-									}
+									onCheckedChange={() => toggleStatusFilter(opt.value)}
 								>
 									{opt.label}
 								</DropdownMenuCheckboxItem>
@@ -615,9 +773,7 @@ export default function MembersListView({
 								<DropdownMenuCheckboxItem
 									key={opt.value}
 									checked={selectedRoles.includes(opt.value)}
-									onCheckedChange={() =>
-										toggleFilterItem(opt.value, selectedRoles, setSelectedRoles)
-									}
+									onCheckedChange={() => toggleRoleFilter(opt.value)}
 								>
 									{opt.label}
 								</DropdownMenuCheckboxItem>
@@ -658,13 +814,7 @@ export default function MembersListView({
 											<CommandItem
 												key={gdi.id}
 												value={gdi.name}
-												onSelect={() =>
-													toggleFilterItem(
-														gdi.id,
-														selectedGuideIds,
-														setSelectedGuideIds,
-													)
-												}
+												onSelect={() => toggleGdiFilter(gdi.id)}
 												className="text-xs cursor-pointer"
 											>
 												<div className="flex items-center w-full">
@@ -730,13 +880,7 @@ export default function MembersListView({
 											<CommandItem
 												key={area.id}
 												value={area.name}
-												onSelect={() =>
-													toggleFilterItem(
-														area.id,
-														selectedAreaIds,
-														setSelectedAreaIds,
-													)
-												}
+												onSelect={() => toggleAreaFilter(area.id)}
 												className="text-xs cursor-pointer"
 											>
 												<div className="flex items-center w-full">
@@ -758,41 +902,95 @@ export default function MembersListView({
 						</DropdownMenuContent>
 					</DropdownMenu>
 
-					<div className="flex items-center gap-2 ml-auto">
-						<Button onClick={handleFilterOrSearch} size="sm" variant="outline">
-							<Filter className="mr-2 h-3.5 w-3.5" /> Aplicar
+					{hasActiveFilters && (
+						<Button
+							onClick={handleClearAllFilters}
+							variant="ghost"
+							size="sm"
+							className="text-muted-foreground hover:text-destructive ml-auto"
+						>
+							<X className="mr-1 h-3.5 w-3.5" /> Limpiar filtros
 						</Button>
-						{hasActiveFilters && (
-							<Button
-								onClick={handleClearAllFilters}
-								variant="ghost"
-								size="sm"
-								className="text-muted-foreground hover:text-destructive"
-							>
-								<X className="mr-1 h-3.5 w-3.5" /> Limpiar
-							</Button>
-						)}
-					</div>
+					)}
 				</div>
+
+				{/* Active Filters Chips */}
+				{hasActiveFilters && (
+					<div className="flex flex-wrap gap-2 pb-4">
+						{selectedStatuses.map(status => (
+							<Badge
+								key={`status-${status}`}
+								variant="secondary"
+								className="pl-2 pr-1 py-1 gap-1 cursor-pointer hover:bg-destructive/20"
+								onClick={() => removeFilterChip('status', status)}
+							>
+								Estado: {getFilterLabel('status', status)}
+								<X className="h-3 w-3" />
+							</Badge>
+						))}
+						{selectedRoles.map(role => (
+							<Badge
+								key={`role-${role}`}
+								variant="secondary"
+								className="pl-2 pr-1 py-1 gap-1 cursor-pointer hover:bg-destructive/20"
+								onClick={() => removeFilterChip('role', role)}
+							>
+								Rol: {getFilterLabel('role', role)}
+								<X className="h-3 w-3" />
+							</Badge>
+						))}
+						{selectedGuideIds.map(gdiId => (
+							<Badge
+								key={`gdi-${gdiId}`}
+								variant="secondary"
+								className="pl-2 pr-1 py-1 gap-1 cursor-pointer hover:bg-destructive/20"
+								onClick={() => removeFilterChip('gdi', gdiId)}
+							>
+								GDI: {getFilterLabel('gdi', gdiId)}
+								<X className="h-3 w-3" />
+							</Badge>
+						))}
+						{selectedAreaIds.map(areaId => (
+							<Badge
+								key={`area-${areaId}`}
+								variant="secondary"
+								className="pl-2 pr-1 py-1 gap-1 cursor-pointer hover:bg-destructive/20"
+								onClick={() => removeFilterChip('area', areaId)}
+							>
+								Área: {getFilterLabel('area', areaId)}
+								<X className="h-3 w-3" />
+							</Badge>
+						))}
+					</div>
+				)}
 			</div>
 
 			<div className="overflow-x-auto bg-card rounded-lg shadow-md">
 				<Table>
 					<TableHeader>
 						<TableRow>
-							<TableHead className="w-[80px]">Avatar</TableHead>
 							<TableHead
 								onClick={() => handleSort("fullName")}
 								className="cursor-pointer"
 							>
 								<div className="flex items-center gap-1 hover:text-primary">
-									Nombre Completo <SortIcon columnKey="fullName" />
+									Miembro <SortIcon columnKey="fullName" />
 								</div>
 							</TableHead>
+							{/* Columna Teléfono - Oculta temporalmente. Descomentar para reactivar:
 							<TableHead>Teléfono</TableHead>
+							*/}
 							<TableHead>GDI</TableHead>
 							<TableHead>Áreas</TableHead>
 							<TableHead>Roles</TableHead>
+							<TableHead
+								onClick={() => handleSort("lastAttendance" as SortKey)}
+								className="cursor-pointer"
+							>
+								<div className="flex items-center gap-1 hover:text-primary">
+									Última Asistencia
+								</div>
+							</TableHead>
 							<TableHead
 								onClick={() => handleSort("status")}
 								className="cursor-pointer"
@@ -801,38 +999,51 @@ export default function MembersListView({
 									Estado <SortIcon columnKey="status" />
 								</div>
 							</TableHead>
-							<TableHead className="text-center">Acciones</TableHead>
+							<TableHead className="text-center w-[60px]">Acciones</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
 						{processedMembers.map((member) => {
 							const memberAreas = getMemberAreaNames(member);
 							const isDeleted = member.status === "eliminado";
+							const attendanceStatus = getAttendanceStatus(member.id);
 							return (
 								<TableRow
 									key={member.id}
+									onClick={() => handleOpenDetailsDialog(member)}
 									className={cn(
-										"hover:bg-muted/50 transition-colors",
+										"hover:bg-muted/50 transition-colors cursor-pointer",
 										isDeleted && "opacity-50"
 									)}
 								>
 									<TableCell>
-										<Avatar>
-											<AvatarFallback>
-												{member.firstName.substring(0, 1)}
-												{member.lastName.substring(0, 1)}
-											</AvatarFallback>
-										</Avatar>
+										<div className="flex items-center gap-3">
+											<Avatar className="h-8 w-8">
+												<AvatarFallback className="text-xs">
+													{member.firstName.substring(0, 1)}
+													{member.lastName.substring(0, 1)}
+												</AvatarFallback>
+											</Avatar>
+											<span className={cn("font-medium", isDeleted && "line-through")}>
+												{member.firstName} {member.lastName}
+											</span>
+										</div>
 									</TableCell>
-									<TableCell className={cn("font-medium", isDeleted && "line-through")}>
-										{member.firstName} {member.lastName}
-									</TableCell>
+									{/* Columna Teléfono - Oculta temporalmente. Descomentar para reactivar:
 									<TableCell>{member.phone}</TableCell>
-									<TableCell>{getGdiName(member)}</TableCell>
+									*/}
+									<TableCell>
+										<span className={cn(
+											"text-sm",
+											!member.assignedGDIId && "text-yellow-600 font-medium"
+										)}>
+											{getGdiName(member)}
+										</span>
+									</TableCell>
 									<TableCell>
 										<div className="flex flex-wrap gap-1 max-w-xs">
 											{memberAreas.length > 0 ? (
-												memberAreas.map((areaName) => (
+												memberAreas.slice(0, 2).map((areaName) => (
 													<Badge
 														key={areaName}
 														variant="outline"
@@ -842,9 +1053,14 @@ export default function MembersListView({
 													</Badge>
 												))
 											) : (
-												<span className="text-xs text-muted-foreground">
-													N/A
+												<span className="text-xs text-yellow-600">
+													Sin área
 												</span>
+											)}
+											{memberAreas.length > 2 && (
+												<Badge variant="secondary" className="text-xs">
+													+{memberAreas.length - 2}
+												</Badge>
 											)}
 										</div>
 									</TableCell>
@@ -854,17 +1070,34 @@ export default function MembersListView({
 												member.roles.map((role) => (
 													<Badge
 														key={role}
-														variant="secondary"
-														className="text-xs"
+														className={cn("text-xs border", roleBadgeColors[role] || "bg-gray-100 text-gray-700")}
 													>
 														{roleDisplayMap[role] || role}
 													</Badge>
 												))
 											) : (
 												<span className="text-xs text-muted-foreground">
-													N/A
+													—
 												</span>
 											)}
+										</div>
+									</TableCell>
+									<TableCell>
+										<div className={cn(
+											"inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium",
+											attendanceStatus.bgColor,
+											attendanceStatus.color
+										)}>
+											{attendanceStatus.daysAgo >= 0 && attendanceStatus.daysAgo <= 7 && (
+												<span className="w-2 h-2 rounded-full bg-green-500" />
+											)}
+											{attendanceStatus.daysAgo > 7 && attendanceStatus.daysAgo <= 30 && (
+												<span className="w-2 h-2 rounded-full bg-yellow-500" />
+											)}
+											{attendanceStatus.daysAgo > 30 && (
+												<span className="w-2 h-2 rounded-full bg-red-500" />
+											)}
+											{attendanceStatus.label}
 										</div>
 									</TableCell>
 									<TableCell>
@@ -883,12 +1116,13 @@ export default function MembersListView({
 											{displayStatus(member.status)}
 										</Badge>
 									</TableCell>
-									<TableCell className="text-center">
+									<TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
 										<DropdownMenu>
 											<DropdownMenuTrigger asChild>
 												<Button
 													variant="ghost"
 													size="icon"
+													className="h-8 w-8"
 													disabled={isProcessingMember}
 												>
 													<MoreVertical className="h-4 w-4" />
@@ -993,6 +1227,7 @@ export default function MembersListView({
 					allMeetingSeries={allMeetingSeries}
 					allAttendanceRecords={allAttendanceRecords}
 					allTitheRecords={allTitheRecords}
+					allRoleTypes={allRoleTypes}
 					isOpen={isDetailsDialogOpen}
 					onClose={handleCloseDetailsDialog}
 					onMemberUpdated={handleMemberUpdated}

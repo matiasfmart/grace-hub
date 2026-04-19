@@ -7,27 +7,15 @@
  */
 
 import type { ApiMemberResponse, ApiCreateMemberRequest, ApiUpdateMemberRequest, ApiMemberRoleType } from '../types';
-import type { Member, MemberWriteData, MemberRoleType } from '@/lib/types';
+import type { Member, MemberWriteData, MemberRoleType, EcclesiasticalRole } from '@/lib/types';
 
 /**
  * Maps backend role types to frontend role types
+ * Now preserves specific roles instead of collapsing to generic "Leader"
  */
 function mapApiRolesToFrontendRoles(apiRoles: ApiMemberRoleType[]): MemberRoleType[] {
-  const frontendRoles: MemberRoleType[] = [];
-  
-  for (const role of apiRoles) {
-    if (role === 'GdiGuide' || role === 'GdiMentor' || role === 'AreaLeader' || role === 'AreaMentor') {
-      if (!frontendRoles.includes('Leader')) {
-        frontendRoles.push('Leader');
-      }
-    } else if (role === 'Worker') {
-      if (!frontendRoles.includes('Worker')) {
-        frontendRoles.push('Worker');
-      }
-    }
-  }
-  
-  return frontendRoles;
+  // Direct mapping - roles are now aligned between backend and frontend
+  return apiRoles as MemberRoleType[];
 }
 
 /**
@@ -54,6 +42,9 @@ export function mapApiMemberToMember(apiMember: ApiMemberResponse): Member {
     status: apiMember.status,
     address: apiMember.address || undefined,
     roles: mapApiRolesToFrontendRoles(apiMember.roles || []),
+    ecclesiasticalRoles: (apiMember.ecclesiasticalRoles || []).map(
+      (er): EcclesiasticalRole => ({ roleTypeId: er.roleTypeId, name: er.name }),
+    ),
   };
 }
 

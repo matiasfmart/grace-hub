@@ -7,6 +7,8 @@ import {
 	LayoutGrid,
 	ListFilter,
 	Percent,
+	TrendingDown,
+	TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -27,6 +29,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import type {
 	AttendanceRecord,
+	AudienceType,
 	GDI,
 	Meeting,
 	MeetingSeries,
@@ -44,6 +47,7 @@ import { cn } from "@/lib/utils";
 import {
 	getAllAttendanceRecords,
 	getAllGdis,
+	getAllMeetings,
 	getAllMeetingSeries,
 	getFilteredMeetingInstances,
 	getAllMembersNonPaginated,
@@ -52,6 +56,108 @@ import {
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+/**
+ * Derives the expected member rows for the attendance table based on the series' audienceType.
+ * Mirrors ADR-004 operative level logic using already-loaded GDI/Area data.
+ * For `by_categories`, falls back to all active members (role_types data not available client-side).
+ */
+function getExpectedMembersForSeries(
+	series: MeetingSeries | undefined,
+	allMembers: Member[],
+	allGdis: GDI[],
+	allAreas: MinistryArea[],
+): Member[] {
+	const activeMembers = allMembers.filter((m) => m.status === "vigente");
+	if (!series) return activeMembers;
+
+	switch (series.audienceType as AudienceType) {
+		case "all_active":
+			return activeMembers;
+
+		case "gdi": {
+			if (!series.gdiId) return activeMembers;
+			const gdi = allGdis.find((g) => g.id === series.gdiId);
+			if (!gdi) return activeMembers;
+			const memberIds = new Set([gdi.guideId, ...gdi.memberIds]);
+			return activeMembers.filter((m) => memberIds.has(m.id));
+		}
+
+		case "area": {
+			if (!series.areaId) return activeMembers;
+			const area = allAreas.find((a) => a.id === series.areaId);
+			if (!area) return activeMembers;
+			const memberIds = new Set([area.leaderId, ...area.memberIds]);
+			return activeMembers.filter((m) => memberIds.has(m.id));
+		}
+
+		case "mentors": {
+			// Level 4: mentors of GDIs or areas
+			const mentorIds = new Set<string>();
+			allGdis.forEach((g) => { if (g.mentorId) mentorIds.add(g.mentorId); });
+			allAreas.forEach((a) => { if (a.mentorId) mentorIds.add(a.mentorId); });
+			return activeMembers.filter((m) => mentorIds.has(m.id));
+		}
+
+		case "leaders": {
+			// Level >= 3: guides of GDIs, leaders of areas, mentors
+			const qualifiedIds = new Set<string>();
+			allGdis.forEach((g) => {
+				qualifiedIds.add(g.guideId);
+				if (g.mentorId) qualifiedIds.add(g.mentorId);
+			});
+			allAreas.forEach((a) => {
+				qualifiedIds.add(a.leaderId);
+				if (a.mentorId) qualifiedIds.add(a.mentorId);
+			});
+			return activeMembers.filter((m) => qualifiedIds.has(m.id));
+		}
+
+		case "workers": {
+			// Level >= 2: area members + leaders + mentors
+			const qualifiedIds = new Set<string>();
+			allGdis.forEach((g) => {
+				qualifiedIds.add(g.guideId);
+				if (g.mentorId) qualifiedIds.add(g.mentorId);
+			});
+			allAreas.forEach((a) => {
+				qualifiedIds.add(a.leaderId);
+				if (a.mentorId) qualifiedIds.add(a.mentorId);
+				a.memberIds.forEach((id) => qualifiedIds.add(id));
+			});
+			return activeMembers.filter((m) => qualifiedIds.has(m.id));
+		}
+
+		case "integrated": {
+			// Level >= 1: GDI members + area members + leaders + mentors
+			const qualifiedIds = new Set<string>();
+			allGdis.forEach((g) => {
+				qualifiedIds.add(g.guideId);
+				if (g.mentorId) qualifiedIds.add(g.mentorId);
+				g.memberIds.forEach((id) => qualifiedIds.add(id));
+			});
+			allAreas.forEach((a) => {
+				qualifiedIds.add(a.leaderId);
+				if (a.mentorId) qualifiedIds.add(a.mentorId);
+				a.memberIds.forEach((id) => qualifiedIds.add(id));
+			});
+			return activeMembers.filter((m) => qualifiedIds.has(m.id));
+		}
+
+		case "by_categories": {
+			const roleTypeIds = series.audienceConfig?.roleTypeIds;
+			if (!roleTypeIds || roleTypeIds.length === 0) return activeMembers;
+			return activeMembers.filter((m) =>
+				m.ecclesiasticalRoles?.some((er) =>
+					roleTypeIds.includes(er.roleTypeId),
+				),
+			);
+		}
+
+		default:
+			return activeMembers;
+	}
+}
 
 interface EventsPageData {
 	allSeries: MeetingSeries[];
@@ -65,6 +171,7 @@ interface EventsPageData {
 	allAttendanceRecords: AttendanceRecord[];
 	initialRowMembers: Member[];
 	expectedAttendeesMap: Record<string, Set<string>>;
+	meetingsCountBySeries: Record<string, number>;
 	memberCurrentPage: number;
 	memberPageSize: number;
 	appliedStartDate?: string;
@@ -122,13 +229,23 @@ async function getEventsPageData(
 		allGdisData,
 		allMinistryAreasData,
 		allAttendanceRecordsData,
+		allMeetingsData,
 	] = await Promise.all([
 		getAllMeetingSeries(),
 		getAllMembersNonPaginated(),
 		getAllGdis(),
 		getAllMinistryAreas(),
 		getAllAttendanceRecords(),
+		getAllMeetings(),
 	]);
+
+	// Calculate meetings count by series
+	const meetingsCountBySeries: Record<string, number> = {};
+	for (const meeting of allMeetingsData) {
+		if (meeting.seriesId) {
+			meetingsCountBySeries[meeting.seriesId] = (meetingsCountBySeries[meeting.seriesId] || 0) + 1;
+		}
+	}
 
 	const generalSeriesOnly = allSeriesData.filter(
 		(s) => s.seriesType === "general",
@@ -163,8 +280,16 @@ async function getEventsPageData(
 	}
 
 	// ---MODIFIED LOGIC FOR ROWS---
-	// Use all members as initial rows (instead of deprecated series-based resolution)
-	const initialRowMembers: Member[] = allMembersData;
+	// Derive expected members based on the selected series' audienceType (ADR-004)
+	const selectedSeries = actualSelectedSeriesId
+		? seriesPresentInFilter.find((s) => s.id === actualSelectedSeriesId)
+		: undefined;
+	const initialRowMembers: Member[] = getExpectedMembersForSeries(
+		selectedSeries,
+		allMembersData,
+		allGdisData,
+		allMinistryAreasData,
+	);
 
 	const expectedAttendeesMap: Record<string, Set<string>> = {};
 	for (const meeting of meetingsForPage) {
@@ -185,6 +310,7 @@ async function getEventsPageData(
 		allAttendanceRecords: allAttendanceRecordsData,
 		initialRowMembers,
 		expectedAttendeesMap,
+		meetingsCountBySeries,
 		memberCurrentPage,
 		memberPageSize,
 		appliedStartDate: startDateParam,
@@ -206,9 +332,11 @@ async function getEventsPageData(
 }
 
 const roleDisplayMap: Record<MemberRoleType, string> = {
-	Leader: "Líder",
+	GdiGuide: "Guía GDI",
+	GdiMentor: "Mentor GDI",
+	AreaLeader: "Líder Área",
+	AreaMentor: "Mentor Área",
 	Worker: "Obrero",
-	GeneralAttendee: "Asistente General",
 };
 const roleFilterOptions: {
 	value: MemberRoleType | typeof NO_ROLE_FILTER_VALUE;
@@ -222,9 +350,8 @@ const roleFilterOptions: {
 ];
 
 const statusDisplayMap: Record<Member["status"], string> = {
-	Active: "Activo",
-	Inactive: "Inactivo",
-	New: "Nuevo",
+	vigente: "Vigente",
+	eliminado: "Eliminado",
 };
 const statusFilterOptions: { value: Member["status"]; label: string }[] =
 	Object.entries(statusDisplayMap).map(([value, label]) => ({
@@ -246,6 +373,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 		allAttendanceRecords,
 		initialRowMembers,
 		expectedAttendeesMap,
+		meetingsCountBySeries,
 		memberCurrentPage,
 		memberPageSize,
 		appliedStartDate,
@@ -318,15 +446,23 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 	const totalSeries = allSeries.length;
 	const totalInstances = totalMeetingInstances;
 	
-	// Calculate average attendance percentage
+	// Calculate average attendance percentage and trend
 	let avgAttendancePercent = 0;
+	let attendanceTrend: "up" | "down" | "stable" = "stable";
+	let trendDelta = 0;
+	
 	if (meetingsForPage.length > 0) {
-		const attendanceByMeeting = meetingsForPage.map((meeting) => {
+		// Sort meetings by date for trend calculation
+		const sortedMeetings = [...meetingsForPage].sort(
+			(a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()
+		);
+		
+		const attendanceByMeeting = sortedMeetings.map((meeting) => {
 			const expectedSet = expectedAttendeesMap[meeting.id] || new Set();
 			const expectedCount = expectedSet.size;
 			if (expectedCount === 0) return null;
 			const presentCount = allAttendanceRecords.filter(
-				(ar) => ar.meetingId === meeting.id && ar.wasPresent && expectedSet.has(ar.memberId)
+				(ar) => ar.meetingId === meeting.id && ar.attended && expectedSet.has(ar.memberId)
 			).length;
 			return (presentCount / expectedCount) * 100;
 		}).filter((p): p is number => p !== null);
@@ -335,6 +471,23 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 			avgAttendancePercent = Math.round(
 				attendanceByMeeting.reduce((a, b) => a + b, 0) / attendanceByMeeting.length
 			);
+			
+			// Calculate trend if we have at least 2 meetings
+			if (attendanceByMeeting.length >= 2) {
+				const midpoint = Math.floor(attendanceByMeeting.length / 2);
+				const olderHalf = attendanceByMeeting.slice(0, midpoint);
+				const recentHalf = attendanceByMeeting.slice(midpoint);
+				
+				const olderAvg = olderHalf.reduce((a, b) => a + b, 0) / olderHalf.length;
+				const recentAvg = recentHalf.reduce((a, b) => a + b, 0) / recentHalf.length;
+				
+				trendDelta = Math.round(recentAvg - olderAvg);
+				if (trendDelta >= 5) {
+					attendanceTrend = "up";
+				} else if (trendDelta <= -5) {
+					attendanceTrend = "down";
+				}
+			}
 		}
 	}
 	
@@ -385,7 +538,21 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 								<Percent className={cn("h-5 w-5", avgAttendancePercent >= 70 ? "text-green-600" : avgAttendancePercent >= 50 ? "text-yellow-600" : "text-red-600")} />
 							</div>
 							<div>
-								<p className="text-2xl font-bold">{avgAttendancePercent}%</p>
+								<div className="flex items-center gap-2">
+									<p className="text-2xl font-bold">{avgAttendancePercent}%</p>
+									{attendanceTrend === "up" && (
+										<span className="flex items-center text-green-600 text-xs font-medium">
+											<TrendingUp className="h-3.5 w-3.5 mr-0.5" />
+											+{trendDelta}%
+										</span>
+									)}
+									{attendanceTrend === "down" && (
+										<span className="flex items-center text-red-600 text-xs font-medium">
+											<TrendingDown className="h-3.5 w-3.5 mr-0.5" />
+											{trendDelta}%
+										</span>
+									)}
+								</div>
 								<p className="text-xs text-muted-foreground">Asist. Promedio</p>
 							</div>
 						</div>
@@ -413,6 +580,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 					selectedSeriesId={selectedSeriesId}
 					appliedStartDate={appliedStartDate}
 					appliedEndDate={appliedEndDate}
+					meetingsCountBySeries={meetingsCountBySeries}
 				/>
 				<PageSpecificAddMeetingDialog
 					defineMeetingSeriesAction={defineMeetingSeriesAction}

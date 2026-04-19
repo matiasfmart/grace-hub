@@ -71,6 +71,20 @@ export const membersService = {
   async getActive(): Promise<Member[]> {
     return this.getByRecordStatus('vigente');
   },
+
+  /**
+   * Assign an ecclesiastical label to a member
+   */
+  async assignRoleType(memberId: string, roleTypeId: number): Promise<void> {
+    await membersEndpoint.assignRoleType(Number(memberId), roleTypeId);
+  },
+
+  /**
+   * Unassign an ecclesiastical label from a member
+   */
+  async removeRoleType(memberId: string, roleTypeId: number): Promise<void> {
+    await membersEndpoint.removeRoleType(Number(memberId), roleTypeId);
+  },
 };
 
 // ==============================================

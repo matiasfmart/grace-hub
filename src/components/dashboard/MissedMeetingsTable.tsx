@@ -59,9 +59,11 @@ interface AbsentMemberInfo {
 }
 
 const roleDisplayMap: Record<MemberRoleType, string> = {
-	Leader: "Líder",
+	GdiGuide: "Guía GDI",
+	GdiMentor: "Mentor GDI",
+	AreaLeader: "Líder Área",
+	AreaMentor: "Mentor Área",
 	Worker: "Obrero",
-	GeneralAttendee: "Asistente General",
 };
 
 const statusDisplayMap: Record<Member["status"], string> = {

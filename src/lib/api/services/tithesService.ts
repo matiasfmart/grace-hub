@@ -22,14 +22,6 @@ export const tithesService = {
   },
 
   /**
-   * Get tithe by ID
-   */
-  async getById(id: string): Promise<TitheRecord> {
-    const apiTithe = await tithesEndpoint.getById(Number(id));
-    return mapApiTitheToTitheRecord(apiTithe);
-  },
-
-  /**
    * Create tithe record
    */
   async create(data: TitheRecordWriteData): Promise<TitheRecord> {
@@ -50,14 +42,6 @@ export const tithesService = {
    */
   async getByMember(memberId: string): Promise<TitheRecord[]> {
     const apiTithes = await tithesEndpoint.getByMember(Number(memberId));
-    return mapApiTithesToTitheRecords(apiTithes);
-  },
-
-  /**
-   * Get tithes by year
-   */
-  async getByYear(year: number): Promise<TitheRecord[]> {
-    const apiTithes = await tithesEndpoint.getByYear(year);
     return mapApiTithesToTitheRecords(apiTithes);
   },
 
@@ -120,7 +104,8 @@ export async function getAllTitheRecords(): Promise<TitheRecord[]> {
 
 /**
  * Batch update tithes for month
- * Creates or deletes tithe records based on member selections
+ * Delegates the full create/delete logic to the backend batch endpoint
+ * in a single request instead of N individual calls.
  */
 export async function batchUpdateTithesForMonth(
   year: number,
@@ -128,31 +113,15 @@ export async function batchUpdateTithesForMonth(
   updates: { memberId: string; didTithe: boolean }[]
 ): Promise<{ success: boolean; message: string }> {
   try {
-    // Get existing tithes for the month
-    const existingTithes = await tithesService.getByYearMonth(year, month);
-    const existingMemberIds = new Set(existingTithes.map(t => t.memberId));
-    
-    // Process updates
-    const createPromises: Promise<TitheRecord>[] = [];
-    const deletePromises: Promise<void>[] = [];
-    
-    for (const update of updates) {
-      const exists = existingMemberIds.has(update.memberId);
-      
-      if (update.didTithe && !exists) {
-        // Need to create
-        createPromises.push(tithesService.create({ memberId: update.memberId, year, month }));
-      } else if (!update.didTithe && exists) {
-        // Need to delete
-        const existingTithe = existingTithes.find(t => t.memberId === update.memberId);
-        if (existingTithe) {
-          deletePromises.push(tithesService.delete(existingTithe.id));
-        }
-      }
-    }
-    
-    await Promise.all([...createPromises, ...deletePromises]);
-    
+    const items = updates.map(u => ({
+      memberId: Number(u.memberId),
+      year,
+      month,
+      didTithe: u.didTithe,
+    }));
+
+    await tithesEndpoint.batchUpsert(items);
+
     return {
       success: true,
       message: "Registros de diezmos actualizados exitosamente.",

@@ -27,6 +27,7 @@ interface EventsToolbarProps {
 	selectedSeriesId?: string;
 	appliedStartDate?: string;
 	appliedEndDate?: string;
+	meetingsCountBySeries?: Record<string, number>;
 }
 
 export default function EventsToolbar({
@@ -34,6 +35,7 @@ export default function EventsToolbar({
 	selectedSeriesId,
 	appliedStartDate,
 	appliedEndDate,
+	meetingsCountBySeries = {},
 }: EventsToolbarProps) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
@@ -76,20 +78,28 @@ export default function EventsToolbar({
 					value={selectedSeriesId || ""}
 					onValueChange={handleSeriesChange}
 				>
-					<SelectTrigger className="w-full sm:w-[280px]">
+					<SelectTrigger className="w-full sm:w-[320px]">
 						<SelectValue placeholder="Seleccionar serie..." />
 					</SelectTrigger>
 					<SelectContent>
-						{allSeries.map((series) => (
-							<SelectItem key={series.id} value={series.id}>
-								<div className="flex items-center justify-between gap-2 w-full">
-									<span className="truncate">{series.name}</span>
-									<Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 ml-2">
-										{series.frequency === "OneTime" ? "Única" : series.frequency === "Weekly" ? "Sem." : "Mens."}
-									</Badge>
-								</div>
-							</SelectItem>
-						))}
+						{allSeries.map((series) => {
+							const meetingCount = meetingsCountBySeries[series.id] || 0;
+							return (
+								<SelectItem key={series.id} value={series.id}>
+									<div className="flex items-center justify-between gap-2 w-full">
+										<span className="truncate">{series.name}</span>
+										<div className="flex items-center gap-1.5 ml-2">
+											<Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-medium">
+												{meetingCount} {meetingCount === 1 ? "reunión" : "reuniones"}
+											</Badge>
+											<Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+												{series.frequency === "OneTime" ? "Única" : series.frequency === "Weekly" ? "Sem." : "Mens."}
+											</Badge>
+										</div>
+									</div>
+								</SelectItem>
+							);
+						})}
 					</SelectContent>
 				</Select>
 			</div>

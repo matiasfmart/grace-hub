@@ -41,7 +41,7 @@ export default function GroupAdminSummaryTab({
 		if (recentMeetings.length > 0) {
 			const attendanceTotals = recentMeetings.map(meeting => {
 				const records = allAttendanceRecords.filter(
-					r => r.meetingId === meeting.id && r.wasPresent
+					r => r.meetingId === meeting.id && r.attended
 				);
 				const expected = meeting.attendeeUids?.length || members.length;
 				return expected > 0 ? (records.length / expected) * 100 : 0;
@@ -84,7 +84,7 @@ export default function GroupAdminSummaryTab({
 			.slice(0, 5)
 			.map(meeting => {
 				const presentCount = allAttendanceRecords.filter(
-					r => r.meetingId === meeting.id && r.wasPresent
+					r => r.meetingId === meeting.id && r.attended
 				).length;
 				const expectedCount = meeting.attendeeUids?.length || members.length;
 				const percentage = expectedCount > 0 
@@ -106,10 +106,10 @@ export default function GroupAdminSummaryTab({
 		<div className="space-y-6">
 			{/* KPI Cards */}
 			<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-				<Card>
+				<Card className="border-l-4 border-l-blue-500">
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 						<CardTitle className="text-sm font-medium">Miembros</CardTitle>
-						<Users className="h-4 w-4 text-muted-foreground" />
+						<Users className="h-4 w-4 text-blue-500" />
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold">{stats.activeMemberCount}</div>
@@ -121,10 +121,10 @@ export default function GroupAdminSummaryTab({
 					</CardContent>
 				</Card>
 
-				<Card>
+				<Card className="border-l-4 border-l-emerald-500">
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 						<CardTitle className="text-sm font-medium">Asistencia</CardTitle>
-						<TrendingUp className="h-4 w-4 text-muted-foreground" />
+						<TrendingUp className="h-4 w-4 text-emerald-500" />
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold">{stats.avgAttendance}%</div>
@@ -132,10 +132,10 @@ export default function GroupAdminSummaryTab({
 					</CardContent>
 				</Card>
 
-				<Card>
+				<Card className="border-l-4 border-l-violet-500">
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 						<CardTitle className="text-sm font-medium">Este Mes</CardTitle>
-						<CalendarDays className="h-4 w-4 text-muted-foreground" />
+						<CalendarDays className="h-4 w-4 text-violet-500" />
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold">{stats.thisMonthMeetings}</div>
@@ -143,10 +143,10 @@ export default function GroupAdminSummaryTab({
 					</CardContent>
 				</Card>
 
-				<Card>
+				<Card className="border-l-4 border-l-amber-500">
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 						<CardTitle className="text-sm font-medium">Series</CardTitle>
-						<ListChecks className="h-4 w-4 text-muted-foreground" />
+						<ListChecks className="h-4 w-4 text-amber-500" />
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold">{stats.activeSeriesCount}</div>

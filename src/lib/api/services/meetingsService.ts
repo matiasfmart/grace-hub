@@ -17,7 +17,7 @@ import {
   mapMeetingSeriesToApiUpdateRequest,
   mapApiExpectedAttendeesToExpectedAttendees,
 } from '../mappers';
-import type { Meeting, MeetingWriteData, MeetingSeriesType, MeetingSeries, MeetingSeriesWriteData, AudienceType, ExpectedAttendee } from '@/lib/types';
+import type { Meeting, MeetingWriteData, MeetingSeriesType, MeetingSeries, MeetingSeriesWriteData, AudienceType, AudienceConfig, ExpectedAttendee } from '@/lib/types';
 
 export const meetingsService = {
   /**
@@ -247,6 +247,8 @@ export async function addMeetingSeries(
     frequency: seriesData.frequency,
     defaultTime: seriesData.defaultTime || '09:00',
     defaultLocation: seriesData.defaultLocation || '',
+    audienceType: seriesData.audienceType || 'all_active' as const,
+    audienceConfig: seriesData.audienceConfig || undefined,
     seriesType: groupType,
     targetAttendeeGroups: seriesData.targetAttendeeGroups || ['allMembers' as const],
     oneTimeDate: seriesData.oneTimeDate ? new Date(seriesData.oneTimeDate) : undefined,
@@ -275,6 +277,8 @@ export async function updateMeetingSeries(
     defaultTime: string;
     defaultLocation: string;
     endDate: string;
+    audienceType: AudienceType;
+    audienceConfig: AudienceConfig | null;
   }>
 ): Promise<{ 
   updatedSeries: MeetingSeries; 

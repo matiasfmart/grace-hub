@@ -987,3 +987,97 @@ export { getAllAnnouncements, createAnnouncement, deleteAnnouncement } from './a
 - [ ] ¿Los componentes usan tipos frontend, no Api*?
 - [ ] ¿Las mutaciones usan Server Actions?
 - [ ] ¿Llamé revalidatePath después de mutar?
+
+---
+
+## ⚠️ Tipos Importantes - NO MODIFICAR SIN VERIFICAR
+
+### Member.status (SOLO estos valores)
+```typescript
+type status = "vigente" | "eliminado";
+// ❌ NO usar: "Active", "Inactive", "New" (obsoletos)
+```
+
+### MemberRoleType / ApiRoleType
+```typescript
+type MemberRoleType = "GdiGuide" | "GdiMentor" | "AreaLeader" | "AreaMentor" | "Worker";
+// ❌ NO usar: "Leader", "GeneralAttendee" (obsoletos)
+```
+
+### groupType en componentes de grupo
+```typescript
+type groupType = "gdi" | "area";
+// ❌ NO usar: "ministryArea" (usar "area" en su lugar)
+```
+
+### AttendanceRecord
+```typescript
+interface AttendanceRecord {
+  // Frontend usa `attended`, NO `wasPresent`
+  attended: boolean;  // ✅ Correcto
+  // wasPresent viene del API y se mapea a attended
+}
+```
+
+### Meeting.attendeeUids
+```typescript
+// IMPORTANTE: getAllMeetings() NO popula attendeeUids
+// Usar getMeetingsForGroupWithAttendees() para obtener meetings con attendees
+```
+
+---
+
+## 🔴 Errores Comunes a Evitar
+
+### 1. Usar tipos de API en componentes
+```typescript
+// ❌ INCORRECTO
+import { ApiMemberResponse } from "@/lib/api/types";
+
+// ✅ CORRECTO
+import { Member } from "@/lib/types";
+```
+
+### 2. Importar endpoints directamente en pages
+```typescript
+// ❌ INCORRECTO
+import { membersEndpoint } from "@/lib/api/endpoints";
+
+// ✅ CORRECTO
+import { getAllMembers } from "@/lib/api/services";
+```
+
+### 3. No definir handlers usados en el JSX
+```typescript
+// ❌ INCORRECTO - causa "Can't find variable"
+<Button onClick={() => handleDelete(id)}>
+
+// ✅ CORRECTO - definir antes de usar
+const handleDelete = async (id: string) => { ... };
+<Button onClick={() => handleDelete(id)}>
+```
+
+### 4. Usar statusDisplayMap con valores obsoletos
+```typescript
+// ❌ INCORRECTO
+const statusDisplayMap = {
+  Active: "Activo",
+  Inactive: "Inactivo",
+};
+
+// ✅ CORRECTO
+const statusDisplayMap: Record<Member["status"], string> = {
+  vigente: "Vigente",
+  eliminado: "Eliminado",
+};
+```
+
+### 5. Asumir que meetings tienen attendeeUids populados
+```typescript
+// ❌ INCORRECTO - getAllMeetings() no popula attendeeUids
+const meetings = await getAllMeetings();
+const expected = meeting.attendeeUids?.length; // Siempre 0
+
+// ✅ CORRECTO - usar función que enriquece con attendees
+const meetings = await getMeetingsForGroupWithAttendees('gdi', gdiId);
+```

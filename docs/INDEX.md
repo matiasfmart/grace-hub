@@ -1,8 +1,11 @@
 # Grace Hub Frontend - Documentación
 
-> **Última actualización:** 2026-04-17
+> **Última actualización:** 2026-04-18
 
 ## Índice
+
+### Cambios Recientes
+- [CHANGELOG.md](./CHANGELOG.md) - Registro de cambios y correcciones
 
 ### Producto
 - [blueprint.md](./blueprint.md) - Visión del producto, features y estilo
@@ -36,6 +39,7 @@ Para documentación funcional y de negocio, ver:
 | `/` | Dashboard | ✅ Completa | Gráficos de asistencia |
 | `/members` | Directorio de Miembros | ✅ Completa | Paginación, filtros |
 | `/members/bulk-add` | Agregar Múltiples | ✅ Completa | Staging flow, edición antes de guardar, breadcrumb |
+| `/members/settings/role-types` | Administración de Etiquetas Eclesiásticas | ✅ Completa | CRUD de `role_types` |
 | `/events` | Gestión de Eventos | ✅ Completa | |
 | `/events/[meetingId]/attendance` | Tomar Asistencia | ✅ Completa | |
 | `/groups` | Gestión de Grupos | ✅ Completa | |
@@ -77,5 +81,7 @@ Componentes de shadcn/ui instalados:
 - `button`, `card`, `dialog`, `input`, `label`, `select`
 - `table`, `tabs`, `tooltip`, `avatar`, `badge`
 - `popover`, `dropdown-menu`, `command` (para combobox)
+- `alert-dialog` - Para confirmaciones destructivas
 - `collapsible` - Para secciones colapsables
 - `calendar`, `date-picker` - Para selección de fechas
+- `radio-group` - Para selector de tipo de audiencia en forms

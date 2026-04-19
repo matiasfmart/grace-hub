@@ -7,6 +7,7 @@ import {
 	Home,
 	Moon,
 	Sun,
+	Tag,
 	Users,
 	UsersRound,
 } from "lucide-react";
@@ -163,8 +164,11 @@ function UserMenu() {
 				<DropdownMenuItem disabled>
 					Perfil (próximamente)
 				</DropdownMenuItem>
-				<DropdownMenuItem disabled>
-					Configuración (próximamente)
+				<DropdownMenuItem asChild>
+					<Link href="/members/settings/role-types" className="flex items-center gap-2">
+						<Tag className="h-4 w-4" />
+						Etiquetas Eclesiásticas
+					</Link>
 				</DropdownMenuItem>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem disabled className="text-destructive">

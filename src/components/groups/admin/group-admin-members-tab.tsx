@@ -39,9 +39,6 @@ interface GroupAdminMembersTabProps {
 }
 
 const statusDisplayMap: Record<Member["status"], string> = {
-	Active: "Activo",
-	Inactive: "Inactivo",
-	New: "Nuevo",
 	vigente: "Vigente",
 	eliminado: "Eliminado",
 };
@@ -220,10 +217,10 @@ export default function GroupAdminMembersTab({
 			</div>
 
 			{/* Members list */}
-			<div className="rounded-lg border">
+			<div className="rounded-xl border-2 border-border/60 shadow-lg bg-card overflow-hidden">
 				{currentMembers.length > 0 ? (
-					<div className="divide-y">
-						{currentMembers.map(member => {
+					<div className="divide-y divide-border/40">
+						{currentMembers.map((member, idx) => {
 							const role = getMemberRole(member.id);
 							const isLeader = member.id === leaderId;
 							const isMentor = member.id === mentorId;
@@ -231,11 +228,17 @@ export default function GroupAdminMembersTab({
 							return (
 								<div
 									key={member.id}
-									className="flex items-center justify-between p-3 hover:bg-muted/30"
+									className={`flex items-center justify-between p-3 hover:bg-muted/50 transition-colors ${
+										idx % 2 === 1 ? "bg-muted/20" : ""
+									} ${isLeader ? "bg-primary/5" : ""}`}
 								>
 									<div className="flex items-center gap-3">
-										<div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
-											<span className="text-sm font-medium text-primary">
+										<div className={`h-9 w-9 rounded-full flex items-center justify-center ${
+											isLeader ? "bg-primary/20" : isMentor ? "bg-blue-100" : "bg-primary/10"
+										}`}>
+											<span className={`text-sm font-medium ${
+												isLeader ? "text-primary" : isMentor ? "text-blue-600" : "text-primary"
+											}`}>
 												{member.firstName[0]}{member.lastName[0]}
 											</span>
 										</div>

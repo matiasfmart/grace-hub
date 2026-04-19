@@ -41,12 +41,12 @@ import type {
 } from "@/lib/types";
 import {
 	getAllAttendanceRecords,
-	getAllMeetings,
 	getSeriesForGroup,
 	getAllMembersNonPaginated,
 	getMinistryAreaById,
 	getAllMinistryAreas,
 	areasService,
+	getMeetingsForGroupWithAttendees,
 } from "@/lib/api/services";
 import {
 	handleAddAreaMeetingSeriesAction,
@@ -74,13 +74,13 @@ async function getData(areaId: string): Promise<MinistryAreaAdminPageData> {
 	const ministryAreaDetails = await getMinistryAreaById(areaId);
 	if (!ministryAreaDetails) notFound();
 
-	const [allMembersData, allAttendanceRecordsData, groupSeriesData, allAreasData, allMeetingsData] =
+	const [allMembersData, allAttendanceRecordsData, groupSeriesData, allAreasData, areaMeetingsData] =
 		await Promise.all([
 			getAllMembersNonPaginated(),
 			getAllAttendanceRecords(),
 			getSeriesForGroup("ministryArea", areaId),
 			getAllMinistryAreas(),
-			getAllMeetings(),
+			getMeetingsForGroupWithAttendees("ministryArea", areaId),
 		]);
 
 	// Get members of this area
@@ -100,7 +100,7 @@ async function getData(areaId: string): Promise<MinistryAreaAdminPageData> {
 		activeMembers: allMembersData.filter((m) => m.status === "vigente"),
 		allAreas: allAreasData,
 		groupMeetingSeries: groupSeriesData.sort((a, b) => a.name.localeCompare(b.name)),
-		allMeetings: allMeetingsData,
+		allMeetings: areaMeetingsData,
 		allAttendanceRecords: allAttendanceRecordsData,
 		areaMembers,
 	};
@@ -289,29 +289,29 @@ export default function MinistryAreaAdminPage({}: MinistryAreaAdminPageProps) {
 
 			{/* Tabs */}
 			<Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-				<TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
-					<TabsTrigger value="summary" className="gap-2">
-						<LayoutDashboard className="h-4 w-4 hidden sm:inline" />
-						Resumen
+				<TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid bg-white/60 shadow-sm border">
+					<TabsTrigger value="summary" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+						<LayoutDashboard className="h-4 w-4" />
+						<span className="hidden sm:inline">Resumen</span>
 					</TabsTrigger>
-					<TabsTrigger value="members" className="gap-2">
-						<Users className="h-4 w-4 hidden sm:inline" />
-						Miembros
+					<TabsTrigger value="members" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+						<Users className="h-4 w-4" />
+						<span className="hidden sm:inline">Miembros</span>
 					</TabsTrigger>
-					<TabsTrigger value="meetings" className="gap-2">
-						<CalendarDays className="h-4 w-4 hidden sm:inline" />
-						Reuniones
+					<TabsTrigger value="meetings" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+						<CalendarDays className="h-4 w-4" />
+						<span className="hidden sm:inline">Reuniones</span>
 					</TabsTrigger>
-					<TabsTrigger value="settings" className="gap-2">
-						<Settings className="h-4 w-4 hidden sm:inline" />
-						Config
+					<TabsTrigger value="settings" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+						<Settings className="h-4 w-4" />
+						<span className="hidden sm:inline">Config</span>
 					</TabsTrigger>
 				</TabsList>
 
 				<TabsContent value="summary">
 					<GroupAdminSummaryTab
 						groupName={ministryArea.name}
-						groupType="ministryArea"
+						groupType="area"
 						members={areaMembers}
 						leaderId={ministryArea.leaderId}
 						leaderLabel="Líder"
@@ -325,7 +325,7 @@ export default function MinistryAreaAdminPage({}: MinistryAreaAdminPageProps) {
 
 				<TabsContent value="members">
 					<GroupAdminMembersTab
-						groupType="ministryArea"
+						groupType="area"
 						leaderId={ministryArea.leaderId}
 						leaderLabel="Líder"
 						mentorId={ministryArea.mentorId}
@@ -346,6 +346,7 @@ export default function MinistryAreaAdminPage({}: MinistryAreaAdminPageProps) {
 						allMeetings={allMeetings}
 						allAttendanceRecords={allAttendanceRecords}
 						members={areaMembers}
+						leaderId={ministryArea.leaderId}
 						onCreateSeries={(data: DefineMeetingSeriesFormValues) =>
 							handleAddAreaMeetingSeriesAction(ministryArea.id, data)
 						}
@@ -364,7 +365,7 @@ export default function MinistryAreaAdminPage({}: MinistryAreaAdminPageProps) {
 
 				<TabsContent value="settings">
 					<GroupAdminSettingsTab
-						groupType="ministryArea"
+						groupType="area"
 						group={ministryArea}
 						allMembers={allMembers}
 						activeMembers={activeMembers}

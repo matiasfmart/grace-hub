@@ -8,6 +8,8 @@ import { apiClient } from '../client';
 import type {
   ApiTitheResponse,
   ApiCreateTitheRequest,
+  ApiBatchTitheItem,
+  ApiBatchUpsertTithesRequest,
 } from '../types';
 
 const ENDPOINT = '/tithes';
@@ -18,13 +20,6 @@ export const tithesEndpoint = {
    */
   async getAll(): Promise<ApiTitheResponse[]> {
     return apiClient.get<ApiTitheResponse[]>(ENDPOINT);
-  },
-
-  /**
-   * Get tithe by ID
-   */
-  async getById(id: number): Promise<ApiTitheResponse> {
-    return apiClient.get<ApiTitheResponse>(`${ENDPOINT}/${id}`);
   },
 
   /**
@@ -42,23 +37,24 @@ export const tithesEndpoint = {
   },
 
   /**
-   * Get tithes by member
+   * Get tithes by member — GET /tithes?memberId=:id
    */
   async getByMember(memberId: number): Promise<ApiTitheResponse[]> {
-    return apiClient.get<ApiTitheResponse[]>(`${ENDPOINT}/member/${memberId}`);
+    return apiClient.get<ApiTitheResponse[]>(`${ENDPOINT}?memberId=${memberId}`);
   },
 
   /**
-   * Get tithes by year
-   */
-  async getByYear(year: number): Promise<ApiTitheResponse[]> {
-    return apiClient.get<ApiTitheResponse[]>(`${ENDPOINT}/year/${year}`);
-  },
-
-  /**
-   * Get tithes by year and month
+   * Get tithes by year and month — GET /tithes?year=:year&month=:month
    */
   async getByYearMonth(year: number, month: number): Promise<ApiTitheResponse[]> {
-    return apiClient.get<ApiTitheResponse[]>(`${ENDPOINT}/year/${year}/month/${month}`);
+    return apiClient.get<ApiTitheResponse[]>(`${ENDPOINT}?year=${year}&month=${month}`);
+  },
+
+  /**
+   * Batch create/delete tithe records — POST /tithes/batch
+   */
+  async batchUpsert(items: ApiBatchTitheItem[]): Promise<{ created: number; deleted: number }> {
+    const body: ApiBatchUpsertTithesRequest = { items };
+    return apiClient.post<{ created: number; deleted: number }>(`${ENDPOINT}/batch`, body);
   },
 };

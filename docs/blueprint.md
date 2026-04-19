@@ -1,6 +1,6 @@
 # Grace Hub - Product Blueprint
 
-> **Última actualización:** 2026-04-16
+> **Última actualización:** 2026-04-18
 
 ## Visión del Producto
 
@@ -18,9 +18,11 @@ Grace Hub es un sistema de gestión de membresía y asistencia para iglesias, di
 | **Groups Management** | Gestión de GDIs y Áreas Ministeriales con asignación de miembros | ✅ Completo |
 | **Mentor Assignment** | Asignación de Mentores a GDIs/Áreas via formulario | ✅ Completo |
 | **Meeting Series** | Definición de series de reuniones con recurrencia configurable | ✅ Completo |
+| **Audience Type Selector** | Selección de tipo de audiencia al crear/editar una serie (GDI, Área, todos, por nivel, por etiqueta) | ✅ Completo |
 | **Attendance Tracking** | Registro de asistencia por reunión con asistentes esperados | ✅ Completo |
 | **Tithe Tracking** | Seguimiento mensual de diezmos por miembro | ✅ Completo |
 | **Dashboard** | Vista general con gráficos de asistencia y distribución | ✅ Completo |
+| **Ecclesiastical Labels** | Etiquetas eclesiales configurables (Pastor, Diácono, etc.) con CRUD y asignación por miembro | ✅ Completo |
 
 ### ❌ No Implementado
 

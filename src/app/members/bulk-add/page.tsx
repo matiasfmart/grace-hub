@@ -29,10 +29,7 @@ export default async function BulkAddMembersPage() {
 		<div className="container mx-auto py-6 px-4">
 			<PageHeader
 				title="Agregar Múltiples Miembros"
-				breadcrumbs={[
-					{ label: "Miembros", href: "/members" },
-					{ label: "Agregar Múltiples" },
-				]}
+				description="Importar varios miembros a la vez desde la lista de miembros."
 			/>
 			<BulkAddMembersView
 				allGDIs={gdis}

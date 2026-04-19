@@ -2,18 +2,9 @@
 
 import { format, isValid as isValidDate, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import {
-	Clock,
-	Edit2,
-	Info,
-	MapPin,
-	Repeat,
-	Settings,
-	Trash2,
-	Users,
-} from "lucide-react";
+import { Clock, Edit2, MapPin, Repeat, Settings, Trash2, Users } from "lucide-react";
 import type React from "react";
-import { useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import DefineMeetingSeriesForm from "@/components/events/add-meeting-form";
 import DeleteMeetingSeriesAlert from "@/components/events/delete-meeting-series-alert";
 import { Button } from "@/components/ui/button";
@@ -26,13 +17,14 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import type {
+	AudienceType,
 	DayOfWeekType,
 	DefineMeetingSeriesFormValues,
 	MeetingSeries,
 	MeetingSeriesType,
-	MeetingTargetRoleType,
 	WeekOrdinalType,
 } from "@/lib/types";
 import { daysOfWeek, weekOrdinals } from "@/lib/types";
@@ -50,34 +42,34 @@ interface ManageMeetingSeriesDialogProps {
 	deleteMeetingSeriesAction: (
 		seriesId: string,
 	) => Promise<{ success: boolean; message: string }>;
-	seriesTypeContext: MeetingSeriesType; // Added context
-	ownerGroupIdContext?: string | null; // Added context
+	seriesTypeContext: MeetingSeriesType;
+	ownerGroupIdContext?: string | null;
 	onDeleteSuccess?: () => void;
 }
 
-const getDayLabel = (dayId: DayOfWeekType): string => {
-	const day = daysOfWeek.find((d) => d.id === dayId);
-	return day ? day.label : dayId;
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const getDayLabel = (dayId: DayOfWeekType): string =>
+	daysOfWeek.find((d) => d.id === dayId)?.label ?? dayId;
+
+const getWeekOrdinalLabel = (ordinalId?: WeekOrdinalType): string =>
+	ordinalId ? (weekOrdinals.find((o) => o.id === ordinalId)?.label ?? ordinalId) : "";
+
+const getAudienceTypeLabel = (audienceType: AudienceType): string => {
+	const labels: Record<AudienceType, string> = {
+		all_active: "Todos los activos",
+		integrated: "Integrados (nivel GDI+)",
+		workers: "Obreros (nivel Área+)",
+		leaders: "Líderes (Guías y Líderes de Área+)",
+		mentors: "Mentores",
+		gdi: "GDI específico",
+		area: "Área ministerial",
+		by_categories: "Por categorías personalizadas",
+	};
+	return labels[audienceType] ?? audienceType;
 };
 
-const getWeekOrdinalLabel = (ordinalId?: WeekOrdinalType): string => {
-	if (!ordinalId) return "";
-	const ordinal = weekOrdinals.find((o) => o.id === ordinalId);
-	return ordinal ? ordinal.label : ordinalId;
-};
-
-const getTargetGroupLabel = (groupKey: MeetingTargetRoleType): string => {
-	switch (groupKey) {
-		case "allMembers":
-			return "Todos";
-		case "workers":
-			return "Obreros";
-		case "leaders":
-			return "Líderes";
-		default:
-			return groupKey;
-	}
-};
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function ManageMeetingSeriesDialog({
 	series,
@@ -89,51 +81,47 @@ export default function ManageMeetingSeriesDialog({
 }: ManageMeetingSeriesDialogProps) {
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [isEditing, setIsEditing] = useState(false);
-	const [_isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
-	const [isPending, startTransition] = useTransition();
+	const [currentSeries, setCurrentSeries] = useState<MeetingSeries>(series);
+	const [, startTransition] = useTransition();
 	const { toast } = useToast();
 
-	const handleEditSuccess = () => {
-		setIsEditing(false);
-	};
+	useEffect(() => {
+		setCurrentSeries(series);
+	}, [series]);
 
-	const handleDeleteSuccess = () => {
-		setIsDeleteAlertOpen(false);
-		setIsDialogOpen(false);
-		if (onDeleteSuccess) {
-			onDeleteSuccess();
-		}
-	};
+	const initialFormValues = useMemo<DefineMeetingSeriesFormValues>(() => {
+		const parsedOneTimeDate =
+			currentSeries.oneTimeDate &&
+			typeof currentSeries.oneTimeDate === "string" &&
+			currentSeries.oneTimeDate.trim() !== ""
+				? parseISO(currentSeries.oneTimeDate)
+				: undefined;
 
-	const parsedOneTimeDate =
-		series.oneTimeDate &&
-		typeof series.oneTimeDate === "string" &&
-		series.oneTimeDate.trim() !== ""
-			? parseISO(series.oneTimeDate)
-			: undefined;
-
-	const initialFormValues: DefineMeetingSeriesFormValues = {
-		name: series.name,
-		description: series.description || "",
-		defaultTime: series.defaultTime || "09:00",
-		defaultLocation: series.defaultLocation || "",
-		seriesType: series.seriesType || "general",
-		ownerGroupId: series.ownerGroupId,
-		targetAttendeeGroups:
-			seriesTypeContext !== "general"
-				? ["allMembers"]
-				: series.targetAttendeeGroups || [],
-		frequency: series.frequency,
-		oneTimeDate:
-			parsedOneTimeDate && isValidDate(parsedOneTimeDate)
-				? parsedOneTimeDate
-				: undefined,
-		weeklyDays: series.weeklyDays || [],
-		monthlyRuleType: series.monthlyRuleType,
-		monthlyDayOfMonth: series.monthlyDayOfMonth,
-		monthlyWeekOrdinal: series.monthlyWeekOrdinal,
-		monthlyDayOfWeek: series.monthlyDayOfWeek,
-	};
+		return {
+			name: currentSeries.name,
+			description: currentSeries.description || "",
+			defaultTime: currentSeries.defaultTime || "09:00",
+			defaultLocation: currentSeries.defaultLocation || "",
+			audienceType: currentSeries.audienceType || "all_active",
+			audienceConfig: currentSeries.audienceConfig || undefined,
+			seriesType: currentSeries.seriesType || "general",
+			ownerGroupId: currentSeries.ownerGroupId,
+			targetAttendeeGroups:
+				seriesTypeContext !== "general"
+					? ["allMembers"]
+					: currentSeries.targetAttendeeGroups || [],
+			frequency: currentSeries.frequency,
+			oneTimeDate:
+				parsedOneTimeDate && isValidDate(parsedOneTimeDate)
+					? parsedOneTimeDate
+					: undefined,
+			weeklyDays: currentSeries.weeklyDays || [],
+			monthlyRuleType: currentSeries.monthlyRuleType,
+			monthlyDayOfMonth: currentSeries.monthlyDayOfMonth,
+			monthlyWeekOrdinal: currentSeries.monthlyWeekOrdinal,
+			monthlyDayOfWeek: currentSeries.monthlyDayOfWeek,
+		};
+	}, [currentSeries, seriesTypeContext]);
 
 	const handleSubmitUpdate = (data: DefineMeetingSeriesFormValues) => {
 		startTransition(async () => {
@@ -143,59 +131,57 @@ export default function ManageMeetingSeriesDialog({
 					data.oneTimeDate && isValidDate(data.oneTimeDate)
 						? format(data.oneTimeDate, "yyyy-MM-dd")
 						: undefined,
-				seriesType: seriesTypeContext, // Ensure context is passed
-				ownerGroupId: ownerGroupIdContext, // Ensure context is passed
+				seriesType: seriesTypeContext,
+				ownerGroupId: ownerGroupIdContext,
 				targetAttendeeGroups:
 					seriesTypeContext !== "general"
 						? ["allMembers"]
-						: data.targetAttendeeGroups, // Override for group series
+						: data.targetAttendeeGroups,
 			};
 			const result = await updateMeetingSeriesAction(
-				series.id,
+				currentSeries.id,
 				dataToSend as any,
 			);
 			if (result.success) {
 				toast({ title: "Éxito", description: result.message });
-				handleEditSuccess();
+				if (result.updatedSeries) setCurrentSeries(result.updatedSeries);
+				setIsEditing(false);
 			} else {
-				toast({
-					title: "Error",
-					description: result.message,
-					variant: "destructive",
-				});
+				toast({ title: "Error", description: result.message, variant: "destructive" });
 			}
 		});
 	};
 
-	const renderFrequencyDetails = () => {
-		if (series.frequency === "OneTime" && series.oneTimeDate) {
-			const parsedDate = parseISO(series.oneTimeDate);
-			if (isValidDate(parsedDate)) {
-				return `Única Vez: ${format(parsedDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}`;
-			}
-			return `Única Vez: Fecha inválida (${series.oneTimeDate})`;
+	const handleDeleteSuccess = () => {
+		setIsDialogOpen(false);
+		onDeleteSuccess?.();
+	};
+
+	const renderFrequencyDetails = (): string => {
+		const s = currentSeries;
+		if (s.frequency === "OneTime" && s.oneTimeDate) {
+			const parsed = parseISO(s.oneTimeDate);
+			return isValidDate(parsed)
+				? `Única Vez: ${format(parsed, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}`
+				: `Única Vez: Fecha inválida (${s.oneTimeDate})`;
 		}
-		if (
-			series.frequency === "Weekly" &&
-			series.weeklyDays &&
-			series.weeklyDays.length > 0
-		) {
-			return `Semanal: ${series.weeklyDays.map((day) => getDayLabel(day)).join(", ")}`;
+		if (s.frequency === "Weekly" && s.weeklyDays?.length) {
+			return `Semanal: ${s.weeklyDays.map(getDayLabel).join(", ")}`;
 		}
-		if (series.frequency === "Monthly") {
-			if (series.monthlyRuleType === "DayOfMonth" && series.monthlyDayOfMonth) {
-				return `Mensual: El día ${series.monthlyDayOfMonth} de cada mes`;
+		if (s.frequency === "Monthly") {
+			if (s.monthlyRuleType === "DayOfMonth" && s.monthlyDayOfMonth) {
+				return `Mensual: El día ${s.monthlyDayOfMonth} de cada mes`;
 			}
 			if (
-				series.monthlyRuleType === "DayOfWeekOfMonth" &&
-				series.monthlyWeekOrdinal &&
-				series.monthlyDayOfWeek
+				s.monthlyRuleType === "DayOfWeekOfMonth" &&
+				s.monthlyWeekOrdinal &&
+				s.monthlyDayOfWeek
 			) {
-				return `Mensual: ${getWeekOrdinalLabel(series.monthlyWeekOrdinal)} ${getDayLabel(series.monthlyDayOfWeek)} de cada mes`;
+				return `Mensual: ${getWeekOrdinalLabel(s.monthlyWeekOrdinal)} ${getDayLabel(s.monthlyDayOfWeek)} de cada mes`;
 			}
-			return "Mensual (Regla no especificada completamente)";
+			return "Mensual (regla no especificada completamente)";
 		}
-		return series.frequency;
+		return s.frequency;
 	};
 
 	return (
@@ -211,12 +197,14 @@ export default function ManageMeetingSeriesDialog({
 					<Settings className="mr-1.5 h-3.5 w-3.5" /> Gestionar Serie
 				</Button>
 			</DialogTrigger>
-			<DialogContent className="sm:max-w-lg flex flex-col max-h-[calc(100vh-8rem)] p-0">
-				<DialogHeader className="p-6 pb-4 border-b flex-shrink-0">
+
+			<DialogContent className="sm:max-w-xl flex flex-col max-h-[calc(100vh-8rem)] overflow-hidden p-0">
+				{/* Header */}
+				<DialogHeader className="flex-shrink-0 border-b p-6 pb-4">
 					<DialogTitle>
 						{isEditing
-							? `Editando Serie: ${series.name}`
-							: `Gestionar Serie: ${series.name}`}
+							? `Editando: ${currentSeries.name}`
+							: `Gestionar Serie: ${currentSeries.name}`}
 					</DialogTitle>
 					<DialogDescription>
 						{isEditing
@@ -225,76 +213,109 @@ export default function ManageMeetingSeriesDialog({
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="flex-grow overflow-y-auto p-6">
-					{isEditing ? (
+				{/* Body */}
+				{isEditing ? (
+					<div className="flex-grow flex flex-col min-h-0">
 						<DefineMeetingSeriesForm
 							defineMeetingSeriesAction={handleSubmitUpdate as any}
 							initialValues={initialFormValues}
 							isEditing={true}
 							onCancelEdit={() => setIsEditing(false)}
-							seriesTypeContext={seriesTypeContext} // Pass context
-							ownerGroupIdContext={ownerGroupIdContext} // Pass context
+							seriesTypeContext={seriesTypeContext}
+							ownerGroupIdContext={ownerGroupIdContext}
 						/>
-					) : (
-						<div className="space-y-3 text-sm">
-							<InfoItem
-								icon={Info}
-								label="Nombre de la Serie:"
-								value={series.name}
-							/>
-							<InfoItem
-								icon={Info}
-								label="Descripción:"
-								value={series.description || "N/A"}
-							/>
-							<InfoItem
-								icon={Clock}
-								label="Hora Predeterminada:"
-								value={series.defaultTime || "N/A"}
-							/>
-							<InfoItem
-								icon={MapPin}
-								label="Lugar Predeterminado:"
-								value={series.defaultLocation || "N/A"}
-							/>
-							<InfoItem
-								icon={Repeat}
-								label="Frecuencia:"
-								value={renderFrequencyDetails()}
-							/>
-							{series.seriesType === "general" && (
-								<InfoItem
-									icon={Users}
-									label="Grupos Objetivo:"
-									value={
-										(series.targetAttendeeGroups || [])
-											.map((group) => getTargetGroupLabel(group))
-											.join(", ") || "N/A"
-									}
-								/>
+					</div>
+				) : (
+					<div className="flex-grow overflow-y-auto p-6 space-y-5">
+						{/* Nombre y descripción */}
+						<div>
+							<h3 className="text-base font-semibold">{currentSeries.name}</h3>
+							{currentSeries.description ? (
+								<p className="mt-1 text-sm text-muted-foreground">
+									{currentSeries.description}
+								</p>
+							) : (
+								<p className="mt-1 text-sm italic text-muted-foreground/60">
+									Sin descripción
+								</p>
 							)}
 						</div>
-					)}
-				</div>
 
+						<Separator />
+
+						{/* Logística */}
+						<div className="space-y-2">
+							<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+								Logística
+							</p>
+							<div className="grid grid-cols-2 gap-3">
+								<div className="flex items-start gap-2.5 rounded-lg border bg-muted/20 p-3">
+									<Clock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+									<div>
+										<p className="text-xs text-muted-foreground">Hora</p>
+										<p className="text-sm font-medium">
+											{currentSeries.defaultTime || "—"}
+										</p>
+									</div>
+								</div>
+								<div className="flex items-start gap-2.5 rounded-lg border bg-muted/20 p-3">
+									<MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+									<div>
+										<p className="text-xs text-muted-foreground">Lugar</p>
+										<p className="text-sm font-medium">
+											{currentSeries.defaultLocation || "—"}
+										</p>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						{/* Programación */}
+						<div className="space-y-2">
+							<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+								Programación
+							</p>
+							<div className="flex items-start gap-2.5 rounded-lg border bg-muted/20 p-3">
+								<Repeat className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+								<div>
+									<p className="text-xs text-muted-foreground">Frecuencia</p>
+									<p className="text-sm font-medium">{renderFrequencyDetails()}</p>
+								</div>
+							</div>
+						</div>
+
+						{/* Audiencia */}
+						<div className="space-y-2">
+							<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+								Audiencia
+							</p>
+							<div className="flex items-start gap-2.5 rounded-lg border bg-muted/20 p-3">
+								<Users className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+								<div>
+									<p className="text-xs text-muted-foreground">Asistentes esperados</p>
+									<p className="text-sm font-medium">
+										{getAudienceTypeLabel(currentSeries.audienceType)}
+									</p>
+								</div>
+							</div>
+						</div>
+					</div>
+				)}
+
+				{/* Footer (solo en view mode) */}
 				{!isEditing && (
-					<DialogFooter className="p-6 pt-4 border-t flex-shrink-0">
-						<div className="flex justify-between w-full">
-							<Button
-								variant="outline"
-								onClick={() => setIsEditing(true)}
-								disabled={isPending}
-							>
+					<DialogFooter className="flex-shrink-0 border-t p-6 pt-4">
+						<div className="flex w-full justify-between">
+							<Button variant="outline" onClick={() => setIsEditing(true)}>
 								<Edit2 className="mr-2 h-4 w-4" /> Editar Detalles
 							</Button>
 							<DeleteMeetingSeriesAlert
-								seriesId={series.id}
-								seriesName={series.name}
+								seriesId={currentSeries.id}
+								seriesName={currentSeries.name}
 								deleteMeetingSeriesAction={deleteMeetingSeriesAction}
-								onOpenChange={setIsDeleteAlertOpen}
 								onSuccess={handleDeleteSuccess}
 								triggerButton={
-									<Button variant="destructive" disabled={isPending}>
+									<Button variant="destructive">
 										<Trash2 className="mr-2 h-4 w-4" /> Eliminar Serie
 									</Button>
 								}
@@ -306,17 +327,3 @@ export default function ManageMeetingSeriesDialog({
 		</Dialog>
 	);
 }
-
-const InfoItem: React.FC<{
-	icon: React.ElementType;
-	label: string;
-	value: string;
-}> = ({ icon: Icon, label, value }) => (
-	<div>
-		<h3 className="font-semibold text-muted-foreground flex items-center mb-0.5">
-			<Icon className="mr-2 h-4 w-4" />
-			{label}
-		</h3>
-		<p className="ml-6">{value}</p>
-	</div>
-);

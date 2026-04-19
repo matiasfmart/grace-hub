@@ -78,4 +78,19 @@ export const membersEndpoint = {
   async getByStatus(status: string): Promise<ApiMemberResponse[]> {
     return apiClient.get<ApiMemberResponse[]>(`${ENDPOINT}/status/${status}`);
   },
+
+  /**
+   * Assign an ecclesiastical label to a member
+   */
+  async assignRoleType(memberId: number, roleTypeId: number): Promise<void> {
+    return apiClient.post(`${ENDPOINT}/${memberId}/role-types`, { roleTypeId });
+  },
+
+  /**
+   * Unassign an ecclesiastical label from a member
+   */
+  async removeRoleType(memberId: number, roleTypeId: number): Promise<void> {
+    return apiClient.delete(`${ENDPOINT}/${memberId}/role-types/${roleTypeId}`);
+  },
 };
+

@@ -72,3 +72,11 @@ export {
   mapFormValuesToApiCreateRequest as mapMeetingSeriesFormToApiCreateRequest,
   mapMeetingSeriesToApiUpdateRequest,
 } from './meetingSeriesMapper';
+
+// Role Types (Ecclesiastical Labels) mappers
+export {
+  mapApiRoleTypeToRoleType,
+  mapApiRoleTypesToRoleTypes,
+  mapRoleTypeToApiCreateRequest,
+  type RoleType,
+} from './roleTypesMapper';

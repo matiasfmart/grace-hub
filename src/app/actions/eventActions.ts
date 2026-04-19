@@ -34,7 +34,6 @@ export async function defineMeetingSeriesAction(
 		const dataForService: MeetingSeriesWriteData = {
 			...newSeriesData,
 			seriesType: "general",
-			audienceType: "all_active",
 			ownerGroupId: null,
 			gdiId: null,
 			areaId: null,
@@ -92,6 +91,8 @@ export async function updateMeetingSeriesAction(
 			description: updatedData.description,
 			defaultTime: updatedData.defaultTime,
 			defaultLocation: updatedData.defaultLocation,
+			audienceType: updatedData.audienceType,
+			audienceConfig: updatedData.audienceConfig || null,
 			targetAttendeeGroups: updatedData.targetAttendeeGroups,
 			frequency: updatedData.frequency,
 			seriesType: "general" as const,

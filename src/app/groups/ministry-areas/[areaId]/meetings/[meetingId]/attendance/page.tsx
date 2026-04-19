@@ -1,15 +1,15 @@
 import { format } from "date-fns";
+import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { notFound } from "next/navigation";
 import MeetingAttendancePageContent from "@/components/events/meeting-attendance-page-content";
 import type { Meeting, MeetingInstanceFormValues } from "@/lib/types";
 import {
 	getAttendanceForMeeting,
 	saveMeetingAttendance,
 	deleteMeetingInstance,
-	getAllMeetingSeries,
 	getMeetingById,
 	getMeetingSeriesById,
+	getMinistryAreaById,
 	updateMeeting,
 	updateMeetingMinute,
 	getExpectedAttendees,
@@ -18,25 +18,46 @@ import {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-interface MeetingAttendancePageProps {
-	params: Promise<{ meetingId: string }>;
+interface AreaMeetingAttendancePageProps {
+	params: Promise<{
+		areaId: string;
+		meetingId: string;
+	}>;
 }
 
-async function getPageData(meetingId: string) {
-	const meetingInstance = await getMeetingById(meetingId);
+/**
+ * Get page data with validation that meeting belongs to this Area
+ */
+async function getPageData(areaId: string, meetingId: string) {
+	// Fetch meeting and Area in parallel
+	const [meetingInstance, area] = await Promise.all([
+		getMeetingById(meetingId),
+		getMinistryAreaById(areaId),
+	]);
+
 	if (!meetingInstance) notFound();
+	if (!area) notFound();
 
-	const allMeetingSeriesData = await getAllMeetingSeries();
-	const meetingSeries = allMeetingSeriesData.find(
-		(s) => s.id === meetingInstance.seriesId,
-	);
+	// Get the series to validate ownership
+	const meetingSeries = await getMeetingSeriesById(meetingInstance.seriesId);
 
+	// Validate that this meeting belongs to this Area
+	if (
+		!meetingSeries ||
+		meetingSeries.seriesType !== "ministryArea" ||
+		meetingSeries.ownerGroupId !== areaId
+	) {
+		// Meeting doesn't belong to this Area - redirect to correct context
+		redirect(`/events/${meetingId}/attendance`);
+	}
+
+	// Fetch attendance data
 	const [expectedAttendees, currentAttendance] = await Promise.all([
 		getExpectedAttendees(meetingId),
 		getAttendanceForMeeting(meetingId),
 	]);
 
-	// Map ExpectedAttendee to AttendeeInfo format (id instead of memberId)
+	// Map ExpectedAttendee to AttendeeInfo format
 	const attendeesForView = expectedAttendees.map((a) => ({
 		id: a.memberId,
 		firstName: a.firstName,
@@ -46,10 +67,15 @@ async function getPageData(meetingId: string) {
 	return {
 		meetingInstance,
 		meetingSeries,
+		area,
 		currentAttendance,
 		attendees: attendeesForView,
 	};
 }
+
+// ==============================================
+// SERVER ACTIONS (with Area-context revalidation)
+// ==============================================
 
 async function handleSaveAttendance(
 	meetingId: string,
@@ -58,7 +84,17 @@ async function handleSaveAttendance(
 	"use server";
 	try {
 		await saveMeetingAttendance(meetingId, memberAttendances);
-		revalidatePath(`/events/${meetingId}/attendance`);
+
+		// Get meeting to find the Area for revalidation
+		const meeting = await getMeetingById(meetingId);
+		if (meeting) {
+			const series = await getMeetingSeriesById(meeting.seriesId);
+			if (series?.ownerGroupId) {
+				revalidatePath(`/groups/ministry-areas/${series.ownerGroupId}/meetings/${meetingId}/attendance`);
+				revalidatePath(`/groups/ministry-areas/${series.ownerGroupId}/admin`);
+			}
+		}
+
 		return { success: true, message: "Asistencia guardada exitosamente." };
 	} catch (error: any) {
 		return {
@@ -75,7 +111,16 @@ async function handleUpdateMinuteAction(meetingId: string, minute: string) {
 			meetingId,
 			minute.trim() === "" ? null : minute.trim(),
 		);
-		revalidatePath(`/events/${meetingId}/attendance`);
+
+		// Revalidate Area context
+		const meeting = await getMeetingById(meetingId);
+		if (meeting) {
+			const series = await getMeetingSeriesById(meeting.seriesId);
+			if (series?.ownerGroupId) {
+				revalidatePath(`/groups/ministry-areas/${series.ownerGroupId}/meetings/${meetingId}/attendance`);
+			}
+		}
+
 		return { success: true, message: "Minuta actualizada exitosamente." };
 	} catch (error: any) {
 		return {
@@ -98,25 +143,19 @@ async function handleUpdateMeetingInstanceAction(
 			location: data.location,
 			description: data.description,
 		};
-		const updatedInstance = await updateMeeting(
-			instanceId,
-			instanceDataToUpdate,
-		);
+		const updatedInstance = await updateMeeting(instanceId, instanceDataToUpdate);
 		if (!updatedInstance) {
 			return {
 				success: false,
 				message: `Error: Instancia con ID ${instanceId} no encontrada.`,
 			};
 		}
-		revalidatePath(`/events/${instanceId}/attendance`);
 
+		// Revalidate Area context
 		const series = await getMeetingSeriesById(updatedInstance.seriesId);
-		if (series?.seriesType === "gdi" && series.ownerGroupId) {
-			revalidatePath(`/groups/gdis/${series.ownerGroupId}/admin`);
-		} else if (series?.seriesType === "ministryArea" && series.ownerGroupId) {
+		if (series?.ownerGroupId) {
+			revalidatePath(`/groups/ministry-areas/${series.ownerGroupId}/meetings/${instanceId}/attendance`);
 			revalidatePath(`/groups/ministry-areas/${series.ownerGroupId}/admin`);
-		} else {
-			revalidatePath(`/events`);
 		}
 
 		return {
@@ -145,16 +184,15 @@ async function handleDeleteMeetingInstanceAction(
 				message: `Error: Instancia con ID ${instanceId} no encontrada.`,
 			};
 		}
-		await deleteMeetingInstance(instanceId);
-		revalidatePath(`/events/${instanceId}/attendance`);
+
 		const series = await getMeetingSeriesById(instance.seriesId);
-		if (series?.seriesType === "gdi" && series.ownerGroupId) {
-			revalidatePath(`/groups/gdis/${series.ownerGroupId}/admin`);
-		} else if (series?.seriesType === "ministryArea" && series.ownerGroupId) {
+		await deleteMeetingInstance(instanceId);
+
+		// Revalidate Area context
+		if (series?.ownerGroupId) {
 			revalidatePath(`/groups/ministry-areas/${series.ownerGroupId}/admin`);
-		} else {
-			revalidatePath(`/events`);
 		}
+
 		return {
 			success: true,
 			message: "Instancia de reunión eliminada exitosamente.",
@@ -172,35 +210,21 @@ async function handleDeleteMeetingInstanceAction(
 // PAGE COMPONENT
 // ==============================================
 
-export default async function MeetingAttendancePage({
+export default async function AreaMeetingAttendancePage({
 	params,
-}: MeetingAttendancePageProps) {
-	const { meetingId } = await params;
+}: AreaMeetingAttendancePageProps) {
+	const { areaId, meetingId } = await params;
 	const {
 		meetingInstance,
 		meetingSeries,
+		area,
 		currentAttendance,
 		attendees,
-	} = await getPageData(meetingId);
+	} = await getPageData(areaId, meetingId);
 
-	const seriesName = meetingSeries ? meetingSeries.name : "Serie Desconocida";
-
-	// Determine back link based on meeting context
-	let backLink = "/events";
-	let backLinkText = "Volver a Eventos";
-
-	if (meetingSeries) {
-		if (meetingSeries.seriesType === "gdi" && meetingSeries.ownerGroupId) {
-			backLink = `/groups/gdis/${meetingSeries.ownerGroupId}/admin`;
-			backLinkText = `Volver a Admin GDI: ${seriesName}`;
-		} else if (
-			meetingSeries.seriesType === "ministryArea" &&
-			meetingSeries.ownerGroupId
-		) {
-			backLink = `/groups/ministry-areas/${meetingSeries.ownerGroupId}/admin`;
-			backLinkText = `Volver a Admin Área: ${seriesName}`;
-		}
-	}
+	const backLink = `/groups/ministry-areas/${areaId}/admin`;
+	const backLinkText = `Volver a ${area.name}`;
+	const redirectOnDeletePath = backLink;
 
 	return (
 		<MeetingAttendancePageContent
@@ -214,7 +238,7 @@ export default async function MeetingAttendancePage({
 			updateMinuteAction={handleUpdateMinuteAction}
 			updateInstanceAction={handleUpdateMeetingInstanceAction}
 			deleteInstanceAction={handleDeleteMeetingInstanceAction}
-			redirectOnDeletePath={backLink}
+			redirectOnDeletePath={redirectOnDeletePath}
 		/>
 	);
 }

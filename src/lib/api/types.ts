@@ -16,7 +16,8 @@
  */
 export type ApiRecordStatus = 'vigente' | 'eliminado';
 export type ApiMeetingType = 'general' | 'gdi' | 'ministryArea';
-export type ApiRoleType = 'Leader' | 'Worker' | 'GeneralAttendee';
+// Role types - updated to match frontend MemberRoleType
+export type ApiRoleType = 'GdiGuide' | 'GdiMentor' | 'AreaLeader' | 'AreaMentor' | 'Worker';
 
 // MeetingSeries API enums (matching backend PascalCase values)
 export type ApiMeetingFrequency = 'OneTime' | 'Weekly' | 'Monthly';
@@ -25,7 +26,14 @@ export type ApiMonthlyRuleType = 'DayOfMonth' | 'DayOfWeekOfMonth';
 export type ApiWeekOrdinal = 'First' | 'Second' | 'Third' | 'Fourth' | 'Last';
 
 // Audience type for meeting series (matching backend AudienceType enum)
-export type ApiAudienceType = 'gdi' | 'area' | 'by_categories' | 'all_active';
+export type ApiAudienceType = 'gdi' | 'area' | 'all_active' | 'integrated' | 'workers' | 'leaders' | 'mentors' | 'by_categories';
+
+// Audience configuration for category-based filtering
+export interface ApiAudienceConfig {
+  roleTypeIds?: number[];
+  labels?: string[];
+  combineMode?: 'OR' | 'AND';
+}
 
 // ==============================================
 // API RESPONSE TYPES (from backend DTOs)
@@ -53,6 +61,14 @@ export interface ApiAssignedArea {
 export type ApiMemberRoleType = 'GdiGuide' | 'GdiMentor' | 'AreaLeader' | 'AreaMentor' | 'Worker';
 
 /**
+ * Ecclesiastical label assigned to a member (from role_types table)
+ */
+export interface ApiEcclesiasticalRole {
+  roleTypeId: number;
+  name: string;
+}
+
+/**
  * MemberResponseDto from backend
  */
 export interface ApiMemberResponse {
@@ -74,6 +90,7 @@ export interface ApiMemberResponse {
   assignedGdi?: ApiAssignedGdi;
   assignedAreas: ApiAssignedArea[];
   roles: ApiMemberRoleType[];
+  ecclesiasticalRoles: ApiEcclesiasticalRole[];
 }
 
 /**
@@ -254,6 +271,17 @@ export interface ApiCreateTitheRequest {
   month: number;
 }
 
+export interface ApiBatchTitheItem {
+  memberId: number;
+  year: number;
+  month: number;
+  didTithe: boolean;
+}
+
+export interface ApiBatchUpsertTithesRequest {
+  items: ApiBatchTitheItem[];
+}
+
 export interface ApiCreateRoleRequest {
   memberId: number;
   roleGeneral: ApiRoleType;
@@ -275,6 +303,7 @@ export interface ApiCreateMeetingSeriesRequest {
   gdiId?: number;
   areaId?: number;
   meetingTypeId?: number;
+  audienceConfig?: ApiAudienceConfig;
   endDate?: string;
   defaultTime?: string;
   defaultLocation?: string;
@@ -293,6 +322,8 @@ export interface ApiUpdateMeetingSeriesRequest {
   defaultTime?: string;
   defaultLocation?: string;
   endDate?: string;
+  audienceType?: ApiAudienceType;
+  audienceConfig?: ApiAudienceConfig;
 }
 
 export interface ApiMeetingSeriesResponse {
@@ -303,6 +334,7 @@ export interface ApiMeetingSeriesResponse {
   gdiId?: number;
   areaId?: number;
   meetingTypeId?: number;
+  audienceConfig?: ApiAudienceConfig;
   frequency: ApiMeetingFrequency;
   startDate: string;
   endDate?: string;
@@ -331,6 +363,33 @@ export interface ApiMeetingsFilters {
   seriesId?: number;
   startDate?: string;
   endDate?: string;
+}
+
+// ==============================================
+// ROLE TYPES (Ecclesiastical Labels) API TYPES
+// ==============================================
+
+/**
+ * RoleType response from backend - represents ecclesiastical labels like Pastor, Diácono, etc.
+ */
+export interface ApiRoleTypeResponse {
+  roleTypeId: number;
+  name: string;
+  createdAt?: string;
+}
+
+/**
+ * Create RoleType request
+ */
+export interface ApiCreateRoleTypeRequest {
+  name: string;
+}
+
+/**
+ * Update RoleType request
+ */
+export interface ApiUpdateRoleTypeRequest {
+  name: string;
 }
 
 // ==============================================

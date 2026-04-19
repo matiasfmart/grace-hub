@@ -47,9 +47,8 @@ interface ManageSingleMinistryAreaViewProps {
 }
 
 const statusDisplayMap: Record<Member["status"], string> = {
-	Active: "Activo",
-	Inactive: "Inactivo",
-	New: "Nuevo",
+	vigente: "Vigente",
+	eliminado: "Eliminado",
 };
 
 export default function ManageSingleMinistryAreaView({

@@ -1,15 +1,27 @@
 "use client";
 
-import { endOfDay, startOfYear } from "date-fns";
+import { differenceInYears, endOfDay, parseISO, startOfYear } from "date-fns";
 import {
 	BookOpenCheck,
+	Building2,
+	CalendarDays,
+	Check,
+	Church,
 	Filter as FilterIcon,
-	ListChecks,
+	GraduationCap,
+	HandCoins,
 	Loader2,
+	Mail,
+	MapPin,
 	Pencil,
+	Phone,
 	Printer,
-	ShieldCheck,
+	Tag,
 	Trash2,
+	TrendingUp,
+	User,
+	Users,
+	X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
@@ -35,7 +47,21 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 import {
 	Select,
 	SelectContent,
@@ -43,11 +69,19 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import type {
 	AddMemberFormValues,
 	AttendanceRecord,
+	EcclesiasticalRole,
 	GDI,
 	Meeting,
 	MeetingSeries,
@@ -56,7 +90,9 @@ import type {
 	MinistryArea,
 	TitheRecord,
 } from "@/lib/types";
+import type { RoleType } from "@/lib/api/mappers";
 import { toApiDateString } from "@/lib/utils/date";
+import { membersService } from "@/lib/api/services";
 import AddMemberForm from "./add-member-form";
 import MemberAttendanceSummary from "./member-attendance-chart";
 import MemberAttendanceLineChart from "./member-attendance-line-chart";
@@ -71,6 +107,7 @@ interface MemberDetailsDialogProps {
 	allMeetingSeries: MeetingSeries[];
 	allAttendanceRecords: AttendanceRecord[];
 	allTitheRecords: TitheRecord[];
+	allRoleTypes: RoleType[];
 	isOpen: boolean;
 	onClose: () => void;
 	onMemberUpdated: (updatedMember: Member) => void;
@@ -83,9 +120,20 @@ interface MemberDetailsDialogProps {
 }
 
 const roleDisplayNames: Record<MemberRoleType, string> = {
-	Leader: "Líder",
+	GdiGuide: "Guía GDI",
+	GdiMentor: "Mentor GDI",
+	AreaLeader: "Líder Área",
+	AreaMentor: "Mentor Área",
 	Worker: "Obrero",
-	GeneralAttendee: "Asistente General",
+};
+
+// Role badge colors - unified palette based on primary color
+const roleBadgeColors: Record<MemberRoleType, string> = {
+	GdiGuide: "bg-primary/15 text-primary border-primary/30",
+	GdiMentor: "bg-primary/10 text-primary/80 border-primary/20",
+	AreaLeader: "bg-primary/15 text-primary border-primary/30",
+	AreaMentor: "bg-primary/10 text-primary/80 border-primary/20",
+	Worker: "bg-primary/5 text-primary/70 border-primary/15",
 };
 
 export default function MemberDetailsDialog({
@@ -97,6 +145,7 @@ export default function MemberDetailsDialog({
 	allMeetingSeries,
 	allAttendanceRecords,
 	allTitheRecords,
+	allRoleTypes,
 	isOpen,
 	onClose,
 	onMemberUpdated,
@@ -106,7 +155,18 @@ export default function MemberDetailsDialog({
 	const [isEditing, setIsEditing] = useState(false);
 	const [isPending, startTransition] = useTransition();
 	const { toast } = useToast();
-	const [activeTab, setActiveTab] = useState("details");
+	const [activeTab, setActiveTab] = useState("profile");
+
+	// Local state for ecclesiastical roles (optimistic updates)
+	const [localEcclesiasticalRoles, setLocalEcclesiasticalRoles] = useState<EcclesiasticalRole[]>(
+		member?.ecclesiasticalRoles || [],
+	);
+	const [isRolePopoverOpen, setIsRolePopoverOpen] = useState(false);
+
+	// Sync localEcclesiasticalRoles when member prop changes
+	useEffect(() => {
+		setLocalEcclesiasticalRoles(member?.ecclesiasticalRoles || []);
+	}, [member?.id, member?.ecclesiasticalRoles]);
 
 	const [attendanceSelectedSeriesId, setAttendanceSelectedSeriesId] =
 		useState<string>("all");
@@ -179,6 +239,42 @@ export default function MemberDetailsDialog({
 
 	const baptismDate = member?.baptismDate ? formatDate(member.baptismDate) : "N/A";
 
+	// Calculate KPIs for the member
+	const memberKPIs = useMemo(() => {
+		if (!member) return { attendanceRate: 0, titheMonths: 0, churchYears: 0, totalMeetingsExpected: 0 };
+
+		// Calculate attendance rate
+		const memberExpectedMeetings = allMeetings.filter((meeting) => 
+			meeting.attendeeUids?.includes(member.id)
+		);
+		const memberAttendanceRecords = allAttendanceRecords.filter(
+			(record) => record.memberId === member.id && record.attended
+		);
+		const attendanceRate = memberExpectedMeetings.length > 0
+			? Math.round((memberAttendanceRecords.length / memberExpectedMeetings.length) * 100)
+			: 0;
+
+		// Calculate tithe months (this year)
+		const currentYear = new Date().getFullYear();
+		const titheMonths = allTitheRecords.filter(
+			(record) => record.memberId === member.id && record.year === currentYear
+		).length;
+
+		// Calculate years in church
+		let churchYears = 0;
+		if (member.churchJoinDate) {
+			const joinDate = parseISO(member.churchJoinDate);
+			churchYears = differenceInYears(new Date(), joinDate);
+		}
+
+		return {
+			attendanceRate,
+			titheMonths,
+			churchYears,
+			totalMeetingsExpected: memberExpectedMeetings.length,
+		};
+	}, [member, allMeetings, allAttendanceRecords, allTitheRecords]);
+
 	const displayStatus = (status: Member["status"]) => {
 		switch (status) {
 			case "vigente":
@@ -224,10 +320,59 @@ export default function MemberDetailsDialog({
 		return map;
 	}, [allMeetings]);
 
+	const handleToggleEcclesiasticalRole = async (roleType: RoleType) => {
+		if (!member) return;
+
+		const roleTypeId = Number(roleType.id);
+		const isCurrentlyAssigned = localEcclesiasticalRoles.some(
+			(r) => r.roleTypeId === roleTypeId,
+		);
+
+		// Optimistic update
+		if (isCurrentlyAssigned) {
+			setLocalEcclesiasticalRoles((prev) =>
+				prev.filter((r) => r.roleTypeId !== roleTypeId),
+			);
+		} else {
+			setLocalEcclesiasticalRoles((prev) => [
+				...prev,
+				{ roleTypeId, name: roleType.name },
+			]);
+		}
+
+		try {
+			if (isCurrentlyAssigned) {
+				await membersService.removeRoleType(member.id, roleTypeId);
+			} else {
+				await membersService.assignRoleType(member.id, roleTypeId);
+			}
+			// Propagate change to parent so the member list reflects it
+			onMemberUpdated({
+				...member,
+				ecclesiasticalRoles: isCurrentlyAssigned
+					? (member.ecclesiasticalRoles || []).filter(
+							(r) => r.roleTypeId !== roleTypeId,
+						)
+					: [
+							...(member.ecclesiasticalRoles || []),
+							{ roleTypeId, name: roleType.name },
+						],
+			});
+		} catch {
+			// Revert on error
+			setLocalEcclesiasticalRoles(member.ecclesiasticalRoles || []);
+			toast({
+				title: "Error",
+				description: `No se pudo ${isCurrentlyAssigned ? "quitar" : "asignar"} la etiqueta "${roleType.name}".`,
+				variant: "destructive",
+			});
+		}
+	};
+
 	const handleEditToggle = () => {
 		setIsEditing(!isEditing);
 		if (!isEditing) {
-			setActiveTab("details");
+			setActiveTab("profile");
 		}
 	};
 
@@ -264,7 +409,7 @@ export default function MemberDetailsDialog({
 				});
 				onMemberUpdated(result.updatedMember);
 				setIsEditing(false);
-				setActiveTab("details");
+				setActiveTab("profile");
 				onClose();
 			} else {
 				toast({
@@ -302,7 +447,7 @@ export default function MemberDetailsDialog({
 
 	const handleCloseDialog = () => {
 		setIsEditing(false);
-		setActiveTab("details");
+		setActiveTab("profile");
 		onClose();
 	};
 
@@ -342,50 +487,68 @@ export default function MemberDetailsDialog({
 				ref={dialogContentRef}
 				className="sm:max-w-2xl md:max-w-3xl lg:max-w-4xl max-h-[90vh] flex flex-col p-0"
 			>
-				<DialogHeader className="p-6 border-b no-print">
-					<div className="flex items-center space-x-4">
-						<Avatar className="h-16 w-16 sm:h-20 sm:w-20">
-							<AvatarFallback>
-								{member.firstName.substring(0, 1)}
-								{member.lastName.substring(0, 1)}
-							</AvatarFallback>
-						</Avatar>
-						<div>
-							<DialogTitle className="text-xl sm:text-2xl">
-								{member.firstName} {member.lastName}
-							</DialogTitle>
-							<div className="mt-1 flex flex-wrap gap-1 items-center">
-								<Badge
-									variant={
-										member.status === "vigente"
-											? "default"
-											: "secondary"
-									}
-									className={
-										member.status === "vigente"
-											? "bg-green-500/20 text-green-700 border-green-500/50"
-											: "bg-red-500/20 text-red-700 border-red-500/50"
-									}
-								>
-									{displayStatus(member.status)}
-								</Badge>
-								{member.roles &&
-									member.roles.length > 0 &&
-									member.roles.map((role) => (
+				{/* HEADER COMPACTO - 64px */}
+				<DialogHeader className="px-4 py-3 border-b no-print">
+					<div className="flex items-center justify-between">
+						<div className="flex items-center gap-3">
+							<Avatar className="h-12 w-12 border-2 border-primary/20">
+								<AvatarFallback className="bg-primary/10 text-primary font-semibold">
+									{member.firstName.substring(0, 1)}
+									{member.lastName.substring(0, 1)}
+								</AvatarFallback>
+							</Avatar>
+							<div className="min-w-0">
+								<DialogTitle className="text-lg font-semibold truncate">
+									{member.firstName} {member.lastName}
+								</DialogTitle>
+								<div className="flex flex-wrap gap-1.5 items-center mt-0.5">
+									<Badge
+										variant="outline"
+										className={
+											member.status === "vigente"
+												? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs h-5"
+												: "bg-red-50 text-red-700 border-red-200 text-xs h-5"
+										}
+									>
+										{displayStatus(member.status)}
+									</Badge>
+									{member.roles && member.roles.slice(0, 2).map((role) => (
 										<Badge
 											key={role}
 											variant="outline"
-											className="text-xs border-primary/50 text-primary/90"
+											className={`text-xs h-5 ${roleBadgeColors[role] || "bg-gray-100 text-gray-700"}`}
 										>
-											<ShieldCheck className="mr-1 h-3 w-3" />
 											{roleDisplayNames[role] || role}
 										</Badge>
 									))}
+									{member.roles && member.roles.length > 2 && (
+										<Badge variant="outline" className="text-xs h-5">
+											+{member.roles.length - 2}
+										</Badge>
+									)}
+								</div>
 							</div>
 						</div>
+						{!isEditing && (
+							<TooltipProvider>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											onClick={handleEditToggle}
+											variant="outline"
+											size="icon"
+											className="h-8 w-8"
+										>
+											<Pencil className="h-4 w-4" />
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent>Editar miembro</TooltipContent>
+								</Tooltip>
+							</TooltipProvider>
+						)}
 					</div>
 					{isEditing && (
-						<DialogDescription className="pt-2">
+						<DialogDescription className="text-sm mt-2">
 							Modifique los campos necesarios y guarde los cambios.
 						</DialogDescription>
 					)}
@@ -406,259 +569,353 @@ export default function MemberDetailsDialog({
 						/>
 					</div>
 				) : (
-					<div className="flex-grow flex flex-col min-h-0 overflow-y-auto">
-						<Tabs
-							value={activeTab}
-							onValueChange={setActiveTab}
-							className="flex flex-col"
-						>
-							<TabsList className="mx-6 mt-4 flex-shrink-0 no-print">
-								<TabsTrigger
-									value="details"
-									className="flex items-center gap-2"
-								>
-									<ListChecks className="h-4 w-4" /> Detalles Personales
-								</TabsTrigger>
-								<TabsTrigger
-									value="history"
-									className="flex items-center gap-2"
-								>
-									<BookOpenCheck className="h-4 w-4" /> Historial de Asistencia
-								</TabsTrigger>
-							</TabsList>
-							<TabsContent value="details" className="p-6">
-								<div className="space-y-3 text-sm">
-									<div className="grid grid-cols-3 gap-2">
-										<span className="font-semibold text-muted-foreground">
-											Email:
-										</span>
-										<span className="col-span-2 break-all">{member.email}</span>
-									</div>
-									<div className="grid grid-cols-3 gap-2">
-										<span className="font-semibold text-muted-foreground">
-											Teléfono:
-										</span>
-										<span className="col-span-2">{member.phone}</span>
-									</div>
-									<div className="grid grid-cols-3 gap-2">
-										<span className="font-semibold text-muted-foreground">
-											Dirección:
-										</span>
-										<span className="col-span-2">{member.address || "No especificada"}</span>
-									</div>
-									<div className="grid grid-cols-3 gap-2">
-										<span className="font-semibold text-muted-foreground">
-											Fecha de Nacimiento:
-										</span>
-										<span className="col-span-2">
-											{formatDate(member.birthDate)}
-										</span>
-									</div>
-									<div className="grid grid-cols-3 gap-2">
-										<span className="font-semibold text-muted-foreground">
-											Ingreso a la Iglesia:
-										</span>
-										<span className="col-span-2">
-											{formatDate(member.churchJoinDate)}
-										</span>
-									</div>
-									<div className="grid grid-cols-3 gap-2">
-										<span className="font-semibold text-muted-foreground">
-											Bautismo:
-										</span>
-										<span className="col-span-2">{baptismDate}</span>
-									</div>
-									<div className="grid grid-cols-3 gap-2">
-										<span className="font-semibold text-muted-foreground">
-											Escuela de Vida:
-										</span>
-										<span className="col-span-2">
-											{member.attendsLifeSchool ? "Sí" : "No"}
-										</span>
-									</div>
-									<div className="grid grid-cols-3 gap-2">
-										<span className="font-semibold text-muted-foreground">
-											Instituto Bíblico (IBE):
-										</span>
-										<span className="col-span-2">
-											{member.attendsBibleInstitute ? "Sí" : "No"}
-										</span>
-									</div>
-									<div className="grid grid-cols-3 gap-2">
-										<span className="font-semibold text-muted-foreground">
-											Vino de otra Iglesia:
-										</span>
-										<span className="col-span-2">
-											{member.fromAnotherChurch ? "Sí" : "No"}
-										</span>
-									</div>
-									<div className="grid grid-cols-3 gap-2">
-										<span className="font-semibold text-muted-foreground">
-											GDI:
-										</span>
-										<span className="col-span-2">
-											{memberGDIInfo.gdiName}
-											{member.assignedGDIId &&
-												` (Guía: ${memberGDIInfo.guideName})`}
-										</span>
-									</div>
-									<div className="grid grid-cols-3 gap-2">
-										<span className="font-semibold text-muted-foreground">
-											Áreas de Ministerio:
-										</span>
-										<span className="col-span-2">
-											{memberAreaNames.join(", ")}
-										</span>
-									</div>
-								</div>
-							</TabsContent>
-							<TabsContent
-								value="history"
-								className="p-6 space-y-6"
-								id="attendance-print-section-wrapper"
-							>
-								<div id="attendance-print-section">
-									<div className="bg-muted/50 p-4 rounded-lg shadow-sm no-print">
-										<div className="flex flex-col sm:flex-row justify-between items-center mb-3">
-											<h3 className="text-md font-semibold text-primary flex items-center">
-												<FilterIcon className="mr-2 h-4 w-4" /> Filtrar
-												Historial
-											</h3>
-											<Button
-												onClick={handlePrintAttendance}
-												variant="outline"
-												size="sm"
-											>
-												<Printer className="mr-2 h-4 w-4" /> Imprimir Historial
-											</Button>
-										</div>
-										<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-											<div>
-												<Label
-													htmlFor="attendanceSeriesFilter"
-													className="text-xs font-medium"
-												>
-													Serie de Reunión:
-												</Label>
-												<Select
-													value={attendanceSelectedSeriesId}
-													onValueChange={setAttendanceSelectedSeriesId}
-												>
-													<SelectTrigger
-														id="attendanceSeriesFilter"
-														className="mt-1 h-9"
-													>
-														<SelectValue placeholder="Seleccionar serie..." />
-													</SelectTrigger>
-													<SelectContent>
-														<SelectItem value="all">
-															Todas las Series Relevantes
-														</SelectItem>
-														{relevantSeriesForAttendanceDropdown.map(
-															(series) => (
-																<SelectItem key={series.id} value={series.id}>
-																	{series.name}
-																</SelectItem>
-															),
-														)}
-														{relevantSeriesForAttendanceDropdown.length ===
-															0 && (
-															<SelectItem value="no-relevant-series" disabled>
-																No hay series relevantes
-															</SelectItem>
-														)}
-													</SelectContent>
-												</Select>
+					<>
+						{/* STATS BAR FIJA - Siempre visible */}
+						<div className="px-4 py-3 bg-muted/30 border-b no-print">
+							<div className="grid grid-cols-4 gap-2">
+								<TooltipProvider>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<div className="flex flex-col items-center p-2 rounded-lg bg-background/60 hover:bg-background transition-colors cursor-default">
+												<TrendingUp className="h-4 w-4 text-primary mb-0.5" />
+												<span className="text-lg font-bold text-primary">{memberKPIs.attendanceRate}%</span>
+												<span className="text-[10px] text-muted-foreground leading-tight">Asistencia</span>
 											</div>
-											<div>
-												<Label
-													htmlFor="attendanceStartDateFilter"
-													className="text-xs font-medium"
-												>
-													Fecha de Inicio:
-												</Label>
-												<DatePicker
-													date={attendanceStartDate}
-													setDate={setAttendanceStartDate}
-													placeholder="Desde"
-												/>
+										</TooltipTrigger>
+										<TooltipContent>Porcentaje global de asistencia a reuniones convocadas</TooltipContent>
+									</Tooltip>
+								</TooltipProvider>
+								<TooltipProvider>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<div className="flex flex-col items-center p-2 rounded-lg bg-background/60 hover:bg-background transition-colors cursor-default">
+												<HandCoins className="h-4 w-4 text-primary mb-0.5" />
+												<span className="text-lg font-bold text-primary">{memberKPIs.titheMonths}<span className="text-xs font-normal text-muted-foreground">/12</span></span>
+												<span className="text-[10px] text-muted-foreground leading-tight">Diezmos</span>
 											</div>
-											<div>
-												<Label
-													htmlFor="attendanceEndDateFilter"
-													className="text-xs font-medium"
-												>
-													Fecha de Fin:
-												</Label>
-												<DatePicker
-													date={attendanceEndDate}
-													setDate={setAttendanceEndDate}
-													placeholder="Hasta"
-												/>
+										</TooltipTrigger>
+										<TooltipContent>Meses diezmando este año</TooltipContent>
+									</Tooltip>
+								</TooltipProvider>
+								<TooltipProvider>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<div className="flex flex-col items-center p-2 rounded-lg bg-background/60 hover:bg-background transition-colors cursor-default">
+												<Church className="h-4 w-4 text-primary mb-0.5" />
+												<span className="text-lg font-bold text-primary">{memberKPIs.churchYears}</span>
+												<span className="text-[10px] text-muted-foreground leading-tight">Años</span>
 											</div>
-										</div>
-										{(attendanceStartDate || attendanceEndDate) && (
-											<Button
-												onClick={() => {
-													const now = new Date();
-													setAttendanceStartDate(startOfYear(now));
-													setAttendanceEndDate(endOfDay(now));
-												}}
-												variant="link"
-												size="sm"
-												className="px-0 text-xs h-auto mt-2 text-primary hover:text-primary/80"
-											>
-												<FilterIcon className="mr-1 h-3 w-3" /> Limpiar filtro
-												de fechas
-											</Button>
-										)}
-									</div>
+										</TooltipTrigger>
+										<TooltipContent>Años como miembro de la iglesia</TooltipContent>
+									</Tooltip>
+								</TooltipProvider>
+								<TooltipProvider>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<div className="flex flex-col items-center p-2 rounded-lg bg-background/60 hover:bg-background transition-colors cursor-default">
+												<CalendarDays className="h-4 w-4 text-primary mb-0.5" />
+												<span className="text-lg font-bold text-primary">{memberKPIs.totalMeetingsExpected}</span>
+												<span className="text-[10px] text-muted-foreground leading-tight">Convocado</span>
+											</div>
+										</TooltipTrigger>
+										<TooltipContent>Total de reuniones a las que fue convocado</TooltipContent>
+									</Tooltip>
+								</TooltipProvider>
+							</div>
+						</div>
 
-									<MemberAttendanceLineChart
-										memberId={member.id}
-										memberName={`${member.firstName} ${member.lastName}`}
-										allMeetings={allMeetings}
-										allMeetingSeries={allMeetingSeries}
-										allAttendanceRecords={allAttendanceRecords}
-										selectedSeriesId={attendanceSelectedSeriesId}
-										startDate={attendanceStartDate}
-										endDate={attendanceEndDate}
-									/>
-									<MemberAttendanceSummary
-										memberId={member.id}
-										memberName={`${member.firstName} ${member.lastName}`}
-										allMeetings={allMeetings}
-										allMeetingSeries={allMeetingSeries}
-										allAttendanceRecords={allAttendanceRecords}
-										selectedSeriesId={attendanceSelectedSeriesId}
-										startDate={attendanceStartDate}
-										endDate={attendanceEndDate}
-									/>
+						{/* TABS - 3 secciones claras */}
+						<div className="flex-grow flex flex-col min-h-0 overflow-y-auto">
+							<Tabs
+								value={activeTab}
+								onValueChange={setActiveTab}
+								className="flex flex-col h-full"
+							>
+								<TabsList className="mx-4 mt-3 grid grid-cols-3 flex-shrink-0 no-print">
+									<TabsTrigger value="profile" className="text-xs sm:text-sm gap-1.5">
+										<User className="h-3.5 w-3.5" />
+										<span className="hidden sm:inline">Perfil</span>
+									</TabsTrigger>
+									<TabsTrigger value="attendance" className="text-xs sm:text-sm gap-1.5">
+										<BookOpenCheck className="h-3.5 w-3.5" />
+										<span className="hidden sm:inline">Asistencia</span>
+									</TabsTrigger>
+									<TabsTrigger value="tithes" className="text-xs sm:text-sm gap-1.5">
+										<HandCoins className="h-3.5 w-3.5" />
+										<span className="hidden sm:inline">Diezmos</span>
+									</TabsTrigger>
+								</TabsList>
+
+								{/* TAB: PERFIL */}
+								<TabsContent value="profile" className="flex-1 overflow-y-auto p-4 space-y-4">
+									{/* Contacto Card */}
+									<Card className="shadow-none border">
+										<CardContent className="p-4">
+											<div className="flex items-center gap-2 mb-3">
+												<Mail className="h-4 w-4 text-primary" />
+												<span className="text-sm font-medium">Contacto</span>
+											</div>
+											<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+												<div className="flex items-center gap-2 text-muted-foreground">
+													<Mail className="h-3.5 w-3.5 shrink-0" />
+													<span className="truncate text-foreground">{member.email}</span>
+												</div>
+												<div className="flex items-center gap-2 text-muted-foreground">
+													<Phone className="h-3.5 w-3.5 shrink-0" />
+													<span className="text-foreground">{member.phone}</span>
+												</div>
+												<div className="flex items-center gap-2 text-muted-foreground sm:col-span-2">
+													<MapPin className="h-3.5 w-3.5 shrink-0" />
+													<span className="text-foreground">{member.address || "Sin dirección"}</span>
+												</div>
+											</div>
+										</CardContent>
+									</Card>
+
+									{/* Participación Card */}
+									<Card className="shadow-none border">
+										<CardContent className="p-4">
+											<div className="flex items-center gap-2 mb-3">
+												<Users className="h-4 w-4 text-primary" />
+												<span className="text-sm font-medium">Participación Eclesial</span>
+											</div>
+											<div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+												<div className="space-y-1">
+													<span className="text-xs text-muted-foreground uppercase tracking-wide">GDI</span>
+													<p className="font-medium">{memberGDIInfo.gdiName}</p>
+													{member.assignedGDIId && (
+														<p className="text-xs text-muted-foreground">Guía: {memberGDIInfo.guideName}</p>
+													)}
+												</div>
+												<div className="space-y-1">
+													<span className="text-xs text-muted-foreground uppercase tracking-wide">Áreas de Ministerio</span>
+													<p className="font-medium">{memberAreaNames.length > 0 ? memberAreaNames.join(", ") : "Ninguna"}</p>
+												</div>
+											</div>
+
+											{/* Etiquetas Eclesiásticas */}
+											{allRoleTypes.length > 0 && (
+												<>
+													<Separator className="my-3" />
+													<div className="space-y-2">
+														<div className="flex items-center justify-between">
+															<span className="text-xs text-muted-foreground uppercase tracking-wide">Etiquetas Eclesiásticas</span>
+															<Popover open={isRolePopoverOpen} onOpenChange={setIsRolePopoverOpen}>
+																<PopoverTrigger asChild>
+																	<Button variant="outline" size="sm" className="h-6 px-2 text-xs gap-1">
+																		<Tag className="h-3 w-3" />
+																		Asignar
+																	</Button>
+																</PopoverTrigger>
+																<PopoverContent className="w-60 p-0" align="end">
+																	<Command>
+																		<CommandInput placeholder="Buscar etiqueta..." className="h-8 text-sm" />
+																		<CommandList>
+																			<CommandEmpty>Sin resultados.</CommandEmpty>
+																			<CommandGroup>
+																				{allRoleTypes.map((rt) => {
+																					const assigned = localEcclesiasticalRoles.some(
+																						(r) => r.roleTypeId === Number(rt.id),
+																					);
+																					return (
+																						<CommandItem
+																							key={rt.id}
+																							value={rt.name}
+																							onSelect={() => handleToggleEcclesiasticalRole(rt)}
+																							className="flex items-center gap-2 text-sm"
+																						>
+																							<div className={`h-4 w-4 flex-shrink-0 border rounded flex items-center justify-center ${assigned ? "bg-primary border-primary" : "border-border"}`}>
+																								{assigned && <Check className="h-3 w-3 text-primary-foreground" />}
+																							</div>
+																							{rt.name}
+																						</CommandItem>
+																					);
+																				})}
+																			</CommandGroup>
+																		</CommandList>
+																	</Command>
+																</PopoverContent>
+															</Popover>
+														</div>
+														<div className="flex flex-wrap gap-1.5 min-h-[24px]">
+															{localEcclesiasticalRoles.length === 0 ? (
+																<span className="text-xs text-muted-foreground italic">Ninguna asignada</span>
+															) : (
+																localEcclesiasticalRoles.map((er) => (
+																	<Badge
+																		key={er.roleTypeId}
+																		variant="outline"
+																		className="text-xs h-6 pl-2 pr-1 bg-primary/5 text-primary border-primary/20 gap-1"
+																	>
+																		{er.name}
+																		<button
+																			type="button"
+																			onClick={() => handleToggleEcclesiasticalRole(
+																				allRoleTypes.find((rt) => Number(rt.id) === er.roleTypeId) ?? { id: String(er.roleTypeId), name: er.name }
+																			)}
+																			className="rounded-full hover:bg-primary/20 p-0.5"
+																			aria-label={`Quitar ${er.name}`}
+																		>
+																			<X className="h-2.5 w-2.5" />
+																		</button>
+																	</Badge>
+																))
+															)}
+														</div>
+													</div>
+												</>
+											)}
+										</CardContent>
+									</Card>
+
+									{/* Formación y Fechas Card */}
+									<Card className="shadow-none border">
+										<CardContent className="p-4">
+											<div className="flex items-center gap-2 mb-3">
+												<GraduationCap className="h-4 w-4 text-primary" />
+												<span className="text-sm font-medium">Fechas y Formación</span>
+											</div>
+											<div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+												<div className="space-y-0.5">
+													<span className="text-xs text-muted-foreground">Nacimiento</span>
+													<p className="font-medium text-xs">{formatDate(member.birthDate)}</p>
+												</div>
+												<div className="space-y-0.5">
+													<span className="text-xs text-muted-foreground">Ingreso</span>
+													<p className="font-medium text-xs">{formatDate(member.churchJoinDate)}</p>
+												</div>
+												<div className="space-y-0.5">
+													<span className="text-xs text-muted-foreground">Bautismo</span>
+													<p className="font-medium text-xs">{baptismDate}</p>
+												</div>
+											</div>
+											<Separator className="my-3" />
+											<div className="flex flex-wrap gap-2">
+												<Badge variant={member.attendsLifeSchool ? "default" : "outline"} className={`text-xs ${member.attendsLifeSchool ? "bg-primary/10 text-primary border-primary/30" : "text-muted-foreground"}`}>
+													{member.attendsLifeSchool ? "✓" : "○"} Escuela de Vida
+												</Badge>
+												<Badge variant={member.attendsBibleInstitute ? "default" : "outline"} className={`text-xs ${member.attendsBibleInstitute ? "bg-primary/10 text-primary border-primary/30" : "text-muted-foreground"}`}>
+													{member.attendsBibleInstitute ? "✓" : "○"} IBE
+												</Badge>
+												<Badge variant={member.fromAnotherChurch ? "default" : "outline"} className={`text-xs ${member.fromAnotherChurch ? "bg-primary/10 text-primary border-primary/30" : "text-muted-foreground"}`}>
+													{member.fromAnotherChurch ? "✓" : "○"} Otra Iglesia
+												</Badge>
+											</div>
+										</CardContent>
+									</Card>
+								</TabsContent>
+
+								{/* TAB: ASISTENCIA */}
+								<TabsContent value="attendance" className="flex-1 overflow-y-auto p-4 space-y-4" id="attendance-print-section-wrapper">
+									<div id="attendance-print-section">
+										{/* Filtros */}
+										<Card className="shadow-none border no-print">
+											<CardContent className="p-4">
+												<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
+													<div className="flex items-center gap-2">
+														<FilterIcon className="h-4 w-4 text-primary" />
+														<span className="text-sm font-medium">Filtros</span>
+													</div>
+													<Button onClick={handlePrintAttendance} variant="outline" size="sm" className="h-8">
+														<Printer className="h-3.5 w-3.5 mr-1.5" />
+														Imprimir
+													</Button>
+												</div>
+												<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+													<div>
+														<Label className="text-xs text-muted-foreground">Serie</Label>
+														<Select value={attendanceSelectedSeriesId} onValueChange={setAttendanceSelectedSeriesId}>
+															<SelectTrigger className="h-9 mt-1">
+																<SelectValue placeholder="Seleccionar..." />
+															</SelectTrigger>
+															<SelectContent>
+																<SelectItem value="all">Todas las Series</SelectItem>
+																{relevantSeriesForAttendanceDropdown.map((series) => (
+																	<SelectItem key={series.id} value={series.id}>{series.name}</SelectItem>
+																))}
+															</SelectContent>
+														</Select>
+													</div>
+													<div>
+														<Label className="text-xs text-muted-foreground">Desde</Label>
+														<DatePicker date={attendanceStartDate} setDate={setAttendanceStartDate} placeholder="Inicio" />
+													</div>
+													<div>
+														<Label className="text-xs text-muted-foreground">Hasta</Label>
+														<DatePicker date={attendanceEndDate} setDate={setAttendanceEndDate} placeholder="Fin" />
+													</div>
+												</div>
+												{(attendanceStartDate || attendanceEndDate) && (
+													<Button
+														onClick={() => {
+															const now = new Date();
+															setAttendanceStartDate(startOfYear(now));
+															setAttendanceEndDate(endOfDay(now));
+														}}
+														variant="link"
+														size="sm"
+														className="px-0 text-xs h-auto mt-2"
+													>
+														Limpiar filtros
+													</Button>
+												)}
+											</CardContent>
+										</Card>
+
+										{/* Gráficos de Asistencia */}
+										<div className="space-y-4 mt-4">
+											<MemberAttendanceLineChart
+												memberId={member.id}
+												memberName={`${member.firstName} ${member.lastName}`}
+												allMeetings={allMeetings}
+												allMeetingSeries={allMeetingSeries}
+												allAttendanceRecords={allAttendanceRecords}
+												selectedSeriesId={attendanceSelectedSeriesId}
+												startDate={attendanceStartDate}
+												endDate={attendanceEndDate}
+											/>
+											<MemberAttendanceSummary
+												memberId={member.id}
+												memberName={`${member.firstName} ${member.lastName}`}
+												allMeetings={allMeetings}
+												allMeetingSeries={allMeetingSeries}
+												allAttendanceRecords={allAttendanceRecords}
+												selectedSeriesId={attendanceSelectedSeriesId}
+												startDate={attendanceStartDate}
+												endDate={attendanceEndDate}
+											/>
+										</div>
+									</div>
+								</TabsContent>
+
+								{/* TAB: DIEZMOS */}
+								<TabsContent value="tithes" className="flex-1 overflow-y-auto p-4">
 									<MemberTitheHistory
 										memberId={member.id}
 										allTitheRecords={allTitheRecords}
 										startDate={attendanceStartDate}
 										endDate={attendanceEndDate}
 									/>
-								</div>
-							</TabsContent>
-						</Tabs>
-					</div>
+								</TabsContent>
+							</Tabs>
+						</div>
+					</>
 				)}
 
 				{!isEditing && (
-					<DialogFooter className="p-6 border-t no-print sm:justify-between">
+					<DialogFooter className="px-4 py-3 border-t no-print flex-row justify-between">
 						<AlertDialog
 							open={isDeleteDialogOpen}
 							onOpenChange={setIsDeleteDialogOpen}
 						>
 							<AlertDialogTrigger asChild>
 								<Button
-									variant="outline"
-									className="w-full sm:w-auto text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground mr-auto mt-2 sm:mt-0"
+									variant="ghost"
+									size="sm"
+									className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
 								>
-									<Trash2 className="mr-2 h-4 w-4" />
-									Eliminar Miembro
+									<Trash2 className="h-4 w-4 mr-1.5" />
+									Eliminar
 								</Button>
 							</AlertDialogTrigger>
 							<AlertDialogContent>
@@ -689,19 +946,13 @@ export default function MemberDetailsDialog({
 								</AlertDialogFooter>
 							</AlertDialogContent>
 						</AlertDialog>
-						<div className="flex flex-col-reverse sm:flex-row sm:gap-2">
-							<Button
-								onClick={handleCloseDialog}
-								variant="outline"
-								className="mt-2 sm:mt-0"
-							>
-								Cerrar
-							</Button>
-							<Button onClick={handleEditToggle} variant="default">
-								<Pencil className="mr-2 h-4 w-4" />
-								Editar Miembro
-							</Button>
-						</div>
+						<Button
+							onClick={handleCloseDialog}
+							variant="outline"
+							size="sm"
+						>
+							Cerrar
+						</Button>
 					</DialogFooter>
 				)}
 			</DialogContent>

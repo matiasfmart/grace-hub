@@ -4,7 +4,11 @@ import { z } from "zod";
 // ENUMS AND BASE TYPES
 // ============================================
 
-export const MemberRoleEnum = z.enum(["Leader", "Worker", "GeneralAttendee"]);
+// Member roles aligned with backend
+// GdiGuide = Guía de GDI, GdiMentor = Mentor de GDI
+// AreaLeader = Líder de Área, AreaMentor = Mentor de Área
+// Worker = Obrero
+export const MemberRoleEnum = z.enum(["GdiGuide", "GdiMentor", "AreaLeader", "AreaMentor", "Worker"]);
 export type MemberRoleType = z.infer<typeof MemberRoleEnum>;
 
 export const MeetingTargetRoleEnum = z.enum([
@@ -44,13 +48,35 @@ export type MeetingFrequencyType = z.infer<typeof MeetingFrequencyEnum>;
 export const MeetingSeriesTypeEnum = z.enum(["general", "gdi", "ministryArea"]);
 export type MeetingSeriesType = z.infer<typeof MeetingSeriesTypeEnum>;
 
-// New audience type enum matching backend
-export const AudienceTypeEnum = z.enum(["gdi", "area", "by_categories", "all_active"]);
+// New audience type enum matching backend (see ADR-005)
+export const AudienceTypeEnum = z.enum([
+	"gdi",
+	"area",
+	"all_active",
+	"integrated",
+	"workers",
+	"leaders",
+	"mentors",
+	"by_categories",
+]);
 export type AudienceType = z.infer<typeof AudienceTypeEnum>;
+
+// Audience config for by_categories type
+export interface AudienceConfig {
+	roleTypeIds?: number[];
+	labels?: string[];
+	combineMode?: 'OR' | 'AND';
+}
 
 // ============================================
 // CLIENT TYPES (API/UI)
 // ============================================
+
+// Ecclesiastical label assigned to a member (from role_types table)
+export interface EcclesiasticalRole {
+	roleTypeId: number;
+	name: string;
+}
 
 // Note: Dates are kept as strings (YYYY-MM-DD format from API) because
 // Next.js cannot serialize Date objects when passing from Server to Client Components.
@@ -72,6 +98,7 @@ export interface Member {
 	status: "vigente" | "eliminado";
 	address?: string;
 	roles?: MemberRoleType[];
+	ecclesiasticalRoles?: EcclesiasticalRole[];
 }
 
 export interface GDI {
@@ -102,6 +129,7 @@ export interface MeetingSeries {
 	gdiId?: string | null;
 	areaId?: string | null;
 	meetingTypeId?: string | null;
+	audienceConfig?: AudienceConfig | null;
 	// Legacy fields - deprecated, use audienceType instead
 	seriesType?: MeetingSeriesType;
 	ownerGroupId?: string | null;
@@ -241,6 +269,13 @@ export const AddGdiFormSchema = z.object({
 });
 export type AddGdiFormValues = z.infer<typeof AddGdiFormSchema>;
 
+// Schema for audience config when using by_categories
+export const AudienceConfigSchema = z.object({
+	roleTypeIds: z.array(z.number()).optional(),
+	labels: z.array(z.string()).optional(),
+	combineMode: z.enum(['OR', 'AND']).optional(),
+});
+
 export const DefineMeetingSeriesFormSchema = z
 	.object({
 		name: z
@@ -257,11 +292,14 @@ export const DefineMeetingSeriesFormSchema = z
 		defaultLocation: z
 			.string()
 			.min(3, { message: "La ubicación por defecto es requerida." }),
+		// New field: direct audienceType selection
+		audienceType: AudienceTypeEnum.default("all_active"),
+		// Optional: for by_categories filtering
+		audienceConfig: AudienceConfigSchema.optional(),
+		// Legacy fields - kept for context/backwards compatibility
 		seriesType: MeetingSeriesTypeEnum.default("general"), // Contextually set
 		ownerGroupId: z.string().nullable().optional(), // Contextually set
-		targetAttendeeGroups: z
-			.array(MeetingTargetRoleEnum)
-			.min(1, { message: "Debe seleccionar al menos un grupo de asistentes." }),
+		targetAttendeeGroups: z.array(MeetingTargetRoleEnum).optional(), // Deprecated
 		frequency: MeetingFrequencyEnum,
 		oneTimeDate: z.date().optional(),
 		weeklyDays: z.array(DayOfWeekEnum).optional(),
@@ -329,16 +367,17 @@ export const DefineMeetingSeriesFormSchema = z
 				}
 			}
 		}
-		if (
-			data.seriesType === "general" &&
-			(!data.targetAttendeeGroups || data.targetAttendeeGroups.length === 0)
-		) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				message:
-					"Debe seleccionar al menos un grupo de asistentes para series generales.",
-				path: ["targetAttendeeGroups"],
-			});
+		// audienceType validation: require audienceConfig when by_categories is used
+		if (data.audienceType === "by_categories") {
+			if (!data.audienceConfig || 
+				(!data.audienceConfig.roleTypeIds?.length && !data.audienceConfig.labels?.length)) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message:
+						"Debe seleccionar al menos un rol eclesiástico o etiqueta para filtrado por categorías.",
+					path: ["audienceConfig"],
+				});
+			}
 		}
 	});
 export type DefineMeetingSeriesFormValues = z.infer<
