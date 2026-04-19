@@ -1,13 +1,11 @@
 "use client";
 
-import { format, isValid, parseISO } from "date-fns";
-import { es } from "date-fns/locale";
-import { CalendarRange, LineChart as LineChartIcon } from "lucide-react";
-import { useMemo } from "react";
+import { BarChart2 } from "lucide-react";
 import {
+	Bar,
+	BarChart,
 	CartesianGrid,
-	Line,
-	LineChart as RechartsLineChart,
+	Legend,
 	Tooltip,
 	XAxis,
 	YAxis,
@@ -15,7 +13,6 @@ import {
 import {
 	Card,
 	CardContent,
-	CardDescription,
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
@@ -24,254 +21,99 @@ import {
 	ChartContainer,
 	ChartTooltipContent,
 } from "@/components/ui/chart";
-import type { AttendanceRecord, Meeting, MeetingSeries } from "@/lib/types";
+import type { MonthlyAttendanceSummary } from "@/lib/utils/attendance";
 
-interface MemberAttendanceLineChartProps {
-	memberId: string;
-	memberName: string;
-	allMeetings: Meeting[];
-	allMeetingSeries: MeetingSeries[];
-	allAttendanceRecords: AttendanceRecord[];
-	selectedSeriesId: string;
-	startDate?: Date;
-	endDate?: Date;
-}
-
-interface MonthlyChartDataPoint {
-	monthValue: string; // YYYY-MM
-	monthDisplay: string; // Formatted for X-axis (e.g., "jun 2025")
-	attendedCount: number;
-	convocatedCount: number;
-	attendancePercentage: number; // New: (attendedCount / convocatedCount) * 100
+interface MemberAttendanceBarChartProps {
+	monthlyData: MonthlyAttendanceSummary[];
 }
 
 const chartConfig = {
-	attendancePercentage: {
-		// Changed from attendedCount
-		label: "Asistencia (%)",
-		color: "hsl(var(--primary))",
+	attended: {
+		label: "Presente",
+		color: "hsl(142 71% 45%)",
+	},
+	absent: {
+		label: "Ausente",
+		color: "hsl(0 72% 51%)",
 	},
 } satisfies ChartConfig;
 
-const formatDateRangeTextForChart = (
-	seriesName?: string,
-	startDate?: Date,
-	endDate?: Date,
-): string => {
-	let dateText = "";
-	if (startDate && endDate && startDate <= endDate) {
-		dateText = `entre ${format(startDate, "dd/MM/yy", { locale: es })} y ${format(endDate, "dd/MM/yy", { locale: es })}`;
-	} else if (startDate) {
-		dateText = `desde ${format(startDate, "dd/MM/yy", { locale: es })}`;
-	} else if (endDate) {
-		dateText = `hasta ${format(endDate, "dd/MM/yy", { locale: es })}`;
-	}
-
-	let seriesText = seriesName
-		? `para la serie "${seriesName}"`
-		: "para todas las series relevantes";
-	if (seriesName === "Todas las Series Relevantes")
-		seriesText = "para todas las series relevantes";
-
-	if (dateText) {
-		return `Porcentaje de asistencia mensual ${seriesText}, ${dateText}.`;
-	}
-	return `Porcentaje de asistencia mensual ${seriesText}.`;
-};
-
 export default function MemberAttendanceLineChart({
-	memberId,
-	memberName,
-	allMeetings,
-	allMeetingSeries,
-	allAttendanceRecords,
-	selectedSeriesId,
-	startDate,
-	endDate,
-}: MemberAttendanceLineChartProps) {
-	const { chartData, relevantSeriesName } = useMemo(() => {
-		const memberExpectedMeetings = allMeetings.filter((meeting) => {
-			const series = allMeetingSeries.find((s) => s.id === meeting.seriesId);
-			if (!series) return false;
-
-			if (series.seriesType === "general") {
-				if ((series.targetAttendeeGroups || []).includes("allMembers")) return true;
-				return meeting.attendeeUids?.includes(memberId);
-			} else {
-				return meeting.attendeeUids?.includes(memberId);
-			}
-		});
-
-		let meetingsToProcess = memberExpectedMeetings;
-		let currentSeriesName = "Todas las Series Relevantes";
-
-		if (selectedSeriesId !== "all") {
-			meetingsToProcess = meetingsToProcess.filter(
-				(meeting) => meeting.seriesId === selectedSeriesId,
-			);
-			const foundSeries = allMeetingSeries.find(
-				(s) => s.id === selectedSeriesId,
-			);
-			if (foundSeries) currentSeriesName = foundSeries.name;
-		}
-
-		interface MonthlyAggregation {
-			attended: number;
-			convocated: number;
-		}
-		const monthlyAggregationMap: Record<string, MonthlyAggregation> = {};
-
-		meetingsToProcess.forEach((meeting) => {
-			const meetingDateObj = parseISO(meeting.date);
-			if (!isValid(meetingDateObj)) return;
-			const yearMonth = format(meetingDateObj, "yyyy-MM");
-
-			if (!monthlyAggregationMap[yearMonth]) {
-				monthlyAggregationMap[yearMonth] = { attended: 0, convocated: 0 };
-			}
-			monthlyAggregationMap[yearMonth].convocated += 1;
-
-			const attendanceRecord = allAttendanceRecords.find(
-				(record) =>
-					record.meetingId === meeting.id && record.memberId === memberId,
-			);
-			if (attendanceRecord?.attended) {
-				monthlyAggregationMap[yearMonth].attended += 1;
-			}
-		});
-
-		const dataPoints: MonthlyChartDataPoint[] = Object.entries(
-			monthlyAggregationMap,
-		)
-			.map(([yearMonth, counts]) => {
-				const attendancePercentage =
-					counts.convocated > 0
-						? (counts.attended / counts.convocated) * 100
-						: 0;
-				return {
-					monthValue: yearMonth,
-					monthDisplay: format(parseISO(`${yearMonth}-01`), "MMM yyyy", {
-						locale: es,
-					}),
-					attendedCount: counts.attended,
-					convocatedCount: counts.convocated,
-					attendancePercentage: attendancePercentage,
-				};
-			})
-			.sort((a, b) => a.monthValue.localeCompare(b.monthValue));
-
-		return { chartData: dataPoints, relevantSeriesName: currentSeriesName };
-	}, [
-		memberId,
-		allMeetings,
-		allMeetingSeries,
-		allAttendanceRecords,
-		selectedSeriesId,
-	]);
-
-	const chartDescriptionText = formatDateRangeTextForChart(
-		relevantSeriesName,
-		startDate,
-		endDate,
-	);
+	monthlyData,
+}: MemberAttendanceBarChartProps) {
+	if (monthlyData.length === 0) {
+		return (
+			<Card className="shadow-none border">
+				<CardContent className="flex items-center justify-center py-10 text-sm text-muted-foreground">
+					No hay datos de asistencia para el período seleccionado.
+				</CardContent>
+			</Card>
+		);
+	}
 
 	return (
-		<Card className="shadow-sm">
-			<CardHeader>
-				<CardTitle className="font-headline text-lg text-primary flex items-center">
-					<LineChartIcon className="mr-2 h-5 w-5" />
-					Tendencia Mensual de Asistencia (%)
+		<Card className="shadow-none border">
+			<CardHeader className="pb-2">
+				<CardTitle className="text-sm font-medium flex items-center gap-2">
+					<BarChart2 className="h-4 w-4 text-primary" />
+					Asistencia por mes
 				</CardTitle>
-				<CardDescription className="text-xs text-muted-foreground pt-1 flex items-center">
-					<CalendarRange className="mr-1.5 h-3.5 w-3.5 text-primary/80" />{" "}
-					{chartDescriptionText}
-				</CardDescription>
 			</CardHeader>
 			<CardContent>
-				{chartData.length > 0 ? (
-					<ChartContainer config={chartConfig} className="h-[250px] w-full">
-						<RechartsLineChart
-							data={chartData}
-							margin={{ top: 5, right: 20, left: -5, bottom: 50 }}
-						>
-							<CartesianGrid vertical={false} strokeDasharray="3 3" />
-							<XAxis
-								dataKey="monthDisplay"
-								tickLine={false}
-								axisLine={false}
-								tickMargin={10}
-								angle={-40}
-								textAnchor="end"
-								height={70}
-								interval="preserveStartEnd"
-								tick={{ fontSize: 9 }}
-							/>
-							<YAxis
-								dataKey="attendancePercentage"
-								domain={[0, 100]}
-								tickLine={false}
-								axisLine={false}
-								tickMargin={5}
-								allowDecimals={false}
-								tickFormatter={(value) => `${value}%`}
-								tick={{ fontSize: 10 }}
-								label={{
-									value: "Asistencia (%)",
-									angle: -90,
-									position: "insideLeft",
-									offset: 10,
-									style: {
-										fontSize: "10px",
-										fill: "hsl(var(--muted-foreground))",
-									},
-								}}
-							/>
-							<Tooltip
-								cursor={true}
-								content={({ active, payload }) => {
-									if (active && payload && payload.length) {
-										const data = payload[0].payload as MonthlyChartDataPoint;
-										return (
-											<ChartTooltipContent
-												className="w-[220px]"
-												label={data.monthDisplay}
-												payload={[
-													{
-														name: "Asistencia",
-														value: `${data.attendancePercentage.toFixed(0)}% (${data.attendedCount}/${data.convocatedCount} inst.)`,
-														color: "hsl(var(--primary))",
-													},
-												]}
-												indicator="line"
-											/>
-										);
-									}
-									return null;
-								}}
-							/>
-							<Line
-								dataKey="attendancePercentage"
-								type="linear"
-								stroke="var(--color-attendancePercentage)"
-								strokeWidth={2}
-								dot={{
-									fill: "var(--color-attendancePercentage)",
-									r: 3,
-								}}
-								activeDot={{
-									r: 5,
-								}}
-								name="Porcentaje de Asistencia"
-								connectNulls={true}
-							/>
-						</RechartsLineChart>
-					</ChartContainer>
-				) : (
-					<p className="text-sm text-muted-foreground text-center py-8">
-						No hay datos de asistencia para mostrar el gráfico con los filtros
-						actuales.
-					</p>
-				)}
+				<ChartContainer config={chartConfig} className="h-[200px] w-full">
+					<BarChart
+						data={monthlyData}
+						margin={{ top: 4, right: 8, left: -20, bottom: 40 }}
+					>
+						<CartesianGrid vertical={false} strokeDasharray="3 3" />
+						<XAxis
+							dataKey="monthDisplay"
+							tickLine={false}
+							axisLine={false}
+							tickMargin={8}
+							angle={-35}
+							textAnchor="end"
+							height={60}
+							interval="preserveStartEnd"
+							tick={{ fontSize: 10 }}
+						/>
+						<YAxis
+							tickLine={false}
+							axisLine={false}
+							allowDecimals={false}
+							tick={{ fontSize: 10 }}
+						/>
+						<Tooltip
+							content={({ active, payload, label }) => {
+								if (!active || !payload?.length) return null;
+								const attended = (payload.find((p) => p.dataKey === "attended")?.value as number) ?? 0;
+								const absent = (payload.find((p) => p.dataKey === "absent")?.value as number) ?? 0;
+								const rate = attended + absent > 0
+									? Math.round((attended / (attended + absent)) * 100)
+									: 0;
+								return (
+									<ChartTooltipContent
+										className="w-[180px]"
+										label={label}
+										payload={[
+											{ name: "Presente", value: attended, color: "hsl(142 71% 45%)" },
+											{ name: "Ausente", value: absent, color: "hsl(0 72% 51%)" },
+											{ name: "Tasa", value: `${rate}%`, color: "hsl(var(--primary))" },
+										]}
+									/>
+								);
+							}}
+						/>
+						<Legend
+							verticalAlign="top"
+							height={24}
+							iconSize={10}
+							wrapperStyle={{ fontSize: "11px" }}
+						/>
+						<Bar dataKey="attended" name="Presente" stackId="a" fill="hsl(142 71% 45%)" radius={[0, 0, 0, 0]} />
+						<Bar dataKey="absent" name="Ausente" stackId="a" fill="hsl(0 72% 51%)" radius={[2, 2, 0, 0]} />
+					</BarChart>
+				</ChartContainer>
 			</CardContent>
 		</Card>
 	);

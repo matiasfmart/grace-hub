@@ -79,14 +79,14 @@ const getRiskBadge = (level: RiskLevel) => {
 			return null; // No badge needed for OK
 		case "warning":
 			return (
-				<Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 text-xs">
+				<Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 text-xs dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700/40">
 					<AlertTriangle className="h-3 w-3 mr-1" />
 					Riesgo
 				</Badge>
 			);
 		case "critical":
 			return (
-				<Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs">
+				<Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs dark:bg-red-900/30 dark:text-red-300 dark:border-red-700/40">
 					<AlertTriangle className="h-3 w-3 mr-1" />
 					Crítico
 				</Badge>

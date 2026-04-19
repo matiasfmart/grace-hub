@@ -23,7 +23,7 @@ export function mapApiTitheToTitheRecord(apiTithe: ApiTitheResponse): TitheRecor
  * Maps array of API Tithes to frontend TitheRecords
  */
 export function mapApiTithesToTitheRecords(apiTithes: ApiTitheResponse[]): TitheRecord[] {
-  return apiTithes.map(mapApiTitheToTitheRecord);
+  return (apiTithes ?? []).map(mapApiTitheToTitheRecord);
 }
 
 /**

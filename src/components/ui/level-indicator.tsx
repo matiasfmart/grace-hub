@@ -17,10 +17,10 @@ const levelIndicatorVariants = cva(
 	{
 		variants: {
 			level: {
-				L1: "bg-emerald-100 text-emerald-700 border border-emerald-200",
-				L2: "bg-blue-100 text-blue-700 border border-blue-200",
-				L3: "bg-amber-100 text-amber-700 border border-amber-200",
-				L4: "bg-purple-100 text-purple-700 border border-purple-200",
+				L1: "bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700/40",
+				L2: "bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700/40",
+				L3: "bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/40",
+				L4: "bg-purple-100 text-purple-700 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-700/40",
 			},
 			size: {
 				default: "h-7 w-7 text-xs",

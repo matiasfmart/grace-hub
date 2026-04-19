@@ -152,7 +152,7 @@ export function mapApiMeetingSeriesToMeetingSeries(api: ApiMeetingSeriesResponse
     // Legacy fields for compatibility
     seriesType,
     ownerGroupId,
-    targetAttendeeGroups: ['allMembers'], // Deprecated - use audienceType
+    targetAttendeeGroups: (api.audienceType === 'all_active' || api.audienceType === 'integrated') ? ['allMembers'] : [], // Deprecated - use audienceType
     // Scheduling fields
     frequency: frequencyFromApi(api.frequency),
     startDate: api.startDate,

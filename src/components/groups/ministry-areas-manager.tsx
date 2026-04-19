@@ -144,7 +144,7 @@ export default function MinistryAreasManager({
 										{mentor ? (
 											<>
 												<Avatar className="h-8 w-8">
-													<AvatarFallback className="bg-blue-100 text-blue-600 text-xs font-medium">
+													<AvatarFallback className="bg-blue-100 text-blue-600 text-xs font-medium dark:bg-blue-900/30 dark:text-blue-400">
 														{`${mentor.firstName[0]}${mentor.lastName[0]}`.toUpperCase()}
 													</AvatarFallback>
 												</Avatar>

@@ -1,11 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
-	font-family: "PT Sans", sans-serif;
+	font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 
 /* Grace Hub Design System - "La Cruz del Refugio" */
@@ -75,44 +73,44 @@ body {
 		--sidebar-ring: 207 89% 68%;
 	}
 	.dark {
-		/* Dark mode - Grace Hub */
-		--background: 205 50% 8%; /* Deep sanctuary blue */
-		--foreground: 210 60% 92%;
-		--card: 205 45% 12%;
-		--card-foreground: 210 60% 92%;
-		--popover: 205 45% 10%;
-		--popover-foreground: 210 60% 92%;
-		--primary: 207 89% 68%; /* #64b5f6 */
-		--primary-foreground: 205 100% 8%;
+		/* Dark mode - Grace Hub (neutral gray with subtle cool tint) */
+		--background: 220 12% 9%;
+		--foreground: 215 15% 90%;
+		--card: 220 10% 13%;
+		--card-foreground: 215 15% 90%;
+		--popover: 220 10% 11%;
+		--popover-foreground: 215 15% 90%;
+		--primary: 207 89% 68%; /* #64b5f6 — brand blue kept */
+		--primary-foreground: 220 15% 8%;
 		--primary-light: 207 89% 68%;
 		--primary-dark: 210 79% 51%;
-		--secondary: 205 40% 18%;
-		--secondary-foreground: 210 60% 90%;
-		--muted: 205 35% 20%;
-		--muted-foreground: 210 30% 65%;
-		--accent: 205 40% 18%;
+		--secondary: 220 8% 18%;
+		--secondary-foreground: 215 15% 88%;
+		--muted: 220 8% 20%;
+		--muted-foreground: 215 10% 58%;
+		--accent: 220 8% 18%;
 		--accent-foreground: 207 89% 68%;
 		--destructive: 0 70% 50%;
 		--destructive-foreground: 0 0% 100%;
 		--success: 142 70% 45%;
 		--success-foreground: 0 0% 100%;
-		--warning: 45 100% 50%; /* Darker warning for dark mode */
+		--warning: 45 100% 50%;
 		--warning-foreground: 0 0% 10%;
-		--border: 205 35% 22%;
-		--input: 205 40% 18%;
+		--border: 220 8% 22%;
+		--input: 220 8% 18%;
 		--ring: 207 89% 68%;
 		--chart-1: 207 89% 68%;
 		--chart-2: 210 79% 51%;
 		--chart-3: 207 60% 55%;
 		--chart-4: 210 80% 60%;
 		--chart-5: 207 100% 75%;
-		--sidebar-background: 205 50% 6%;
-		--sidebar-foreground: 210 60% 90%;
+		--sidebar-background: 220 13% 7%;
+		--sidebar-foreground: 215 15% 88%;
 		--sidebar-primary: 207 89% 68%;
-		--sidebar-primary-foreground: 205 100% 8%;
-		--sidebar-accent: 205 40% 15%;
+		--sidebar-primary-foreground: 220 15% 8%;
+		--sidebar-accent: 220 8% 15%;
 		--sidebar-accent-foreground: 207 89% 68%;
-		--sidebar-border: 205 35% 18%;
+		--sidebar-border: 220 8% 17%;
 		--sidebar-ring: 207 89% 68%;
 	}
 }

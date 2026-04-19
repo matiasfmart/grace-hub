@@ -62,9 +62,21 @@ async function getTithesPageData(searchParams: {
 	const pageSize = Number(searchParams.pageSize) || 25;
 	const searchTerm = searchParams.search || "";
 	const memberStatusFilterString = searchParams.status || "";
+	const roleFilterString = searchParams.role || "";
+	const guideFilterString = searchParams.guide || "";
+	const areaFilterString = searchParams.area || "";
 
 	const currentMemberStatusFiltersArray = memberStatusFilterString
 		? memberStatusFilterString.split(",")
+		: [];
+	const currentRoleFiltersArray = roleFilterString
+		? roleFilterString.split(",")
+		: [];
+	const currentGdiFiltersArray = guideFilterString
+		? guideFilterString.split(",")
+		: [];
+	const currentAreaFiltersArray = areaFilterString
+		? areaFilterString.split(",")
 		: [];
 
 	const [
@@ -79,12 +91,47 @@ async function getTithesPageData(searchParams: {
 			pageSize,
 			searchTerm,
 			currentMemberStatusFiltersArray,
+			currentRoleFiltersArray,
+			currentGdiFiltersArray,
+			currentAreaFiltersArray,
 		),
 		getAllMembersNonPaginated(),
 		getAllGdis(),
 		getAllMinistryAreas(),
 		getAllTitheRecords(),
 	]);
+
+	// Derive all filtered members client-side from the full list (avoids pageSize limit)
+	const searchLower = searchTerm.toLowerCase();
+	const allFilteredMembers = allMembersForDropdowns.filter((m) => {
+		if (currentMemberStatusFiltersArray.length > 0 && !currentMemberStatusFiltersArray.includes(m.status)) return false;
+		if (currentRoleFiltersArray.length > 0) {
+			const hasRole = currentRoleFiltersArray.some((rf) => {
+				if (rf === NO_ROLE_FILTER_VALUE) return !m.roles || m.roles.length === 0;
+				return m.roles?.includes(rf as MemberRoleType);
+			});
+			if (!hasRole) return false;
+		}
+		if (currentGdiFiltersArray.length > 0) {
+			const hasGdi = currentGdiFiltersArray.some((gf) => {
+				if (gf === NO_GDI_FILTER_VALUE) return !m.assignedGDIId;
+				return m.assignedGDIId === gf;
+			});
+			if (!hasGdi) return false;
+		}
+		if (currentAreaFiltersArray.length > 0) {
+			const hasArea = currentAreaFiltersArray.some((af) => {
+				if (af === NO_AREA_FILTER_VALUE) return !m.assignedAreaIds || m.assignedAreaIds.length === 0;
+				return m.assignedAreaIds?.includes(af);
+			});
+			if (!hasArea) return false;
+		}
+		if (searchTerm) {
+			const fullName = `${m.firstName} ${m.lastName}`.toLowerCase();
+			if (!fullName.includes(searchLower) && !m.email.toLowerCase().includes(searchLower)) return false;
+		}
+		return true;
+	});
 
 	const absoluteTotalMembers = allMembersForDropdowns.length;
 
@@ -106,6 +153,7 @@ async function getTithesPageData(searchParams: {
 
 	return {
 		members,
+		allFilteredMembers,
 		totalMembers,
 		totalPages,
 		currentPage,
@@ -117,10 +165,10 @@ async function getTithesPageData(searchParams: {
 			gdiFilterOptions,
 			areaFilterOptions,
 			currentSearchTerm: searchTerm,
-			currentRoleFilters: [],
+			currentRoleFilters: currentRoleFiltersArray,
 			currentStatusFilters: currentMemberStatusFiltersArray,
-			currentGdiFilters: [],
-			currentAreaFilters: [],
+			currentGdiFilters: currentGdiFiltersArray,
+			currentAreaFilters: currentAreaFiltersArray,
 		},
 		absoluteTotalMembers,
 	};
@@ -144,6 +192,7 @@ export default async function TithesPage({ searchParams }: TithesPageProps) {
 	const params = await searchParams;
 	const {
 		members,
+		allFilteredMembers,
 		totalMembers,
 		totalPages,
 		currentPage,
@@ -161,6 +210,7 @@ export default async function TithesPage({ searchParams }: TithesPageProps) {
 			/>
 			<TithesTracker
 				initialMembers={members}
+				allFilteredMembers={allFilteredMembers}
 				initialTitheRecords={allTitheRecords}
 				totalMembers={totalMembers}
 				totalPages={totalPages}

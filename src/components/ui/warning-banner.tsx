@@ -30,14 +30,14 @@ function WarningBanner({
 			className={cn(
 				"flex items-center gap-3 rounded-xl p-4",
 				"bg-[#FFCA28]/20 border border-[#FFCA28]/40",
-				"text-slate-900",
+			"text-slate-900 dark:text-foreground",
 				className
 			)} 
 			role="alert"
 			{...props}
 		>
 			<div className="flex-shrink-0 rounded-full bg-[#FFCA28] p-2">
-				{icon || <AlertTriangle className="h-5 w-5 text-slate-900" />}
+				{icon || <AlertTriangle className="h-5 w-5 text-slate-900 dark:text-foreground" />}
 			</div>
 			<div className="flex-1">
 				{title && (

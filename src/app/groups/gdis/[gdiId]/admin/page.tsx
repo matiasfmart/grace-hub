@@ -284,20 +284,20 @@ export default function GdiAdminPage({}: GdiAdminPageProps) {
 
 			{/* Tabs */}
 			<Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-				<TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid bg-white/60 shadow-sm border">
-					<TabsTrigger value="summary" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+				<TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid bg-card/60 shadow-sm border">
+					<TabsTrigger value="summary" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
 						<LayoutDashboard className="h-4 w-4" />
 						<span className="hidden sm:inline">Resumen</span>
 					</TabsTrigger>
-					<TabsTrigger value="members" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+					<TabsTrigger value="members" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
 						<Users className="h-4 w-4" />
 						<span className="hidden sm:inline">Miembros</span>
 					</TabsTrigger>
-					<TabsTrigger value="meetings" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+					<TabsTrigger value="meetings" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
 						<CalendarDays className="h-4 w-4" />
 						<span className="hidden sm:inline">Reuniones</span>
 					</TabsTrigger>
-					<TabsTrigger value="settings" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+					<TabsTrigger value="settings" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
 						<Settings className="h-4 w-4" />
 						<span className="hidden sm:inline">Config</span>
 					</TabsTrigger>

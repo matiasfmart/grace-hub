@@ -159,11 +159,11 @@ const roleDisplayMap: Record<MemberRoleType, string> = {
 
 // Role badge colors for visual distinction
 const roleBadgeColors: Record<MemberRoleType, string> = {
-	GdiGuide: "bg-blue-100 text-blue-700 border-blue-200",
-	GdiMentor: "bg-purple-100 text-purple-700 border-purple-200",
-	AreaLeader: "bg-emerald-100 text-emerald-700 border-emerald-200",
-	AreaMentor: "bg-violet-100 text-violet-700 border-violet-200",
-	Worker: "bg-amber-100 text-amber-700 border-amber-200",
+	GdiGuide: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700/40",
+	GdiMentor: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-700/40",
+	AreaLeader: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700/40",
+	AreaMentor: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-700/40",
+	Worker: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/40",
 };
 
 const roleFilterOptions: {
@@ -279,17 +279,17 @@ export default function MembersListView({
 	const getAttendanceStatus = useCallback((memberId: string) => {
 		const attendance = memberLastAttendance.get(memberId);
 		if (!attendance) {
-			return { label: "Sin registro", color: "text-gray-400", bgColor: "bg-gray-100", daysAgo: -1 };
+			return { label: "Sin registro", color: "text-gray-400 dark:text-gray-500", bgColor: "bg-gray-100 dark:bg-gray-800/50", daysAgo: -1 };
 		}
 		const { daysAgo, date } = attendance;
 		const dateStr = date.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 		
 		if (daysAgo <= 7) {
-			return { label: dateStr, color: "text-green-700", bgColor: "bg-green-100", daysAgo };
+			return { label: dateStr, color: "text-green-700 dark:text-green-400", bgColor: "bg-green-100 dark:bg-green-900/30", daysAgo };
 		} else if (daysAgo <= 30) {
-			return { label: dateStr, color: "text-yellow-700", bgColor: "bg-yellow-100", daysAgo };
+			return { label: dateStr, color: "text-yellow-700 dark:text-yellow-400", bgColor: "bg-yellow-100 dark:bg-yellow-900/30", daysAgo };
 		} else {
-			return { label: dateStr, color: "text-red-700", bgColor: "bg-red-100", daysAgo };
+			return { label: dateStr, color: "text-red-700 dark:text-red-400", bgColor: "bg-red-100 dark:bg-red-900/30", daysAgo };
 		}
 	}, [memberLastAttendance]);
 
@@ -632,8 +632,8 @@ export default function MembersListView({
 				<Card className="border-l-4 border-l-green-500">
 					<CardContent className="p-4">
 						<div className="flex items-center gap-3">
-							<div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
-								<UserCheck className="h-5 w-5 text-green-600" />
+							<div className="h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+								<UserCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
 							</div>
 							<div>
 								<p className="text-2xl font-bold">{stats.active}</p>
@@ -645,7 +645,7 @@ export default function MembersListView({
 				<Card className={cn("border-l-4", stats.withoutGdi > 0 ? "border-l-warning" : "border-l-green-500")}>
 					<CardContent className="p-4">
 						<div className="flex items-center gap-3">
-							<div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", stats.withoutGdi > 0 ? "bg-warning/20" : "bg-green-100")}>
+							<div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", stats.withoutGdi > 0 ? "bg-warning/20" : "bg-green-100 dark:bg-green-900/30")}>
 								<AlertTriangle className={cn("h-5 w-5", stats.withoutGdi > 0 ? "text-warning" : "text-green-600")} />
 							</div>
 							<div>
@@ -658,7 +658,7 @@ export default function MembersListView({
 				<Card className={cn("border-l-4", stats.withoutArea > 0 ? "border-l-warning" : "border-l-green-500")}>
 					<CardContent className="p-4">
 						<div className="flex items-center gap-3">
-							<div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", stats.withoutArea > 0 ? "bg-warning/20" : "bg-green-100")}>
+							<div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", stats.withoutArea > 0 ? "bg-warning/20" : "bg-green-100 dark:bg-green-900/30")}>
 								<AlertTriangle className={cn("h-5 w-5", stats.withoutArea > 0 ? "text-warning" : "text-green-600")} />
 							</div>
 							<div>
@@ -1070,7 +1070,7 @@ export default function MembersListView({
 												member.roles.map((role) => (
 													<Badge
 														key={role}
-														className={cn("text-xs border", roleBadgeColors[role] || "bg-gray-100 text-gray-700")}
+											className={cn("text-xs border", roleBadgeColors[role] || "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300")}
 													>
 														{roleDisplayMap[role] || role}
 													</Badge>
@@ -1109,8 +1109,8 @@ export default function MembersListView({
 											}
 											className={
 												member.status === "vigente"
-													? "bg-green-500/20 text-green-700 border-green-500/50"
-													: "bg-red-500/20 text-red-700 border-red-500/50"
+													? "bg-green-500/20 text-green-700 border-green-500/50 dark:text-green-400"
+													: "bg-red-500/20 text-red-700 border-red-500/50 dark:text-red-400"
 											}
 										>
 											{displayStatus(member.status)}

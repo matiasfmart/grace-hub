@@ -216,12 +216,12 @@ export function AppSidebar() {
 			<SidebarHeader className="relative">
 				<div
 					className={cn(
-						"flex items-center justify-center py-4 transition-all duration-200",
-						isCollapsed ? "px-0" : "px-2"
+						"flex items-center py-4 transition-all duration-200",
+						isCollapsed ? "justify-center px-0" : "px-2.5"
 					)}
 				>
 					{isCollapsed ? (
-						<GraceHubIcon className="h-8 w-8" />
+						<GraceHubIcon className="h-7 w-7" />
 					) : (
 						<GraceHubLogo />
 					)}

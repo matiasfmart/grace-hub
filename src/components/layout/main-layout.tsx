@@ -15,7 +15,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
 			<UserProvider>
 				<SidebarProvider defaultOpen={true}>
 					<AppSidebar />
-					<SidebarInset>
+					<SidebarInset className="min-w-0">
 						<main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
 					</SidebarInset>
 				</SidebarProvider>

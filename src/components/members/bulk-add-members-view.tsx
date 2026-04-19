@@ -348,7 +348,7 @@ export default function BulkAddMembersView({
 													<CardTitle className="flex items-center text-lg cursor-pointer">
 														<ListChecks className="mr-2 h-5 w-5 text-green-600" />
 														Procesados
-														<Badge variant="outline" className="ml-2 bg-green-50 text-green-700">
+																<Badge variant="outline" className="ml-2 bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400">
 															{recentlyProcessedMembers.length}
 														</Badge>
 													</CardTitle>

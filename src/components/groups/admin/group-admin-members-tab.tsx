@@ -44,11 +44,11 @@ const statusDisplayMap: Record<Member["status"], string> = {
 };
 
 const statusColorMap: Record<string, string> = {
-	Active: "bg-green-100 text-green-800",
-	Inactive: "bg-gray-100 text-gray-800",
-	New: "bg-blue-100 text-blue-800",
-	vigente: "bg-green-100 text-green-800",
-	eliminado: "bg-red-100 text-red-800",
+	Active: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+	Inactive: "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300",
+	New: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+	vigente: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+	eliminado: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
 };
 
 export default function GroupAdminMembersTab({
@@ -234,10 +234,10 @@ export default function GroupAdminMembersTab({
 								>
 									<div className="flex items-center gap-3">
 										<div className={`h-9 w-9 rounded-full flex items-center justify-center ${
-											isLeader ? "bg-primary/20" : isMentor ? "bg-blue-100" : "bg-primary/10"
-										}`}>
-											<span className={`text-sm font-medium ${
-												isLeader ? "text-primary" : isMentor ? "text-blue-600" : "text-primary"
+										isLeader ? "bg-primary/20" : isMentor ? "bg-blue-100 dark:bg-blue-900/30" : "bg-primary/10"
+									}`}>
+										<span className={`text-sm font-medium ${
+											isLeader ? "text-primary" : isMentor ? "text-blue-600 dark:text-blue-400" : "text-primary"
 											}`}>
 												{member.firstName[0]}{member.lastName[0]}
 											</span>

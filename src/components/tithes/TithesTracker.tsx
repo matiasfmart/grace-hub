@@ -28,7 +28,7 @@ import {
 	XCircle,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -92,6 +92,7 @@ interface FilterOption {
 
 interface TithesTrackerProps {
 	initialMembers: Member[];
+	allFilteredMembers: Member[];
 	initialTitheRecords: TitheRecord[];
 	totalMembers: number;
 	totalPages: number;
@@ -115,6 +116,7 @@ interface TithesTrackerProps {
 
 export function TithesTracker({
 	initialMembers,
+	allFilteredMembers,
 	initialTitheRecords,
 	totalMembers,
 	totalPages,
@@ -156,7 +158,12 @@ export function TithesTracker({
 			: endOfMonth(new Date()),
 	);
 
-	const [titheRecords] = useState(initialTitheRecords);
+	const [titheRecords, setTitheRecords] = useState(initialTitheRecords ?? []);
+
+	useEffect(() => {
+		setTitheRecords(initialTitheRecords ?? []);
+	}, [initialTitheRecords]);
+
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 	const [editingMonth, setEditingMonth] = useState<{
 		year: number;
@@ -166,11 +173,19 @@ export function TithesTracker({
 	const [draftTitheStatus, setDraftTitheStatus] = useState<
 		Record<string, boolean>
 	>({});
+	const [originalTitheStatus, setOriginalTitheStatus] = useState<
+		Record<string, boolean>
+	>({});
 
 	const months = useMemo(() => {
 		if (!startDate || !endDate || startDate > endDate) return [];
 		return eachMonthOfInterval({ start: startDate, end: endDate });
 	}, [startDate, endDate]);
+
+	const filteredMemberIds = useMemo(
+		() => new Set(allFilteredMembers.map((m) => m.id)),
+		[allFilteredMembers],
+	);
 
 	const handleApplyFilters = () => {
 		const params = new URLSearchParams(searchParams.toString());
@@ -235,6 +250,7 @@ export function TithesTracker({
 		});
 
 		setDraftTitheStatus(initialDraftStatus);
+		setOriginalTitheStatus(initialDraftStatus);
 		setEditingMonth({ year, month: monthNum, monthLabel });
 		setIsEditDialogOpen(true);
 	};
@@ -274,6 +290,39 @@ export function TithesTracker({
 					description: result.message,
 					variant: "destructive",
 				});
+			}
+		});
+	};
+
+	const handleCellToggle = (member: Member, month: Date) => {
+		const year = month.getFullYear();
+		const monthNum = month.getMonth() + 1;
+		const currentlyChecked = titheRecords.some(
+			(r) => r.memberId === member.id && r.year === year && r.month === monthNum,
+		);
+		const newValue = !currentlyChecked;
+
+		// Optimistic update
+		if (newValue) {
+			setTitheRecords((prev) => [
+				...prev,
+				{ id: `opt-${member.id}-${year}-${monthNum}`, memberId: member.id, year, month: monthNum },
+			]);
+		} else {
+			setTitheRecords((prev) =>
+				prev.filter(
+					(r) => !(r.memberId === member.id && r.year === year && r.month === monthNum),
+				),
+			);
+		}
+
+		startUpdateTransition(async () => {
+			const result = await batchUpdateTithesForMonth(year, monthNum, [
+				{ memberId: member.id, didTithe: newValue },
+			]);
+			if (!result.success) {
+				setTitheRecords(initialTitheRecords);
+				toast({ title: "Error", description: result.message, variant: "destructive" });
 			}
 		});
 	};
@@ -678,14 +727,13 @@ export function TithesTracker({
 				</div>
 
 				<TitheSummaryCards
-					filteredMembers={initialMembers}
-					allTitheRecords={titheRecords}
-					months={months}
-				/>
+				allFilteredMembers={allFilteredMembers}
+				allTitheRecords={titheRecords}
+				months={months}
+			/>
 
-				<TitheProgressionChart
-					filteredMembers={initialMembers}
-					allTitheRecords={titheRecords}
+			<TitheProgressionChart
+				allFilteredMembers={allFilteredMembers}
 					months={months}
 				/>
 
@@ -701,10 +749,10 @@ export function TithesTracker({
 										const year = month.getFullYear();
 										const monthNum = month.getMonth() + 1;
 										const monthTithers = titheRecords.filter(
-											(r) => r.year === year && r.month === monthNum,
-										).length;
-										const percentage = initialMembers.length > 0
-											? Math.round((monthTithers / initialMembers.length) * 100)
+										(r) => r.year === year && r.month === monthNum && filteredMemberIds.has(r.memberId),
+									).length;
+									const percentage = allFilteredMembers.length > 0
+										? Math.round((monthTithers / allFilteredMembers.length) * 100)
 											: 0;
 										return (
 										<TableHead
@@ -766,7 +814,9 @@ export function TithesTracker({
 												return (
 													<TableCell
 														key={month.toISOString()}
-														className="text-center"
+														className="text-center cursor-pointer hover:bg-muted/60 transition-colors"
+														onClick={() => handleCellToggle(member, month)}
+														title={isChecked ? "Click para quitar diezmo" : "Click para registrar diezmo"}
 													>
 														{isChecked ? (
 															<CheckCircle2 className="h-5 w-5 text-green-500 mx-auto" />
@@ -848,27 +898,51 @@ export function TithesTracker({
 						</DialogDescription>
 					</DialogHeader>
 					<ScrollArea className="max-h-[60vh] my-4 pr-3">
-						<div className="space-y-2">
-							{initialMembers.map((member) => (
-								<div
-									key={member.id}
-									className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted"
-								>
-									<Checkbox
-										id={`edit-${member.id}`}
-										checked={draftTitheStatus[member.id] || false}
-										onCheckedChange={(checked) =>
-											handleDraftTitheChange(member.id, !!checked)
-										}
-									/>
-									<Label
-										htmlFor={`edit-${member.id}`}
-										className="font-normal flex-grow cursor-pointer"
+						<div className="space-y-1.5">
+							{initialMembers.map((member) => {
+								const isDraft = draftTitheStatus[member.id] || false;
+								const wasOriginal = originalTitheStatus[member.id] || false;
+								const hasChanged = isDraft !== wasOriginal;
+								return (
+									<div
+										key={member.id}
+										className={cn(
+											"flex items-center space-x-3 p-2 rounded-md transition-colors",
+											isDraft
+												? "bg-green-50 dark:bg-green-950/20"
+												: "hover:bg-muted",
+											hasChanged && isDraft && "ring-1 ring-inset ring-green-300",
+											hasChanged && !isDraft && "ring-1 ring-inset ring-red-200",
+										)}
 									>
-										{member.firstName} {member.lastName}
-									</Label>
-								</div>
-							))}
+										<Checkbox
+											id={`edit-${member.id}`}
+											checked={isDraft}
+											onCheckedChange={(checked) =>
+												handleDraftTitheChange(member.id, !!checked)
+											}
+										/>
+										<Label
+											htmlFor={`edit-${member.id}`}
+											className="font-normal flex-grow cursor-pointer"
+										>
+											{member.firstName} {member.lastName}
+										</Label>
+										{hasChanged && (
+											<span
+												className={cn(
+													"text-[10px] font-medium px-1.5 py-0.5 rounded",
+													isDraft
+														? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+														: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+												)}
+											>
+												{isDraft ? "Agregado" : "Quitado"}
+											</span>
+										)}
+									</div>
+								);
+							})}
 						</div>
 					</ScrollArea>
 					<DialogFooter>

@@ -29,22 +29,22 @@ function VacantSlot({
 }: VacantSlotProps) {
 	const baseClassName = cn(
 		"flex items-center gap-3 rounded-xl p-4",
-		"border-2 border-dashed border-slate-300",
-		"bg-slate-50/50",
-		"text-slate-500",
-		onAssign && "cursor-pointer hover:border-[#64B5F6]/50 hover:bg-[#E3F2FD]/30 transition-colors",
+		"border-2 border-dashed border-slate-300 dark:border-slate-600",
+		"bg-slate-50/50 dark:bg-slate-800/30",
+		"text-slate-500 dark:text-slate-400",
+		onAssign && "cursor-pointer hover:border-[#64B5F6]/50 hover:bg-[#E3F2FD]/30 dark:hover:bg-blue-900/20 transition-colors",
 		className
 	);
 
 	const content = (
 		<>
-			<div className="flex-shrink-0 rounded-full bg-slate-200 p-2">
-				{icon || <UserPlus className="h-4 w-4 text-slate-400" />}
+			<div className="flex-shrink-0 rounded-full bg-slate-200 dark:bg-slate-700 p-2">
+				{icon || <UserPlus className="h-4 w-4 text-slate-400 dark:text-slate-300" />}
 			</div>
 			<div className="flex-1 text-left">
 				<p className="font-medium text-sm">{label}</p>
 				{description && (
-					<p className="text-xs text-slate-400">{description}</p>
+					<p className="text-xs text-slate-400 dark:text-slate-500">{description}</p>
 				)}
 			</div>
 		</>

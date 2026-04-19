@@ -1,13 +1,14 @@
 "use client";
 
-import { differenceInYears, endOfDay, parseISO, startOfYear } from "date-fns";
+import { differenceInYears, endOfMonth, endOfYear, parseISO, startOfMonth, startOfYear } from "date-fns";
 import {
 	BookOpenCheck,
 	Building2,
 	CalendarDays,
 	Check,
 	Church,
-	Filter as FilterIcon,
+	ChevronLeft,
+	ChevronRight,
 	GraduationCap,
 	HandCoins,
 	Loader2,
@@ -38,7 +39,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DatePicker } from "@/components/ui/date-picker";
 import {
 	Dialog,
 	DialogContent,
@@ -56,7 +56,6 @@ import {
 	CommandItem,
 	CommandList,
 } from "@/components/ui/command";
-import { Label } from "@/components/ui/label";
 import {
 	Popover,
 	PopoverContent,
@@ -92,6 +91,10 @@ import type {
 } from "@/lib/types";
 import type { RoleType } from "@/lib/api/mappers";
 import { toApiDateString } from "@/lib/utils/date";
+import {
+	computeMemberAttendanceData,
+	isMemberExpectedAtMeeting,
+} from "@/lib/utils/attendance";
 import { membersService } from "@/lib/api/services";
 import AddMemberForm from "./add-member-form";
 import MemberAttendanceSummary from "./member-attendance-chart";
@@ -136,6 +139,24 @@ const roleBadgeColors: Record<MemberRoleType, string> = {
 	Worker: "bg-primary/5 text-primary/70 border-primary/15",
 };
 
+const MONTH_OPTIONS = [
+	{ value: 1, label: "Enero" },
+	{ value: 2, label: "Febrero" },
+	{ value: 3, label: "Marzo" },
+	{ value: 4, label: "Abril" },
+	{ value: 5, label: "Mayo" },
+	{ value: 6, label: "Junio" },
+	{ value: 7, label: "Julio" },
+	{ value: 8, label: "Agosto" },
+	{ value: 9, label: "Septiembre" },
+	{ value: 10, label: "Octubre" },
+	{ value: 11, label: "Noviembre" },
+	{ value: 12, label: "Diciembre" },
+];
+
+const currentYear = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from({ length: currentYear - 2019 }, (_, i) => 2020 + i).reverse();
+
 export default function MemberDetailsDialog({
 	member,
 	allMembers,
@@ -170,22 +191,27 @@ export default function MemberDetailsDialog({
 
 	const [attendanceSelectedSeriesId, setAttendanceSelectedSeriesId] =
 		useState<string>("all");
-	const [attendanceStartDate, setAttendanceStartDate] = useState<
-		Date | undefined
-	>(undefined);
-	const [attendanceEndDate, setAttendanceEndDate] = useState<Date | undefined>(
-		undefined,
+	const [selectedYear, setSelectedYear] = useState<number>(
+		new Date().getFullYear(),
 	);
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+	// Tithe range filter — independent from attendance year selector
+	const [titheStartMonth, setTitheStartMonth] = useState<number>(1);
+	const [titheStartYear, setTitheStartYear] = useState<number>(new Date().getFullYear());
+	const [titheEndMonth, setTitheEndMonth] = useState<number>(new Date().getMonth() + 1);
+	const [titheEndYear, setTitheEndYear] = useState<number>(new Date().getFullYear());
 
 	const dialogContentRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		if (isOpen) {
 			setAttendanceSelectedSeriesId("all");
-			const now = new Date();
-			setAttendanceStartDate(startOfYear(now));
-			setAttendanceEndDate(endOfDay(now));
+			setSelectedYear(new Date().getFullYear());
+			setTitheStartMonth(1);
+			setTitheStartYear(new Date().getFullYear());
+			setTitheEndMonth(new Date().getMonth() + 1);
+			setTitheEndYear(new Date().getFullYear());
 		}
 	}, [isOpen]);
 
@@ -239,41 +265,59 @@ export default function MemberDetailsDialog({
 
 	const baptismDate = member?.baptismDate ? formatDate(member.baptismDate) : "N/A";
 
-	// Calculate KPIs for the member
+	// Attendance data computed once for the selected year + series — shared across chart & table
+	const attendanceData = useMemo(() => {
+		if (!member) return null;
+		return computeMemberAttendanceData(
+			member,
+			selectedYear,
+			attendanceSelectedSeriesId,
+			allMeetings,
+			allMeetingSeries,
+			allAttendanceRecords,
+		);
+	}, [member, selectedYear, attendanceSelectedSeriesId, allMeetings, allMeetingSeries, allAttendanceRecords]);
+
+	// Calculate KPIs for the member (global, not filtered by year)
 	const memberKPIs = useMemo(() => {
 		if (!member) return { attendanceRate: 0, titheMonths: 0, churchYears: 0, totalMeetingsExpected: 0 };
 
-		// Calculate attendance rate
-		const memberExpectedMeetings = allMeetings.filter((meeting) => 
-			meeting.attendeeUids?.includes(member.id)
+		// Build record set once for O(1) lookup
+		const recordSet = new Set<string>(
+			allAttendanceRecords.map((r) => `${r.meetingId}:${r.memberId}`),
 		);
-		const memberAttendanceRecords = allAttendanceRecords.filter(
-			(record) => record.memberId === member.id && record.attended
+		const seriesMap = new Map(allMeetingSeries.map((s) => [s.id, s]));
+
+		const expectedMeetings = allMeetings.filter((m) =>
+			isMemberExpectedAtMeeting(member, m, seriesMap.get(m.seriesId), recordSet),
 		);
-		const attendanceRate = memberExpectedMeetings.length > 0
-			? Math.round((memberAttendanceRecords.length / memberExpectedMeetings.length) * 100)
+		const attendedCount = allAttendanceRecords.filter(
+			(r) => r.memberId === member.id && r.attended,
+		).length;
+		const recordedCount = allAttendanceRecords.filter(
+			(r) => r.memberId === member.id,
+		).length;
+		const attendanceRate = recordedCount > 0
+			? Math.round((attendedCount / recordedCount) * 100)
 			: 0;
 
-		// Calculate tithe months (this year)
 		const currentYear = new Date().getFullYear();
 		const titheMonths = allTitheRecords.filter(
-			(record) => record.memberId === member.id && record.year === currentYear
+			(r) => r.memberId === member.id && r.year === currentYear,
 		).length;
 
-		// Calculate years in church
 		let churchYears = 0;
 		if (member.churchJoinDate) {
-			const joinDate = parseISO(member.churchJoinDate);
-			churchYears = differenceInYears(new Date(), joinDate);
+			churchYears = differenceInYears(new Date(), parseISO(member.churchJoinDate));
 		}
 
 		return {
 			attendanceRate,
 			titheMonths,
 			churchYears,
-			totalMeetingsExpected: memberExpectedMeetings.length,
+			totalMeetingsExpected: expectedMeetings.length,
 		};
-	}, [member, allMeetings, allAttendanceRecords, allTitheRecords]);
+	}, [member, allMeetings, allMeetingSeries, allAttendanceRecords, allTitheRecords]);
 
 	const displayStatus = (status: Member["status"]) => {
 		switch (status) {
@@ -289,28 +333,22 @@ export default function MemberDetailsDialog({
 	const relevantSeriesForAttendanceDropdown = useMemo(() => {
 		if (!member) return [];
 
-		const relevantSeriesIds = new Set<string>();
+		const recordSet = new Set<string>(
+			allAttendanceRecords.map((r) => `${r.meetingId}:${r.memberId}`),
+		);
+		const seriesMap = new Map(allMeetingSeries.map((s) => [s.id, s]));
 
+		const relevantSeriesIds = new Set<string>();
 		allMeetings.forEach((meeting) => {
-			if (meeting.attendeeUids?.includes(member.id)) {
-				// Changed member.id to member._id
+			if (isMemberExpectedAtMeeting(member, meeting, seriesMap.get(meeting.seriesId), recordSet)) {
 				relevantSeriesIds.add(meeting.seriesId);
 			}
 		});
 
-		allMeetingSeries.forEach((series) => {
-			if (
-				series.seriesType === "general" &&
-				(series.targetAttendeeGroups || []).includes("allMembers")
-			) {
-				relevantSeriesIds.add(series.id); // Changed series.id to series._id
-			}
-		});
-
 		return allMeetingSeries
-			.filter((series) => relevantSeriesIds.has(series.id)) // Changed series.id to series._id
+			.filter((s) => relevantSeriesIds.has(s.id))
 			.sort((a, b) => a.name.localeCompare(b.name));
-	}, [allMeetings, allMeetingSeries, member]);
+	}, [member, allMeetings, allMeetingSeries, allAttendanceRecords]);
 
 	const _expectedAttendeesMap = useMemo(() => {
 		const map: Record<string, Set<string>> = {};
@@ -489,7 +527,7 @@ export default function MemberDetailsDialog({
 			>
 				{/* HEADER COMPACTO - 64px */}
 				<DialogHeader className="px-4 py-3 border-b no-print">
-					<div className="flex items-center justify-between">
+					<div className="flex items-center justify-between pr-8">
 						<div className="flex items-center gap-3">
 							<Avatar className="h-12 w-12 border-2 border-primary/20">
 								<AvatarFallback className="bg-primary/10 text-primary font-semibold">
@@ -506,8 +544,8 @@ export default function MemberDetailsDialog({
 										variant="outline"
 										className={
 											member.status === "vigente"
-												? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs h-5"
-												: "bg-red-50 text-red-700 border-red-200 text-xs h-5"
+												? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs h-5 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700/40"
+												: "bg-red-50 text-red-700 border-red-200 text-xs h-5 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700/40"
 										}
 									>
 										{displayStatus(member.status)}
@@ -516,7 +554,7 @@ export default function MemberDetailsDialog({
 										<Badge
 											key={role}
 											variant="outline"
-											className={`text-xs h-5 ${roleBadgeColors[role] || "bg-gray-100 text-gray-700"}`}
+											className={`text-xs h-5 ${roleBadgeColors[role] || "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"}`}
 										>
 											{roleDisplayNames[role] || role}
 										</Badge>
@@ -806,95 +844,154 @@ export default function MemberDetailsDialog({
 								</TabsContent>
 
 								{/* TAB: ASISTENCIA */}
-								<TabsContent value="attendance" className="flex-1 overflow-y-auto p-4 space-y-4" id="attendance-print-section-wrapper">
-									<div id="attendance-print-section">
-										{/* Filtros */}
-										<Card className="shadow-none border no-print">
-											<CardContent className="p-4">
-												<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
-													<div className="flex items-center gap-2">
-														<FilterIcon className="h-4 w-4 text-primary" />
-														<span className="text-sm font-medium">Filtros</span>
-													</div>
-													<Button onClick={handlePrintAttendance} variant="outline" size="sm" className="h-8">
-														<Printer className="h-3.5 w-3.5 mr-1.5" />
-														Imprimir
-													</Button>
-												</div>
-												<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-													<div>
-														<Label className="text-xs text-muted-foreground">Serie</Label>
-														<Select value={attendanceSelectedSeriesId} onValueChange={setAttendanceSelectedSeriesId}>
-															<SelectTrigger className="h-9 mt-1">
-																<SelectValue placeholder="Seleccionar..." />
-															</SelectTrigger>
-															<SelectContent>
-																<SelectItem value="all">Todas las Series</SelectItem>
-																{relevantSeriesForAttendanceDropdown.map((series) => (
-																	<SelectItem key={series.id} value={series.id}>{series.name}</SelectItem>
-																))}
-															</SelectContent>
-														</Select>
-													</div>
-													<div>
-														<Label className="text-xs text-muted-foreground">Desde</Label>
-														<DatePicker date={attendanceStartDate} setDate={setAttendanceStartDate} placeholder="Inicio" />
-													</div>
-													<div>
-														<Label className="text-xs text-muted-foreground">Hasta</Label>
-														<DatePicker date={attendanceEndDate} setDate={setAttendanceEndDate} placeholder="Fin" />
-													</div>
-												</div>
-												{(attendanceStartDate || attendanceEndDate) && (
-													<Button
-														onClick={() => {
-															const now = new Date();
-															setAttendanceStartDate(startOfYear(now));
-															setAttendanceEndDate(endOfDay(now));
-														}}
-														variant="link"
-														size="sm"
-														className="px-0 text-xs h-auto mt-2"
-													>
-														Limpiar filtros
-													</Button>
-												)}
-											</CardContent>
-										</Card>
+						<TabsContent value="attendance" className="flex-1 overflow-y-auto p-4 space-y-3" id="attendance-print-section-wrapper">
+							<div id="attendance-print-section">
+								{/* Toolbar compacta: año + serie + imprimir */}
+								<div className="flex items-center gap-2 no-print flex-wrap">
+									{/* Selector de año */}
+									<div className="flex items-center gap-1 rounded-md border bg-background px-1 py-0.5">
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-6 w-6"
+											onClick={() => setSelectedYear((y) => y - 1)}
+											aria-label="Año anterior"
+										>
+											<ChevronLeft className="h-3.5 w-3.5" />
+										</Button>
+										<span className="text-sm font-semibold w-12 text-center tabular-nums">{selectedYear}</span>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-6 w-6"
+											onClick={() => setSelectedYear((y) => y + 1)}
+											disabled={selectedYear >= new Date().getFullYear()}
+											aria-label="Año siguiente"
+										>
+											<ChevronRight className="h-3.5 w-3.5" />
+										</Button>
+									</div>
+									{/* Selector de serie */}
+									<Select value={attendanceSelectedSeriesId} onValueChange={setAttendanceSelectedSeriesId}>
+										<SelectTrigger className="h-8 flex-1 min-w-[160px] text-xs">
+											<SelectValue placeholder="Serie..." />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="all">Todas las series</SelectItem>
+											{relevantSeriesForAttendanceDropdown.map((s) => (
+												<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+									<Button onClick={handlePrintAttendance} variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Imprimir">
+										<Printer className="h-4 w-4" />
+									</Button>
+								</div>
 
-										{/* Gráficos de Asistencia */}
-										<div className="space-y-4 mt-4">
-											<MemberAttendanceLineChart
-												memberId={member.id}
-												memberName={`${member.firstName} ${member.lastName}`}
-												allMeetings={allMeetings}
-												allMeetingSeries={allMeetingSeries}
-												allAttendanceRecords={allAttendanceRecords}
-												selectedSeriesId={attendanceSelectedSeriesId}
-												startDate={attendanceStartDate}
-												endDate={attendanceEndDate}
-											/>
-											<MemberAttendanceSummary
-												memberId={member.id}
-												memberName={`${member.firstName} ${member.lastName}`}
-												allMeetings={allMeetings}
-												allMeetingSeries={allMeetingSeries}
-												allAttendanceRecords={allAttendanceRecords}
-												selectedSeriesId={attendanceSelectedSeriesId}
-												startDate={attendanceStartDate}
-												endDate={attendanceEndDate}
-											/>
+								{/* Mini-KPIs del período filtrado */}
+								{attendanceData && (
+									<div className="grid grid-cols-4 gap-2">
+										<div className="rounded-lg border bg-background p-2 text-center">
+											<p className="text-xl font-bold text-primary">{attendanceData.stats.attendanceRate}%</p>
+											<p className="text-[10px] text-muted-foreground leading-tight">Asistencia</p>
+										</div>
+										<div className="rounded-lg border bg-background p-2 text-center">
+											<p className="text-xl font-bold">{attendanceData.stats.convocated}</p>
+											<p className="text-[10px] text-muted-foreground leading-tight">Convocado</p>
+										</div>
+										<div className="rounded-lg border bg-background p-2 text-center">
+											<p className="text-xl font-bold text-green-700 dark:text-green-400">{attendanceData.stats.attended}</p>
+											<p className="text-[10px] text-muted-foreground leading-tight">Presente</p>
+										</div>
+										<div className="rounded-lg border bg-background p-2 text-center">
+											<p className="text-xl font-bold text-red-700 dark:text-red-400">{attendanceData.stats.absent}</p>
+											<p className="text-[10px] text-muted-foreground leading-tight">Ausente</p>
 										</div>
 									</div>
-								</TabsContent>
+								)}
+
+								{/* Gráfico de barras + tabla de detalle */}
+								<div className="space-y-3">
+									<MemberAttendanceLineChart
+										monthlyData={attendanceData?.monthlySummary ?? []}
+									/>
+									<MemberAttendanceSummary
+										meetings={attendanceData?.meetings ?? []}
+										memberName={`${member.firstName} ${member.lastName}`}
+									/>
+								</div>
+							</div>
+						</TabsContent>
 
 								{/* TAB: DIEZMOS */}
 								<TabsContent value="tithes" className="flex-1 overflow-y-auto p-4">
+									{/* Filtro de rango — bloque unificado */}
+									{(() => {
+										const isInvalidRange =
+											titheStartYear > titheEndYear ||
+											(titheStartYear === titheEndYear && titheStartMonth > titheEndMonth);
+										return (
+											<div className="rounded-lg border border-primary/30 bg-primary/[0.07] dark:bg-primary/[0.10] px-3 py-2.5 mb-5 space-y-2">
+												<div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+													<CalendarDays className="h-3.5 w-3.5" />
+													<span>Período analizado</span>
+												</div>
+												<div className="flex items-center gap-2 flex-wrap">
+													<Select value={String(titheStartMonth)} onValueChange={(v) => setTitheStartMonth(Number(v))}>
+														<SelectTrigger className="h-8 w-[110px] text-xs">
+															<SelectValue />
+														</SelectTrigger>
+														<SelectContent>
+															{MONTH_OPTIONS.map((m) => (
+																<SelectItem key={m.value} value={String(m.value)} className="text-xs">{m.label}</SelectItem>
+															))}
+														</SelectContent>
+													</Select>
+													<Select value={String(titheStartYear)} onValueChange={(v) => setTitheStartYear(Number(v))}>
+														<SelectTrigger className="h-8 w-[76px] text-xs">
+															<SelectValue />
+														</SelectTrigger>
+														<SelectContent>
+															{YEAR_OPTIONS.map((y) => (
+																<SelectItem key={y} value={String(y)} className="text-xs">{y}</SelectItem>
+															))}
+														</SelectContent>
+													</Select>
+													<ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+													<Select value={String(titheEndMonth)} onValueChange={(v) => setTitheEndMonth(Number(v))}>
+														<SelectTrigger className="h-8 w-[110px] text-xs">
+															<SelectValue />
+														</SelectTrigger>
+														<SelectContent>
+															{MONTH_OPTIONS.map((m) => (
+																<SelectItem key={m.value} value={String(m.value)} className="text-xs">{m.label}</SelectItem>
+															))}
+														</SelectContent>
+													</Select>
+													<Select value={String(titheEndYear)} onValueChange={(v) => setTitheEndYear(Number(v))}>
+														<SelectTrigger className="h-8 w-[76px] text-xs">
+															<SelectValue />
+														</SelectTrigger>
+														<SelectContent>
+															{YEAR_OPTIONS.map((y) => (
+																<SelectItem key={y} value={String(y)} className="text-xs">{y}</SelectItem>
+															))}
+														</SelectContent>
+													</Select>
+												</div>
+												{isInvalidRange && (
+													<p className="text-xs text-destructive font-medium">
+														El mes de inicio debe ser anterior al mes de fin.
+													</p>
+												)}
+											</div>
+										);
+									})()}
 									<MemberTitheHistory
 										memberId={member.id}
 										allTitheRecords={allTitheRecords}
-										startDate={attendanceStartDate}
-										endDate={attendanceEndDate}
+										startDate={startOfMonth(new Date(titheStartYear, titheStartMonth - 1, 1))}
+										endDate={endOfMonth(new Date(titheEndYear, titheEndMonth - 1, 1))}
 									/>
 								</TabsContent>
 							</Tabs>

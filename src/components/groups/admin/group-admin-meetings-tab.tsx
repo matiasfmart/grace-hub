@@ -78,9 +78,9 @@ const frequencyLabels: Record<string, string> = {
 };
 
 const frequencyStyles: Record<string, string> = {
-	OneTime: "bg-violet-100 text-violet-700 border-violet-200",
-	Weekly: "bg-blue-100 text-blue-700 border-blue-200",
-	Monthly: "bg-emerald-100 text-emerald-700 border-emerald-200",
+	OneTime: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-700/40",
+	Weekly: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700/40",
+	Monthly: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700/40",
 };
 
 export default function GroupAdminMeetingsTab({
@@ -209,8 +209,8 @@ export default function GroupAdminMeetingsTab({
 				<Card className="border-l-4 border-l-blue-500">
 					<CardContent className="p-3">
 						<div className="flex items-center gap-2">
-							<div className="h-9 w-9 rounded-lg bg-blue-100 flex items-center justify-center">
-								<CalendarCheck className="h-4 w-4 text-blue-600" />
+						<div className="h-9 w-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+							<CalendarCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
 							</div>
 							<div>
 								<p className="text-xl font-bold">{kpis.thisMonthMeetings}</p>
@@ -222,8 +222,8 @@ export default function GroupAdminMeetingsTab({
 				<Card className={cn("border-l-4", kpis.avgAttendance >= 70 ? "border-l-green-500" : kpis.avgAttendance >= 50 ? "border-l-yellow-500" : "border-l-red-500")}>
 					<CardContent className="p-3">
 						<div className="flex items-center gap-2">
-							<div className={cn("h-9 w-9 rounded-lg flex items-center justify-center", kpis.avgAttendance >= 70 ? "bg-green-100" : kpis.avgAttendance >= 50 ? "bg-yellow-100" : "bg-red-100")}>
-								<Percent className={cn("h-4 w-4", kpis.avgAttendance >= 70 ? "text-green-600" : kpis.avgAttendance >= 50 ? "text-yellow-600" : "text-red-600")} />
+						<div className={cn("h-9 w-9 rounded-lg flex items-center justify-center", kpis.avgAttendance >= 70 ? "bg-green-100 dark:bg-green-900/30" : kpis.avgAttendance >= 50 ? "bg-yellow-100 dark:bg-yellow-900/30" : "bg-red-100 dark:bg-red-900/30")}>
+							<Percent className={cn("h-4 w-4", kpis.avgAttendance >= 70 ? "text-green-600 dark:text-green-400" : kpis.avgAttendance >= 50 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400")} />
 							</div>
 							<div>
 								<p className="text-xl font-bold">{kpis.avgAttendance}%</p>
@@ -235,8 +235,8 @@ export default function GroupAdminMeetingsTab({
 				<Card className={cn("border-l-4", kpis.atRiskCount > 0 ? "border-l-orange-500" : "border-l-green-500")}>
 					<CardContent className="p-3">
 						<div className="flex items-center gap-2">
-							<div className={cn("h-9 w-9 rounded-lg flex items-center justify-center", kpis.atRiskCount > 0 ? "bg-orange-100" : "bg-green-100")}>
-								<AlertTriangle className={cn("h-4 w-4", kpis.atRiskCount > 0 ? "text-orange-600" : "text-green-600")} />
+						<div className={cn("h-9 w-9 rounded-lg flex items-center justify-center", kpis.atRiskCount > 0 ? "bg-orange-100 dark:bg-orange-900/30" : "bg-green-100 dark:bg-green-900/30")}>
+							<AlertTriangle className={cn("h-4 w-4", kpis.atRiskCount > 0 ? "text-orange-600 dark:text-orange-400" : "text-green-600 dark:text-green-400")} />
 							</div>
 							<div>
 								<p className="text-xl font-bold">{kpis.atRiskCount}</p>
@@ -340,7 +340,7 @@ export default function GroupAdminMeetingsTab({
 												<span className="font-medium text-sm">{series.name}</span>
 											</div>
 											<div className="flex items-center gap-2">
-												<Badge className={frequencyStyles[series.frequency] || "bg-gray-100"} variant="secondary">
+												<Badge className={frequencyStyles[series.frequency] || "bg-gray-100 dark:bg-gray-800"} variant="secondary">
 													{frequencyLabels[series.frequency] || series.frequency}
 												</Badge>
 												<Badge variant="outline" className="text-xs">
@@ -449,10 +449,10 @@ function MeetingRow({
 						variant="outline"
 						className={
 							stats.percentage >= 80
-								? "bg-green-50 text-green-700 border-green-200"
-								: stats.percentage >= 60
-									? "bg-yellow-50 text-yellow-700 border-yellow-200"
-									: "bg-red-50 text-red-700 border-red-200"
+							? "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700/40"
+							: stats.percentage >= 60
+								? "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700/40"
+								: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700/40"
 						}
 					>
 						{stats.presentCount}/{stats.expectedCount} ({stats.percentage}%)

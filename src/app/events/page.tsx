@@ -521,8 +521,8 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 				<Card className="border-l-4 border-l-blue-500">
 					<CardContent className="p-4">
 						<div className="flex items-center gap-3">
-							<div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-								<CalendarCheck className="h-5 w-5 text-blue-600" />
+						<div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+							<CalendarCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
 							</div>
 							<div>
 								<p className="text-2xl font-bold">{totalInstances}</p>
@@ -534,8 +534,8 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 				<Card className={cn("border-l-4", avgAttendancePercent >= 70 ? "border-l-green-500" : avgAttendancePercent >= 50 ? "border-l-yellow-500" : "border-l-red-500")}>
 					<CardContent className="p-4">
 						<div className="flex items-center gap-3">
-							<div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", avgAttendancePercent >= 70 ? "bg-green-100" : avgAttendancePercent >= 50 ? "bg-yellow-100" : "bg-red-100")}>
-								<Percent className={cn("h-5 w-5", avgAttendancePercent >= 70 ? "text-green-600" : avgAttendancePercent >= 50 ? "text-yellow-600" : "text-red-600")} />
+						<div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", avgAttendancePercent >= 70 ? "bg-green-100 dark:bg-green-900/30" : avgAttendancePercent >= 50 ? "bg-yellow-100 dark:bg-yellow-900/30" : "bg-red-100 dark:bg-red-900/30")}>
+							<Percent className={cn("h-5 w-5", avgAttendancePercent >= 70 ? "text-green-600 dark:text-green-400" : avgAttendancePercent >= 50 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400")} />
 							</div>
 							<div>
 								<div className="flex items-center gap-2">
@@ -561,8 +561,8 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 				<Card className={cn("border-l-4", instancesWithoutRecords > 0 ? "border-l-warning" : "border-l-green-500")}>
 					<CardContent className="p-4">
 						<div className="flex items-center gap-3">
-							<div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", instancesWithoutRecords > 0 ? "bg-warning/20" : "bg-green-100")}>
-								<AlertTriangle className={cn("h-5 w-5", instancesWithoutRecords > 0 ? "text-warning" : "text-green-600")} />
+						<div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", instancesWithoutRecords > 0 ? "bg-warning/20" : "bg-green-100 dark:bg-green-900/30")}>
+							<AlertTriangle className={cn("h-5 w-5", instancesWithoutRecords > 0 ? "text-warning" : "text-green-600 dark:text-green-400")} />
 							</div>
 							<div>
 								<p className="text-2xl font-bold">{instancesWithoutRecords}</p>
