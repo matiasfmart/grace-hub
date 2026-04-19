@@ -4,6 +4,39 @@
 
 ---
 
+## [2026-04-19] - Filtros de Ingreso y Edad en Módulo Miembros
+
+### ✨ Nuevas Funcionalidades
+
+#### Filtros servidor: fecha de ingreso + edad — Full Stack
+
+**Backend (grace-hub-service):**
+- **`member-query.types.ts`**: Campos `joinDateFrom?`, `joinDateTo?`, `ageMin?`, `ageMax?` en `MemberFilterOptions`.
+- **`get-members-filtered.options.ts`**: Mismos 4 campos en `GetMembersFilteredOptions`.
+- **`get-members-filtered.use-case.ts`**: Pasa los 4 campos al repositorio.
+- **`get-members-filtered.dto.ts`**: Params `joinFrom`, `joinTo`, `ageMin`, `ageMax` con validadores `@IsDateString()` / `@IsInt() @Min(0)`.
+- **`members.controller.ts`**: Mapeo `queryDto.joinFrom → joinDateFrom`, etc.
+- **`member.repository.impl.ts`** (`buildFilterConditions`): SQL para `m.join_date >= $n::date`, `m.join_date <= $n::date`, y `EXTRACT(YEAR FROM AGE(m.birth_date))` con guard `birth_date IS NOT NULL`.
+
+**Frontend (grace-hub):**
+- **`src/lib/api/types.ts`**: `ApiMembersFilterParams` ampliado con `joinFrom?`, `joinTo?`, `ageMin?`, `ageMax?`.
+- **`src/lib/api/endpoints/membersEndpoint.ts`**: Los 4 nuevos params se incluyen en el query string.
+- **`src/lib/api/services/membersService.ts`**: `getAllMembers()` acepta y propaga `joinDateFrom`, `joinDateTo`, `ageMin`, `ageMax`.
+- **`src/app/members/page.tsx`**: Helpers `getJoinDateRange(preset)` y `getAgeRange(preset)` para convertir presets en valores reales. Lee `joinPreset` y `agePreset` de URL params; convierte y pasa al servicio.
+- **`src/components/members/members-list-view.tsx`**:
+  - Constantes `JOIN_PRESETS` (Este mes / 3m / 6m / Este año) y `AGE_PRESETS` (Niños / Adolescentes / Jóvenes / Adultos / Adultos mayores).
+  - Estado `selectedJoinPreset` y `selectedAgePreset` inicializado desde props.
+  - Nuevos dropdowns "Ingreso" y "Edad" en la barra de filtros.
+  - Chips activos para presets seleccionados con botón X.
+  - `hasActiveFilters` y `handleClearAllFilters` actualizados.
+  - Los filtros se guardan en la URL como `?joinPreset=3m&agePreset=teen`.
+
+### 🏗️ Arquitectura
+Los filtros de fecha/edad son **server-side** (se componen con paginación en la BD). El preset se pasa por URL; la conversión a fechas/rangos reales ocurre en `page.tsx` en servidor para evitar lógica duplicada entre cliente y servidor.
+
+---
+
+
 ## [2026-04-18] - Módulo Etiquetas Eclesiásticas + Rediseño UX Forms de Reuniones
 
 ### ✨ Nuevas Funcionalidades

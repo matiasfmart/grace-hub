@@ -2,22 +2,27 @@
 
 import {
 	AlertTriangle,
+	Archive,
 	ArrowDownNarrowWide,
 	ArrowUpNarrowWide,
 	Briefcase,
+	Calendar,
 	Check,
 	ChevronDown,
 	ChevronLeft,
 	ChevronRight,
+	ChevronUp,
 	Eye,
-	Filter,
 	ListPlus,
 	MoreVertical,
 	Pencil,
+	RotateCcw,
 	Search,
 	ShieldCheck,
+	Smile,
 	Trash2,
 	UserCheck,
+	UserMinus,
 	UserPlus,
 	Users,
 	X,
@@ -119,16 +124,31 @@ interface MembersListViewProps {
 	deleteMemberAction: (
 		memberId: string,
 	) => Promise<{ success: boolean; message: string }>;
+	softDeleteMemberAction: (
+		memberId: string,
+	) => Promise<{ success: boolean; message: string }>;
+	restoreMemberAction: (
+		memberId: string,
+	) => Promise<{ success: boolean; message: string }>;
 	currentPage: number;
 	totalPages: number;
 	pageSize: number;
 	currentSearchTerm?: string;
-	currentMemberStatusFilters?: string[];
 	currentRoleFilters?: string[];
 	currentGuideIdFilters?: string[];
 	currentAreaFilters?: string[];
-	totalMembers: number; // Filtered count
-	absoluteTotalMembers: number; // Absolute total
+	currentJoinPreset?: string;
+	currentAgePreset?: string;
+	/** YYYY-MM — used when joinPreset === "custom" */
+	currentJoinFrom?: string;
+	/** YYYY-MM — used when joinPreset === "custom" */
+	currentJoinTo?: string;
+	/** used when agePreset === "custom" */
+	currentAgeMin?: number;
+	/** used when agePreset === "custom" */
+	currentAgeMax?: number;
+	totalMembers: number;
+	absoluteTotalMembers: number;
 }
 
 type SortKey =
@@ -178,14 +198,55 @@ const roleFilterOptions: {
 ];
 
 const statusDisplayMap: Record<Member["status"], string> = {
-	vigente: "Vigente",
-	eliminado: "Eliminado",
+	vigente: "Activo",
+	eliminado: "Dado de baja",
 };
-const statusFilterOptions: { value: Member["status"]; label: string }[] =
-	Object.entries(statusDisplayMap).map(([value, label]) => ({
-		value: value as Member["status"],
-		label,
-	}));
+
+// ---- Join date presets ----
+interface JoinPreset { value: string; label: string; }
+const JOIN_PRESETS: JoinPreset[] = [
+	{ value: "month",  label: "Este mes" },
+	{ value: "3m",     label: "Últimos 3 meses" },
+	{ value: "6m",     label: "Últimos 6 meses" },
+	{ value: "year",   label: "Este año" },
+	{ value: "custom", label: "Rango personalizado..." },
+];
+
+// ---- Age range presets ----
+interface AgePreset { value: string; label: string; }
+const AGE_PRESETS: AgePreset[] = [
+	{ value: "kids",   label: "Niños (0–12)" },
+	{ value: "teen",   label: "Adolescentes (13–17)" },
+	{ value: "youth",  label: "Jóvenes (18–29)" },
+	{ value: "adult",  label: "Adultos (30–59)" },
+	{ value: "senior", label: "Adultos mayores (60+)" },
+	{ value: "custom", label: "Rango personalizado..." },
+];
+
+const MONTHS = [
+	{ value: "01", label: "Enero" },
+	{ value: "02", label: "Febrero" },
+	{ value: "03", label: "Marzo" },
+	{ value: "04", label: "Abril" },
+	{ value: "05", label: "Mayo" },
+	{ value: "06", label: "Junio" },
+	{ value: "07", label: "Julio" },
+	{ value: "08", label: "Agosto" },
+	{ value: "09", label: "Septiembre" },
+	{ value: "10", label: "Octubre" },
+	{ value: "11", label: "Noviembre" },
+	{ value: "12", label: "Diciembre" },
+];
+
+const CURRENT_YEAR = new Date().getFullYear();
+const JOIN_YEARS = Array.from({ length: 15 }, (_, i) => String(CURRENT_YEAR - i));
+
+function formatMonthYear(ym: string): string {
+	if (!ym) return "";
+	const [year, month] = ym.split("-");
+	const m = MONTHS.find(x => x.value === month);
+	return m ? `${m.label.substring(0, 3)} ${year}` : ym;
+}
 
 export default function MembersListView({
 	initialMembers,
@@ -200,31 +261,38 @@ export default function MembersListView({
 	addSingleMemberAction,
 	updateMemberAction,
 	deleteMemberAction,
+	softDeleteMemberAction,
+	restoreMemberAction,
 	currentPage,
 	totalPages,
 	pageSize,
 	currentSearchTerm = "",
-	currentMemberStatusFilters = [],
 	currentRoleFilters = [],
 	currentGuideIdFilters = [],
 	currentAreaFilters = [],
+	currentJoinPreset = "",
+	currentAgePreset = "",
+	currentJoinFrom = "",
+	currentJoinTo = "",
+	currentAgeMin,
+	currentAgeMax,
 	totalMembers,
 	absoluteTotalMembers,
 }: MembersListViewProps) {
 	const [members, setMembers] = useState<Member[]>(initialMembers);
 	const [searchInput, setSearchInput] = useState(currentSearchTerm);
-	const [selectedStatuses, setSelectedStatuses] = useState<string[]>(
-		currentMemberStatusFilters || [],
-	);
-	const [selectedRoles, setSelectedRoles] = useState<string[]>(
-		currentRoleFilters || [],
-	);
-	const [selectedGuideIds, setSelectedGuideIds] = useState<string[]>(
-		currentGuideIdFilters || [],
-	);
-	const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>(
-		currentAreaFilters || [],
-	);
+	const [selectedRoles, setSelectedRoles] = useState<string[]>(currentRoleFilters || []);
+	const [selectedGuideIds, setSelectedGuideIds] = useState<string[]>(currentGuideIdFilters || []);
+	const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>(currentAreaFilters || []);
+	const [selectedJoinPreset, setSelectedJoinPreset] = useState<string>(currentJoinPreset);
+	const [selectedAgePreset, setSelectedAgePreset] = useState<string>(currentAgePreset);
+	// Custom join range state (YYYY-MM format each)
+	const [customJoinFrom, setCustomJoinFrom] = useState<string>(currentJoinFrom);
+	const [customJoinTo, setCustomJoinTo] = useState<string>(currentJoinTo);
+	// Custom age range state
+	const [customAgeMin, setCustomAgeMin] = useState<string>(currentAgeMin !== undefined ? String(currentAgeMin) : "");
+	const [customAgeMax, setCustomAgeMax] = useState<string>(currentAgeMax !== undefined ? String(currentAgeMax) : "");
+	const [showBajaSection, setShowBajaSection] = useState(false);
 
 	const [sortKey, setSortKey] = useState<SortKey>("fullName");
 	const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
@@ -238,7 +306,7 @@ export default function MembersListView({
 	const pathname = usePathname();
 	const searchParamsHook = useSearchParams();
 
-	// KPI Stats calculation
+	// KPI Stats calculation — based on vigente members only
 	const stats = useMemo(() => {
 		const activeMembers = allMembersForDropdowns.filter(m => m.status === "vigente");
 		const withoutGdi = activeMembers.filter(m => !m.assignedGDIId);
@@ -250,6 +318,20 @@ export default function MembersListView({
 			withoutArea: withoutArea.length,
 		};
 	}, [allMembersForDropdowns, absoluteTotalMembers]);
+
+	// Dados de baja — computed client-side from the full member list
+	const eliminadosMembers = useMemo(() => {
+		return allMembersForDropdowns
+			.filter(m => m.status === "eliminado")
+			.sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`));
+	}, [allMembersForDropdowns]);
+
+	// A member can only be permanently deleted if they have no historical records
+	const canHardDelete = useCallback((member: Member): boolean => {
+		const hasAttendance = allAttendanceRecords.some(r => r.memberId === member.id);
+		const hasTithes = allTitheRecords.some(r => r.memberId === member.id);
+		return !hasAttendance && !hasTithes;
+	}, [allAttendanceRecords, allTitheRecords]);
 
 	// Calculate last attendance date for each member
 	const memberLastAttendance = useMemo(() => {
@@ -347,43 +429,45 @@ export default function MembersListView({
 		setter(newArray);
 	};
 
-	// Auto-apply filter function - applies filters immediately
+	// Auto-apply filter function — main table always shows vigente members
 	const applyFiltersWithValues = useCallback((
-		statuses: string[],
 		roles: string[],
 		gdiIds: string[],
 		areaIds: string[],
-		search: string = searchInput
+		joinPreset: string = selectedJoinPreset,
+		agePreset: string = selectedAgePreset,
+		search: string = searchInput,
 	) => {
 		const params = new URLSearchParams();
 		params.set("page", "1");
 		params.set("pageSize", pageSize.toString());
+		params.set("memberStatus", "vigente");
 
 		if (search.trim()) params.set("search", search.trim());
-		if (statuses.length > 0) params.set("memberStatus", statuses.join(","));
 		if (roles.length > 0) params.set("role", roles.join(","));
 		if (gdiIds.length > 0) params.set("guide", gdiIds.join(","));
 		if (areaIds.length > 0) params.set("area", areaIds.join(","));
+		if (joinPreset) {
+			params.set("joinPreset", joinPreset);
+			if (joinPreset === "custom" && customJoinFrom) params.set("joinFrom", customJoinFrom);
+			if (joinPreset === "custom" && customJoinTo) params.set("joinTo", customJoinTo);
+		}
+		if (agePreset) {
+			params.set("agePreset", agePreset);
+			if (agePreset === "custom" && customAgeMin) params.set("ageMin", customAgeMin);
+			if (agePreset === "custom" && customAgeMax) params.set("ageMax", customAgeMax);
+		}
 
 		router.push(`${pathname}?${params.toString()}`);
 		router.refresh();
-	}, [pathname, router, pageSize, searchInput]);
-
-	// Auto-apply toggle for each filter type
-	const toggleStatusFilter = (value: string) => {
-		const newStatuses = selectedStatuses.includes(value)
-			? selectedStatuses.filter(s => s !== value)
-			: [...selectedStatuses, value];
-		setSelectedStatuses(newStatuses);
-		applyFiltersWithValues(newStatuses, selectedRoles, selectedGuideIds, selectedAreaIds);
-	};
+	}, [pathname, router, pageSize, searchInput, selectedJoinPreset, selectedAgePreset, customJoinFrom, customJoinTo, customAgeMin, customAgeMax]);
 
 	const toggleRoleFilter = (value: string) => {
 		const newRoles = selectedRoles.includes(value)
 			? selectedRoles.filter(r => r !== value)
 			: [...selectedRoles, value];
 		setSelectedRoles(newRoles);
-		applyFiltersWithValues(selectedStatuses, newRoles, selectedGuideIds, selectedAreaIds);
+		applyFiltersWithValues(newRoles, selectedGuideIds, selectedAreaIds);
 	};
 
 	const toggleGdiFilter = (value: string) => {
@@ -391,7 +475,7 @@ export default function MembersListView({
 			? selectedGuideIds.filter(g => g !== value)
 			: [...selectedGuideIds, value];
 		setSelectedGuideIds(newGdiIds);
-		applyFiltersWithValues(selectedStatuses, selectedRoles, newGdiIds, selectedAreaIds);
+		applyFiltersWithValues(selectedRoles, newGdiIds, selectedAreaIds);
 	};
 
 	const toggleAreaFilter = (value: string) => {
@@ -399,32 +483,50 @@ export default function MembersListView({
 			? selectedAreaIds.filter(a => a !== value)
 			: [...selectedAreaIds, value];
 		setSelectedAreaIds(newAreaIds);
-		applyFiltersWithValues(selectedStatuses, selectedRoles, selectedGuideIds, newAreaIds);
+		applyFiltersWithValues(selectedRoles, selectedGuideIds, newAreaIds);
+	};
+
+	const selectJoinPreset = (value: string) => {
+		const newPreset = selectedJoinPreset === value ? "" : value;
+		setSelectedJoinPreset(newPreset);
+		if (newPreset !== "custom") {
+			// Navigate immediately for predefined presets; for "custom" just reveal the panel
+			applyFiltersWithValues(selectedRoles, selectedGuideIds, selectedAreaIds, newPreset, selectedAgePreset);
+		}
+	};
+
+	const selectAgePreset = (value: string) => {
+		const newPreset = selectedAgePreset === value ? "" : value;
+		setSelectedAgePreset(newPreset);
+		if (newPreset !== "custom") {
+			applyFiltersWithValues(selectedRoles, selectedGuideIds, selectedAreaIds, selectedJoinPreset, newPreset);
+		}
+	};
+
+	const applyCustomJoin = () => {
+		if (!customJoinFrom || !customJoinTo) return;
+		applyFiltersWithValues(selectedRoles, selectedGuideIds, selectedAreaIds, "custom", selectedAgePreset);
+	};
+
+	const applyCustomAge = () => {
+		if (!customAgeMin && !customAgeMax) return;
+		applyFiltersWithValues(selectedRoles, selectedGuideIds, selectedAreaIds, selectedJoinPreset, "custom");
 	};
 
 	// Remove single filter chip
-	const removeFilterChip = (type: 'status' | 'role' | 'gdi' | 'area', value: string) => {
+	const removeFilterChip = (type: 'role' | 'gdi' | 'area' | 'join' | 'age', value: string) => {
 		switch (type) {
-			case 'status':
-				toggleStatusFilter(value);
-				break;
-			case 'role':
-				toggleRoleFilter(value);
-				break;
-			case 'gdi':
-				toggleGdiFilter(value);
-				break;
-			case 'area':
-				toggleAreaFilter(value);
-				break;
+			case 'role':  toggleRoleFilter(value); break;
+			case 'gdi':   toggleGdiFilter(value); break;
+			case 'area':  toggleAreaFilter(value); break;
+			case 'join':  selectJoinPreset(""); break;
+			case 'age':   selectAgePreset(""); break;
 		}
 	};
 
 	// Get label for filter value
-	const getFilterLabel = (type: 'status' | 'role' | 'gdi' | 'area', value: string): string => {
+	const getFilterLabel = (type: 'role' | 'gdi' | 'area', value: string): string => {
 		switch (type) {
-			case 'status':
-				return statusDisplayMap[value as Member["status"]] || value;
 			case 'role':
 				return value === NO_ROLE_FILTER_VALUE ? "Sin Rol" : (roleDisplayMap[value as MemberRoleType] || value);
 			case 'gdi':
@@ -441,19 +543,25 @@ export default function MembersListView({
 	};
 
 	const handleFilterOrSearch = () => {
-		applyFiltersWithValues(selectedStatuses, selectedRoles, selectedGuideIds, selectedAreaIds);
+		applyFiltersWithValues(selectedRoles, selectedGuideIds, selectedAreaIds);
 	};
 
 	const handleClearAllFilters = () => {
 		setSearchInput("");
-		setSelectedStatuses([]);
 		setSelectedRoles([]);
 		setSelectedGuideIds([]);
 		setSelectedAreaIds([]);
+		setSelectedJoinPreset("");
+		setSelectedAgePreset("");
+		setCustomJoinFrom("");
+		setCustomJoinTo("");
+		setCustomAgeMin("");
+		setCustomAgeMax("");
 
 		const params = new URLSearchParams();
 		params.set("page", "1");
 		params.set("pageSize", pageSize.toString());
+		params.set("memberStatus", "vigente");
 		router.push(`${pathname}?${params.toString()}`);
 		router.refresh();
 	};
@@ -538,9 +646,14 @@ export default function MembersListView({
 	};
 
 	const handleMemberUpdated = (updatedMember: Member) => {
-		setMembers((prevMembers) =>
-			prevMembers.map((m) => (m.id === updatedMember.id ? updatedMember : m)),
-		);
+		if (updatedMember.status === "eliminado") {
+			// Member was soft-deleted via the dialog — remove from vigentes list
+			setMembers(prev => prev.filter(m => m.id !== updatedMember.id));
+		} else {
+			setMembers((prevMembers) =>
+				prevMembers.map((m) => (m.id === updatedMember.id ? updatedMember : m)),
+			);
+		}
 		router.refresh();
 	};
 
@@ -548,33 +661,57 @@ export default function MembersListView({
 	const handleOpenEditDialog = (member: Member) => {
 		setSelectedMember(member);
 		setIsDetailsDialogOpen(true);
-		// Note: The MemberDetailsDialog has internal edit mode that user can access
 	};
 
-	// Handler to delete a member with confirmation
-	const handleDeleteMember = async (memberId: string) => {
-		const memberToDelete = members.find(m => m.id === memberId);
-		if (!memberToDelete) return;
-
-		// Confirm before deleting
+	// Soft delete: moves member to "Dados de baja" section (reversible)
+	const handleSoftDelete = async (member: Member) => {
 		const confirmed = window.confirm(
-			`¿Está seguro de que desea eliminar a ${memberToDelete.firstName} ${memberToDelete.lastName}? Esta acción no se puede deshacer.`
+			`¿Dar de baja a ${member.firstName} ${member.lastName}?\n\nEl miembro quedará archivado y podrá ser restaurado en cualquier momento.`
 		);
-		
+		if (!confirmed) return;
+
+		startMemberTransition(async () => {
+			const result = await softDeleteMemberAction(member.id);
+			if (result.success) {
+				toast({ title: "Éxito", description: result.message });
+				setMembers(prev => prev.filter(m => m.id !== member.id));
+				router.refresh();
+			} else {
+				toast({ title: "Error", description: result.message, variant: "destructive" });
+			}
+		});
+	};
+
+	// Restore: moves member back to vigentes
+	const handleRestore = async (member: Member) => {
+		startMemberTransition(async () => {
+			const result = await restoreMemberAction(member.id);
+			if (result.success) {
+				toast({ title: "Éxito", description: result.message });
+				router.refresh();
+			} else {
+				toast({ title: "Error", description: result.message, variant: "destructive" });
+			}
+		});
+	};
+
+	// Hard delete: permanent, only available for members with no historical records
+	const handleHardDelete = async (memberId: string) => {
+		const member = allMembersForDropdowns.find(m => m.id === memberId);
+		if (!member) return;
+
+		const confirmed = window.confirm(
+			`¿Eliminar permanentemente a ${member.firstName} ${member.lastName}?\n\nEsta acción no se puede deshacer. Solo es posible porque este miembro no tiene historial de asistencia ni diezmos.`
+		);
 		if (!confirmed) return;
 
 		startMemberTransition(async () => {
 			const result = await deleteMemberAction(memberId);
 			if (result.success) {
 				toast({ title: "Éxito", description: result.message });
-				setMembers(prevMembers => prevMembers.filter(m => m.id !== memberId));
 				router.refresh();
 			} else {
-				toast({
-					title: "Error al Eliminar",
-					description: result.message,
-					variant: "destructive",
-				});
+				toast({ title: "Error", description: result.message, variant: "destructive" });
 			}
 		});
 	};
@@ -587,9 +724,6 @@ export default function MembersListView({
 			<ArrowDownNarrowWide size={16} />
 		);
 	};
-
-	const displayStatus = (status: Member["status"]) =>
-		statusDisplayMap[status] || status;
 
 	const createPageURL = (pageNumber: number) => {
 		const params = new URLSearchParams(searchParamsHook.toString());
@@ -607,10 +741,13 @@ export default function MembersListView({
 
 	const hasActiveFilters =
 		searchInput.trim() !== "" ||
-		selectedStatuses.length > 0 ||
 		selectedRoles.length > 0 ||
 		selectedGuideIds.length > 0 ||
-		selectedAreaIds.length > 0;
+		selectedAreaIds.length > 0 ||
+		(selectedJoinPreset !== "" && selectedJoinPreset !== "custom") ||
+		(selectedJoinPreset === "custom" && !!customJoinFrom && !!customJoinTo) ||
+		(selectedAgePreset !== "" && selectedAgePreset !== "custom") ||
+		(selectedAgePreset === "custom" && (!!customAgeMin || !!customAgeMax));
 
 	return (
 		<>
@@ -637,7 +774,7 @@ export default function MembersListView({
 							</div>
 							<div>
 								<p className="text-2xl font-bold">{stats.active}</p>
-								<p className="text-xs text-muted-foreground">Vigentes</p>
+								<p className="text-xs text-muted-foreground">Activos</p>
 							</div>
 						</div>
 					</CardContent>
@@ -719,37 +856,6 @@ export default function MembersListView({
 				</div>
 
 				<div className="flex flex-wrap items-center gap-x-2 gap-y-2 py-2">
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button
-								variant="ghost"
-								size="sm"
-								className="text-muted-foreground hover:text-primary data-[state=open]:text-primary"
-							>
-								<Filter className="mr-2 h-3.5 w-3.5" />
-								<span>
-									{selectedStatuses.length > 0
-										? `Estado (${selectedStatuses.length})`
-										: "Estado"}
-								</span>
-								<ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="start" className="w-56">
-							<DropdownMenuLabel>Filtrar por Estado</DropdownMenuLabel>
-							<DropdownMenuSeparator />
-							{statusFilterOptions.map((opt) => (
-								<DropdownMenuCheckboxItem
-									key={opt.value}
-									checked={selectedStatuses.includes(opt.value)}
-									onCheckedChange={() => toggleStatusFilter(opt.value)}
-								>
-									{opt.label}
-								</DropdownMenuCheckboxItem>
-							))}
-						</DropdownMenuContent>
-					</DropdownMenu>
-
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button
@@ -902,6 +1008,76 @@ export default function MembersListView({
 						</DropdownMenuContent>
 					</DropdownMenu>
 
+					{/* Ingreso filter — preset-based join date range */}
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button
+								variant="ghost"
+								size="sm"
+								className={cn(
+									"text-muted-foreground hover:text-primary data-[state=open]:text-primary",
+									selectedJoinPreset && "text-primary",
+								)}
+							>
+								<Calendar className="mr-2 h-3.5 w-3.5" />
+								<span>
+									{selectedJoinPreset
+										? JOIN_PRESETS.find(p => p.value === selectedJoinPreset)?.label ?? "Ingreso"
+										: "Ingreso"}
+								</span>
+								<ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="start" className="w-52">
+							<DropdownMenuLabel>Filtrar por fecha de ingreso</DropdownMenuLabel>
+							<DropdownMenuSeparator />
+							{JOIN_PRESETS.map((preset) => (
+								<DropdownMenuCheckboxItem
+									key={preset.value}
+									checked={selectedJoinPreset === preset.value}
+									onCheckedChange={() => selectJoinPreset(preset.value)}
+								>
+									{preset.label}
+								</DropdownMenuCheckboxItem>
+							))}
+						</DropdownMenuContent>
+					</DropdownMenu>
+
+					{/* Edad filter — preset-based age range */}
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button
+								variant="ghost"
+								size="sm"
+								className={cn(
+									"text-muted-foreground hover:text-primary data-[state=open]:text-primary",
+									selectedAgePreset && "text-primary",
+								)}
+							>
+								<Smile className="mr-2 h-3.5 w-3.5" />
+								<span>
+									{selectedAgePreset
+										? AGE_PRESETS.find(p => p.value === selectedAgePreset)?.label ?? "Edad"
+										: "Edad"}
+								</span>
+								<ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="start" className="w-52">
+							<DropdownMenuLabel>Filtrar por rango de edad</DropdownMenuLabel>
+							<DropdownMenuSeparator />
+							{AGE_PRESETS.map((preset) => (
+								<DropdownMenuCheckboxItem
+									key={preset.value}
+									checked={selectedAgePreset === preset.value}
+									onCheckedChange={() => selectAgePreset(preset.value)}
+								>
+									{preset.label}
+								</DropdownMenuCheckboxItem>
+							))}
+						</DropdownMenuContent>
+					</DropdownMenu>
+
 					{hasActiveFilters && (
 						<Button
 							onClick={handleClearAllFilters}
@@ -914,20 +1090,156 @@ export default function MembersListView({
 					)}
 				</div>
 
+				{/* Custom Join Range Panel */}
+				{selectedJoinPreset === "custom" && (
+					<div className="flex flex-wrap items-end gap-3 px-3 py-3 rounded-lg border bg-muted/40">
+						<Calendar className="h-4 w-4 text-muted-foreground mt-5 shrink-0" />
+						<div className="space-y-1">
+							<Label className="text-xs text-muted-foreground">Desde</Label>
+							<div className="flex gap-1">
+								<Select
+									value={customJoinFrom.split("-")[1] ?? ""}
+									onValueChange={(month) => {
+										const year = customJoinFrom.split("-")[0] || String(CURRENT_YEAR);
+										setCustomJoinFrom(`${year}-${month}`);
+									}}
+								>
+									<SelectTrigger className="w-[110px] h-8 text-xs">
+										<SelectValue placeholder="Mes" />
+									</SelectTrigger>
+									<SelectContent>
+										{MONTHS.map(m => (
+											<SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<Select
+									value={customJoinFrom.split("-")[0] ?? ""}
+									onValueChange={(year) => {
+										const month = customJoinFrom.split("-")[1] || "01";
+										setCustomJoinFrom(`${year}-${month}`);
+									}}
+								>
+									<SelectTrigger className="w-[80px] h-8 text-xs">
+										<SelectValue placeholder="Año" />
+									</SelectTrigger>
+									<SelectContent>
+										{JOIN_YEARS.map(y => (
+											<SelectItem key={y} value={y} className="text-xs">{y}</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+						</div>
+						<div className="space-y-1">
+							<Label className="text-xs text-muted-foreground">Hasta</Label>
+							<div className="flex gap-1">
+								<Select
+									value={customJoinTo.split("-")[1] ?? ""}
+									onValueChange={(month) => {
+										const year = customJoinTo.split("-")[0] || String(CURRENT_YEAR);
+										setCustomJoinTo(`${year}-${month}`);
+									}}
+								>
+									<SelectTrigger className="w-[110px] h-8 text-xs">
+										<SelectValue placeholder="Mes" />
+									</SelectTrigger>
+									<SelectContent>
+										{MONTHS.map(m => (
+											<SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<Select
+									value={customJoinTo.split("-")[0] ?? ""}
+									onValueChange={(year) => {
+										const month = customJoinTo.split("-")[1] || "01";
+										setCustomJoinTo(`${year}-${month}`);
+									}}
+								>
+									<SelectTrigger className="w-[80px] h-8 text-xs">
+										<SelectValue placeholder="Año" />
+									</SelectTrigger>
+									<SelectContent>
+										{JOIN_YEARS.map(y => (
+											<SelectItem key={y} value={y} className="text-xs">{y}</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+						</div>
+						<Button
+							size="sm"
+							className="h-8"
+							onClick={applyCustomJoin}
+							disabled={!customJoinFrom || customJoinFrom.split("-").length < 2 || !customJoinTo || customJoinTo.split("-").length < 2}
+						>
+							Aplicar
+						</Button>
+						<Button
+							size="sm"
+							variant="ghost"
+							className="h-8 text-muted-foreground"
+							onClick={() => { setSelectedJoinPreset(""); setCustomJoinFrom(""); setCustomJoinTo(""); }}
+						>
+							Cancelar
+						</Button>
+					</div>
+				)}
+
+				{/* Custom Age Range Panel */}
+				{selectedAgePreset === "custom" && (
+					<div className="flex flex-wrap items-end gap-3 px-3 py-3 rounded-lg border bg-muted/40">
+						<Smile className="h-4 w-4 text-muted-foreground mt-5 shrink-0" />
+						<div className="space-y-1">
+							<Label className="text-xs text-muted-foreground">Edad mínima</Label>
+							<Input
+								type="number"
+								min="0"
+								max="120"
+								placeholder="Ej: 18"
+								className="w-[80px] h-8 text-xs"
+								value={customAgeMin}
+								onChange={(e) => setCustomAgeMin(e.target.value)}
+								onKeyDown={(e) => e.key === "Enter" && applyCustomAge()}
+							/>
+						</div>
+						<span className="text-muted-foreground text-sm mb-1">–</span>
+						<div className="space-y-1">
+							<Label className="text-xs text-muted-foreground">Edad máxima</Label>
+							<Input
+								type="number"
+								min="0"
+								max="120"
+								placeholder="Ej: 29"
+								className="w-[80px] h-8 text-xs"
+								value={customAgeMax}
+								onChange={(e) => setCustomAgeMax(e.target.value)}
+								onKeyDown={(e) => e.key === "Enter" && applyCustomAge()}
+							/>
+						</div>
+						<Button
+							size="sm"
+							className="h-8"
+							onClick={applyCustomAge}
+							disabled={!customAgeMin && !customAgeMax}
+						>
+							Aplicar
+						</Button>
+						<Button
+							size="sm"
+							variant="ghost"
+							className="h-8 text-muted-foreground"
+							onClick={() => { setSelectedAgePreset(""); setCustomAgeMin(""); setCustomAgeMax(""); }}
+						>
+							Cancelar
+						</Button>
+					</div>
+				)}
+
 				{/* Active Filters Chips */}
 				{hasActiveFilters && (
 					<div className="flex flex-wrap gap-2 pb-4">
-						{selectedStatuses.map(status => (
-							<Badge
-								key={`status-${status}`}
-								variant="secondary"
-								className="pl-2 pr-1 py-1 gap-1 cursor-pointer hover:bg-destructive/20"
-								onClick={() => removeFilterChip('status', status)}
-							>
-								Estado: {getFilterLabel('status', status)}
-								<X className="h-3 w-3" />
-							</Badge>
-						))}
 						{selectedRoles.map(role => (
 							<Badge
 								key={`role-${role}`}
@@ -961,6 +1273,46 @@ export default function MembersListView({
 								<X className="h-3 w-3" />
 							</Badge>
 						))}
+						{selectedJoinPreset && selectedJoinPreset !== "custom" && (
+							<Badge
+								variant="secondary"
+								className="pl-2 pr-1 py-1 gap-1 cursor-pointer hover:bg-destructive/20"
+								onClick={() => removeFilterChip('join', selectedJoinPreset)}
+							>
+								Ingreso: {JOIN_PRESETS.find(p => p.value === selectedJoinPreset)?.label}
+								<X className="h-3 w-3" />
+							</Badge>
+						)}
+						{selectedJoinPreset === "custom" && customJoinFrom && customJoinTo && (
+							<Badge
+								variant="secondary"
+								className="pl-2 pr-1 py-1 gap-1 cursor-pointer hover:bg-destructive/20"
+								onClick={() => { setSelectedJoinPreset(""); setCustomJoinFrom(""); setCustomJoinTo(""); applyFiltersWithValues(selectedRoles, selectedGuideIds, selectedAreaIds, "", selectedAgePreset); }}
+							>
+								Ingreso: {formatMonthYear(customJoinFrom)} – {formatMonthYear(customJoinTo)}
+								<X className="h-3 w-3" />
+							</Badge>
+						)}
+						{selectedAgePreset && selectedAgePreset !== "custom" && (
+							<Badge
+								variant="secondary"
+								className="pl-2 pr-1 py-1 gap-1 cursor-pointer hover:bg-destructive/20"
+								onClick={() => removeFilterChip('age', selectedAgePreset)}
+							>
+								Edad: {AGE_PRESETS.find(p => p.value === selectedAgePreset)?.label}
+								<X className="h-3 w-3" />
+							</Badge>
+						)}
+						{selectedAgePreset === "custom" && (customAgeMin || customAgeMax) && (
+							<Badge
+								variant="secondary"
+								className="pl-2 pr-1 py-1 gap-1 cursor-pointer hover:bg-destructive/20"
+								onClick={() => { setSelectedAgePreset(""); setCustomAgeMin(""); setCustomAgeMax(""); applyFiltersWithValues(selectedRoles, selectedGuideIds, selectedAreaIds, selectedJoinPreset, ""); }}
+							>
+								Edad: {customAgeMin || "0"}–{customAgeMax || "∞"} años
+								<X className="h-3 w-3" />
+							</Badge>
+						)}
 					</div>
 				)}
 			</div>
@@ -991,30 +1343,18 @@ export default function MembersListView({
 									Última Asistencia
 								</div>
 							</TableHead>
-							<TableHead
-								onClick={() => handleSort("status")}
-								className="cursor-pointer"
-							>
-								<div className="flex items-center gap-1 hover:text-primary">
-									Estado <SortIcon columnKey="status" />
-								</div>
-							</TableHead>
 							<TableHead className="text-center w-[60px]">Acciones</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
 						{processedMembers.map((member) => {
 							const memberAreas = getMemberAreaNames(member);
-							const isDeleted = member.status === "eliminado";
 							const attendanceStatus = getAttendanceStatus(member.id);
 							return (
 								<TableRow
 									key={member.id}
 									onClick={() => handleOpenDetailsDialog(member)}
-									className={cn(
-										"hover:bg-muted/50 transition-colors cursor-pointer",
-										isDeleted && "opacity-50"
-									)}
+									className="hover:bg-muted/50 transition-colors cursor-pointer"
 								>
 									<TableCell>
 										<div className="flex items-center gap-3">
@@ -1024,7 +1364,7 @@ export default function MembersListView({
 													{member.lastName.substring(0, 1)}
 												</AvatarFallback>
 											</Avatar>
-											<span className={cn("font-medium", isDeleted && "line-through")}>
+											<span className="font-medium">
 												{member.firstName} {member.lastName}
 											</span>
 										</div>
@@ -1100,22 +1440,6 @@ export default function MembersListView({
 											{attendanceStatus.label}
 										</div>
 									</TableCell>
-									<TableCell>
-										<Badge
-											variant={
-												member.status === "vigente"
-													? "default"
-													: "secondary"
-											}
-											className={
-												member.status === "vigente"
-													? "bg-green-500/20 text-green-700 border-green-500/50 dark:text-green-400"
-													: "bg-red-500/20 text-red-700 border-red-500/50 dark:text-red-400"
-											}
-										>
-											{displayStatus(member.status)}
-										</Badge>
-									</TableCell>
 									<TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
 										<DropdownMenu>
 											<DropdownMenuTrigger asChild>
@@ -1139,12 +1463,11 @@ export default function MembersListView({
 												</DropdownMenuItem>
 												<DropdownMenuSeparator />
 												<DropdownMenuItem
-													onClick={() => handleDeleteMember(member.id)}
+													onClick={() => handleSoftDelete(member)}
 													className="text-destructive focus:text-destructive"
-													disabled={member.status === "eliminado"}
 												>
-													<Trash2 className="mr-2 h-4 w-4" />
-													Eliminar
+													<UserMinus className="mr-2 h-4 w-4" />
+													Dar de baja
 												</DropdownMenuItem>
 											</DropdownMenuContent>
 										</DropdownMenu>
@@ -1214,6 +1537,126 @@ export default function MembersListView({
 							<ChevronRight className="h-4 w-4" />
 						</Button>
 					</div>
+				</div>
+			)}
+
+			{/* =============================================
+			    SECCIÓN: DADOS DE BAJA
+			    Miembros con record_status = 'eliminado'.
+			    Operaciones: restaurar (siempre) o eliminar
+			    permanentemente (solo sin historial).
+			    ============================================= */}
+			{eliminadosMembers.length > 0 && (
+				<div className="mt-8 rounded-lg border border-border overflow-hidden">
+					<button
+						type="button"
+						onClick={() => setShowBajaSection(!showBajaSection)}
+						className="w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted/60 transition-colors text-sm font-medium"
+					>
+						<div className="flex items-center gap-2 text-muted-foreground">
+							<Archive className="h-4 w-4" />
+							<span>Dados de baja</span>
+							<Badge variant="secondary" className="ml-1 text-xs">
+								{eliminadosMembers.length}
+							</Badge>
+						</div>
+						{showBajaSection
+							? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+							: <ChevronDown className="h-4 w-4 text-muted-foreground" />
+						}
+					</button>
+
+					{showBajaSection && (
+						<div className="overflow-x-auto">
+							<Table>
+								<TableHeader>
+									<TableRow className="bg-muted/20">
+										<TableHead>Miembro</TableHead>
+										<TableHead>Último GDI</TableHead>
+										<TableHead>Última asistencia</TableHead>
+										<TableHead className="text-center w-[60px]">Acciones</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{eliminadosMembers.map((member) => {
+										const hardDeleteAllowed = canHardDelete(member);
+										const attendanceStatus = getAttendanceStatus(member.id);
+										return (
+											<TableRow
+												key={member.id}
+												className="opacity-60 hover:opacity-90 transition-opacity"
+											>
+												<TableCell>
+													<div className="flex items-center gap-3">
+														<Avatar className="h-8 w-8">
+															<AvatarFallback className="text-xs">
+																{member.firstName.substring(0, 1)}
+																{member.lastName.substring(0, 1)}
+															</AvatarFallback>
+														</Avatar>
+														<span className="font-medium line-through text-muted-foreground">
+															{member.firstName} {member.lastName}
+														</span>
+													</div>
+												</TableCell>
+												<TableCell>
+													<span className="text-sm text-muted-foreground">
+														{getGdiName(member)}
+													</span>
+												</TableCell>
+												<TableCell>
+													<div className={cn(
+														"inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium",
+														attendanceStatus.bgColor,
+														attendanceStatus.color
+													)}>
+														{attendanceStatus.label}
+													</div>
+												</TableCell>
+												<TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+													<DropdownMenu>
+														<DropdownMenuTrigger asChild>
+															<Button
+																variant="ghost"
+																size="icon"
+																className="h-8 w-8"
+																disabled={isProcessingMember}
+															>
+																<MoreVertical className="h-4 w-4" />
+															</Button>
+														</DropdownMenuTrigger>
+														<DropdownMenuContent align="end">
+															<DropdownMenuItem onClick={() => handleOpenDetailsDialog(member)}>
+																<Eye className="mr-2 h-4 w-4" />
+																Ver Detalles
+															</DropdownMenuItem>
+															<DropdownMenuSeparator />
+															<DropdownMenuItem onClick={() => handleRestore(member)}>
+																<RotateCcw className="mr-2 h-4 w-4" />
+																Restaurar
+															</DropdownMenuItem>
+															{hardDeleteAllowed && (
+																<>
+																	<DropdownMenuSeparator />
+																	<DropdownMenuItem
+																		onClick={() => handleHardDelete(member.id)}
+																		className="text-destructive focus:text-destructive"
+																	>
+																		<Trash2 className="mr-2 h-4 w-4" />
+																		Eliminar permanentemente
+																	</DropdownMenuItem>
+																</>
+															)}
+														</DropdownMenuContent>
+													</DropdownMenu>
+												</TableCell>
+											</TableRow>
+										);
+									})}
+								</TableBody>
+							</Table>
+						</div>
+					)}
 				</div>
 			)}
 

@@ -37,6 +37,10 @@ export const membersEndpoint = {
     if (params.role?.length) queryParams.set('role', params.role.join(','));
     if (params.gdi?.length) queryParams.set('gdi', params.gdi.join(','));
     if (params.area?.length) queryParams.set('area', params.area.join(','));
+    if (params.joinFrom) queryParams.set('joinFrom', params.joinFrom);
+    if (params.joinTo) queryParams.set('joinTo', params.joinTo);
+    if (params.ageMin !== undefined) queryParams.set('ageMin', params.ageMin.toString());
+    if (params.ageMax !== undefined) queryParams.set('ageMax', params.ageMax.toString());
 
     const queryString = queryParams.toString();
     const url = queryString ? `${ENDPOINT}/search?${queryString}` : `${ENDPOINT}/search`;

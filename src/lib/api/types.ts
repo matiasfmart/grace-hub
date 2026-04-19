@@ -425,6 +425,14 @@ export interface ApiMembersFilterParams {
   role?: string[];
   gdi?: number[];
   area?: number[];
+  /** ISO date YYYY-MM-DD — lower bound for church join date */
+  joinFrom?: string;
+  /** ISO date YYYY-MM-DD — upper bound for church join date */
+  joinTo?: string;
+  /** Minimum age (inclusive) */
+  ageMin?: number;
+  /** Maximum age (inclusive) */
+  ageMax?: number;
 }
 
 export interface ApiListResponse<T> {

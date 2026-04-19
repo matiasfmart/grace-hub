@@ -143,6 +143,46 @@ export async function updateMemberAction(
 	}
 }
 
+export async function softDeleteMemberAction(
+	memberId: string,
+): Promise<{ success: boolean; message: string }> {
+	if (!memberId) {
+		return { success: false, message: "Error: ID de miembro es requerido." };
+	}
+	try {
+		const member = await updateMember(memberId, { status: "eliminado" });
+		revalidatePath("/members");
+		revalidatePath("/groups");
+		return {
+			success: true,
+			message: `${member.firstName} ${member.lastName} fue dado de baja.`,
+		};
+	} catch (error: any) {
+		console.error("Error dando de baja al miembro:", error);
+		return { success: false, message: `Error: ${error.message}` };
+	}
+}
+
+export async function restoreMemberAction(
+	memberId: string,
+): Promise<{ success: boolean; message: string }> {
+	if (!memberId) {
+		return { success: false, message: "Error: ID de miembro es requerido." };
+	}
+	try {
+		const member = await updateMember(memberId, { status: "vigente" });
+		revalidatePath("/members");
+		revalidatePath("/groups");
+		return {
+			success: true,
+			message: `${member.firstName} ${member.lastName} fue restaurado exitosamente.`,
+		};
+	} catch (error: any) {
+		console.error("Error restaurando miembro:", error);
+		return { success: false, message: `Error: ${error.message}` };
+	}
+}
+
 export async function deleteMemberAction(
 	memberId: string,
 ): Promise<{ success: boolean; message: string }> {
@@ -161,10 +201,8 @@ export async function deleteMemberAction(
 			};
 		}
 
-		// Revalida las rutas para refrescar los datos en toda la aplicación.
 		revalidatePath("/members");
 		revalidatePath("/groups");
-		// Revalida las páginas de administración de los grupos afectados.
 		if (deletedMember.assignedGDIId)
 			revalidatePath(`/groups/gdis/${deletedMember.assignedGDIId}/admin`);
 		deletedMember.assignedAreaIds?.forEach((areaId) =>
@@ -173,7 +211,7 @@ export async function deleteMemberAction(
 
 		return {
 			success: true,
-			message: `Miembro ${deletedMember.firstName} ${deletedMember.lastName} eliminado exitosamente.`,
+			message: `${deletedMember.firstName} ${deletedMember.lastName} eliminado permanentemente.`,
 		};
 	} catch (error: any) {
 		console.error("Error eliminando miembro:", error);

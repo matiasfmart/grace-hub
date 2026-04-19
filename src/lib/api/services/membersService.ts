@@ -157,9 +157,12 @@ export async function getAllMembers(
   memberStatusFilters?: string[],
   roleFilters?: string[],
   gdiFilters?: string[],
-  areaFilters?: string[]
+  areaFilters?: string[],
+  joinDateFrom?: string,
+  joinDateTo?: string,
+  ageMin?: number,
+  ageMax?: number,
 ): Promise<{ members: Member[]; totalMembers: number; totalPages: number }> {
-  // Build filter params for server-side filtering
   const params: import('../types').ApiMembersFilterParams = {
     page,
     pageSize,
@@ -168,9 +171,12 @@ export async function getAllMembers(
     role: roleFilters?.length ? roleFilters : undefined,
     gdi: gdiFilters?.length ? gdiFilters.map(g => Number(g)).filter(n => !isNaN(n)) : undefined,
     area: areaFilters?.length ? areaFilters.map(a => Number(a)).filter(n => !isNaN(n)) : undefined,
+    joinFrom: joinDateFrom || undefined,
+    joinTo: joinDateTo || undefined,
+    ageMin: ageMin !== undefined ? ageMin : undefined,
+    ageMax: ageMax !== undefined ? ageMax : undefined,
   };
 
-  // Call server-side filtered endpoint
   const response = await membersEndpoint.search(params);
 
   return {
