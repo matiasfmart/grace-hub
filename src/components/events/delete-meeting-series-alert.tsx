@@ -22,7 +22,7 @@ interface DeleteMeetingSeriesAlertProps {
 	deleteMeetingSeriesAction: (
 		seriesId: string,
 	) => Promise<{ success: boolean; message: string }>;
-	onOpenChange: (open: boolean) => void; // To control its own visibility from parent
+	onOpenChange?: (open: boolean) => void; // To control its own visibility from parent
 	onSuccess?: () => void; // Callback on successful deletion
 	triggerButton?: React.ReactNode; // Optional external trigger
 }
@@ -41,7 +41,7 @@ export default function DeleteMeetingSeriesAlert({
 
 	const handleOpenChange = (open: boolean) => {
 		setIsInternalOpen(open);
-		onOpenChange(open); // Notify parent if it's controlling visibility
+		onOpenChange?.(open); // Notify parent if it's controlling visibility
 	};
 
 	const handleDelete = async () => {

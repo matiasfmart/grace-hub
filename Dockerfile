@@ -11,12 +11,9 @@ FROM node:24.6.0-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Variables dummy SOLO para que el build no falle
-# Estas NO se usan en runtime
-ENV MONGODB_USER=dummy
-ENV MONGODB_PASSWORD=dummy
-ENV MONGODB_CLUSTER_URL=dummy.mongodb.net
-ENV MONGODB_DB_NAME=dummy
+# NEXT_PUBLIC_API_URL is baked into the JS bundle at build time (browser calls)
+ARG NEXT_PUBLIC_API_URL=http://localhost:3001
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

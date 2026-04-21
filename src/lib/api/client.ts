@@ -11,7 +11,12 @@ import type { ApiErrorResponse } from './types';
 // CONFIGURATION
 // ==============================================
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+// NEXT_PUBLIC_API_URL → baked at build time, used by the browser (client-side)
+// API_URL → runtime env var, used by the Next.js server inside Docker to reach the backend container
+const API_BASE_URL =
+  typeof window === 'undefined'
+    ? (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001')
+    : (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001');
 const API_PREFIX = '/api/v1';
 
 // ==============================================

@@ -734,8 +734,9 @@ export function TithesTracker({
 
 			<TitheProgressionChart
 				allFilteredMembers={allFilteredMembers}
-					months={months}
-				/>
+				allTitheRecords={titheRecords}
+				months={months}
+			/>
 
 				<div className="border rounded-lg shadow-md">
 					<ScrollArea className="w-full whitespace-nowrap">
