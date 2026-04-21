@@ -12,17 +12,14 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	ChevronUp,
-	Eye,
+	Info,
 	ListPlus,
-	MoreVertical,
-	Pencil,
 	RotateCcw,
 	Search,
 	ShieldCheck,
 	Smile,
 	Trash2,
 	UserCheck,
-	UserMinus,
 	UserPlus,
 	Users,
 	X,
@@ -1343,7 +1340,7 @@ export default function MembersListView({
 									Última Asistencia
 								</div>
 							</TableHead>
-							<TableHead className="text-center w-[60px]">Acciones</TableHead>
+							<TableHead className="w-[48px]"><span className="sr-only">Ver detalles</span></TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
@@ -1353,8 +1350,7 @@ export default function MembersListView({
 							return (
 								<TableRow
 									key={member.id}
-									onClick={() => handleOpenDetailsDialog(member)}
-									className="hover:bg-muted/50 transition-colors cursor-pointer"
+									className="hover:bg-muted/30 transition-colors"
 								>
 									<TableCell>
 										<div className="flex items-center gap-3">
@@ -1440,37 +1436,17 @@ export default function MembersListView({
 											{attendanceStatus.label}
 										</div>
 									</TableCell>
-									<TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-										<DropdownMenu>
-											<DropdownMenuTrigger asChild>
-												<Button
-													variant="ghost"
-													size="icon"
-													className="h-8 w-8"
-													disabled={isProcessingMember}
-												>
-													<MoreVertical className="h-4 w-4" />
-												</Button>
-											</DropdownMenuTrigger>
-											<DropdownMenuContent align="end">
-												<DropdownMenuItem onClick={() => handleOpenDetailsDialog(member)}>
-													<Eye className="mr-2 h-4 w-4" />
-													Ver Detalles
-												</DropdownMenuItem>
-												<DropdownMenuItem onClick={() => handleOpenEditDialog(member)}>
-													<Pencil className="mr-2 h-4 w-4" />
-													Editar
-												</DropdownMenuItem>
-												<DropdownMenuSeparator />
-												<DropdownMenuItem
-													onClick={() => handleSoftDelete(member)}
-													className="text-destructive focus:text-destructive"
-												>
-													<UserMinus className="mr-2 h-4 w-4" />
-													Dar de baja
-												</DropdownMenuItem>
-											</DropdownMenuContent>
-										</DropdownMenu>
+									<TableCell className="text-center">
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-8 w-8"
+											disabled={isProcessingMember}
+											onClick={() => handleOpenDetailsDialog(member)}
+											title="Ver detalles del miembro"
+										>
+											<Info className="h-4 w-4 text-muted-foreground" />
+										</Button>
 									</TableCell>
 								</TableRow>
 							);
@@ -1574,7 +1550,7 @@ export default function MembersListView({
 										<TableHead>Miembro</TableHead>
 										<TableHead>Último GDI</TableHead>
 										<TableHead>Última asistencia</TableHead>
-										<TableHead className="text-center w-[60px]">Acciones</TableHead>
+										<TableHead className="w-[120px]"><span className="sr-only">Acciones</span></TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -1613,42 +1589,41 @@ export default function MembersListView({
 														{attendanceStatus.label}
 													</div>
 												</TableCell>
-												<TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-													<DropdownMenu>
-														<DropdownMenuTrigger asChild>
+												<TableCell>
+													<div className="flex items-center justify-center gap-1">
+														<Button
+															variant="ghost"
+															size="icon"
+															className="h-8 w-8"
+															disabled={isProcessingMember}
+															onClick={() => handleOpenDetailsDialog(member)}
+															title="Ver detalles"
+														>
+															<Info className="h-4 w-4 text-muted-foreground" />
+														</Button>
+														<Button
+															variant="ghost"
+															size="icon"
+															className="h-8 w-8"
+															disabled={isProcessingMember}
+															onClick={() => handleRestore(member)}
+															title="Restaurar miembro"
+														>
+															<RotateCcw className="h-4 w-4 text-muted-foreground" />
+														</Button>
+														{hardDeleteAllowed && (
 															<Button
 																variant="ghost"
 																size="icon"
-																className="h-8 w-8"
+																className="h-8 w-8 text-destructive hover:text-destructive"
 																disabled={isProcessingMember}
+																onClick={() => handleHardDelete(member.id)}
+																title="Eliminar permanentemente"
 															>
-																<MoreVertical className="h-4 w-4" />
+																<Trash2 className="h-4 w-4" />
 															</Button>
-														</DropdownMenuTrigger>
-														<DropdownMenuContent align="end">
-															<DropdownMenuItem onClick={() => handleOpenDetailsDialog(member)}>
-																<Eye className="mr-2 h-4 w-4" />
-																Ver Detalles
-															</DropdownMenuItem>
-															<DropdownMenuSeparator />
-															<DropdownMenuItem onClick={() => handleRestore(member)}>
-																<RotateCcw className="mr-2 h-4 w-4" />
-																Restaurar
-															</DropdownMenuItem>
-															{hardDeleteAllowed && (
-																<>
-																	<DropdownMenuSeparator />
-																	<DropdownMenuItem
-																		onClick={() => handleHardDelete(member.id)}
-																		className="text-destructive focus:text-destructive"
-																	>
-																		<Trash2 className="mr-2 h-4 w-4" />
-																		Eliminar permanentemente
-																	</DropdownMenuItem>
-																</>
-															)}
-														</DropdownMenuContent>
-													</DropdownMenu>
+														)}
+													</div>
 												</TableCell>
 											</TableRow>
 										);
