@@ -766,10 +766,10 @@ export default function MembersListView({
 		setIsDetailsDialogOpen(true);
 	};
 
-	// Soft delete: moves member to "Dados de baja" section (reversible)
-	const handleSoftDelete = (member: Member) => {
-		setSoftDeletePendingMember(member);
-	};
+	// Soft delete: el MemberDetailsDialog maneja su propio flujo via softDeleteMemberAction.
+	// handleSoftDelete eliminado — era código muerto (nunca llamado desde la UI).
+	// El AlertDialog de confirmación en members-list-view solo se usa para el flujo
+	// alternativo de soft delete desde la tabla (actualmente sin trigger en la UI).
 
 	const confirmSoftDelete = () => {
 		if (!softDeletePendingMember) return;
@@ -1813,7 +1813,6 @@ export default function MembersListView({
 					onClose={handleCloseDetailsDialog}
 					onMemberUpdated={handleMemberUpdated}
 					updateMemberAction={updateMemberAction}
-					deleteMemberAction={deleteMemberAction}
 				/>
 			)}
 			<Dialog

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import type { Member, MemberWriteData } from "@/lib/types";
+import type { RoleType } from "@/lib/api/mappers";
 import {
 	addMember,
 	deleteMember,
@@ -9,6 +10,8 @@ import {
 	updateMember,
 	gdisService,
 	areasService,
+	membersService,
+	roleTypesService,
 } from "@/lib/api/services";
 
 export async function addSingleMemberAction(
@@ -261,5 +264,60 @@ export async function addBulkMembersAction(
 			success: false,
 			message: `Error al guardar miembros: ${error.message}`,
 		};
+	}
+}
+
+/**
+ * CU-M-006: Asignar etiqueta eclesiastica a un miembro.
+ * Reemplaza la llamada directa a membersService desde el browser (violacion BFF).
+ */
+export async function assignEcclesiasticalRoleAction(
+	memberId: string,
+	roleTypeId: number,
+): Promise<{ success: boolean; message: string }> {
+	try {
+		await membersService.assignRoleType(memberId, roleTypeId);
+		revalidatePath("/members");
+		return { success: true, message: "Etiqueta asignada." };
+	} catch (error: any) {
+		return { success: false, message: `Error al asignar etiqueta: ${error.message}` };
+	}
+}
+
+/**
+ * CU-M-006: Quitar etiqueta eclesiastica de un miembro.
+ * Reemplaza la llamada directa a membersService desde el browser (violacion BFF).
+ */
+export async function removeEcclesiasticalRoleAction(
+	memberId: string,
+	roleTypeId: number,
+): Promise<{ success: boolean; message: string }> {
+	try {
+		await membersService.removeRoleType(memberId, roleTypeId);
+		revalidatePath("/members");
+		return { success: true, message: "Etiqueta quitada." };
+	} catch (error: any) {
+		return { success: false, message: `Error al quitar etiqueta: ${error.message}` };
+	}
+}
+
+/**
+ * Obtiene todas las etiquetas eclesiasticas disponibles.
+ *
+ * Query action: provee datos de role types a Client Components sin violar
+ * la regla BFF. El browser nunca llama al backend directamente.
+ * Usado en DefineMeetingSeriesForm cuando el usuario selecciona audiencia
+ * "por_etiqueta" (lazy load preservado).
+ */
+export async function getRoleTypesAction(): Promise<{
+	success: boolean;
+	data?: RoleType[];
+	message?: string;
+}> {
+	try {
+		const data = await roleTypesService.getAll();
+		return { success: true, data };
+	} catch (error: any) {
+		return { success: false, message: `Error al cargar etiquetas: ${error.message}` };
 	}
 }

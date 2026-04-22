@@ -94,7 +94,8 @@ src/
 │   └── api/                          # Route Handlers de Next.js
 │       └── auth/
 │           ├── login/route.ts        # Proxy: llama al backend, setea cookie
-│           └── logout/route.ts       # Limpia la cookie
+│           ├── logout/route.ts       # Limpia la cookie
+│           └── me/route.ts           # Proxy: lee cookie server-side, llama /auth/me
 │
 ├── middleware.ts                      # Intercepta navegación: redirige a /login si no hay cookie
 │       └── page.tsx
@@ -529,6 +530,58 @@ Middleware ve la cookie → pasa ✔
 
 Si el backend seteara la cookie directamente, quedaría en el dominio del backend. El middleware de Next.js no tendría acceso a ella en producción.
 
+### Por qué el browser NUNCA llama directamente al backend
+
+La cookie `auth` es `httpOnly` — el browser la envía automáticamente solo a requests del **mismo dominio** donde fue creada (el frontend). Si un componente client-side (`"use client"`) intentara llamar al backend directamente, el browser no enviaría la cookie y el backend devolvería 401.
+
+**Esto aplica a todos los ambientes donde frontend y backend tienen dominios distintos** (ej: `app.gracehub.com` vs `api.gracehub.com`). En desarrollo local no se nota porque ambos corren en `localhost`.
+
+**Regla:** El browser solo llama a rutas de Next.js (`/api/*` o páginas). El servidor de Next.js hace el fetch al backend. Esta es la arquitectura BFF (Backend For Frontend).
+
+### Patrón Server Component / Client Component
+
+Todo fetching de datos ocurre en Server Components. Los Client Components solo manejan interactividad UI.
+
+```
+page.tsx (Server Component — async)
+  ↓ fetchea datos via apiClient (corre en el servidor, tiene acceso a la cookie)
+  ↓ pasa datos como props
+FeatureView.tsx (Client Component — "use client")
+  ↓ recibe initialData como props
+  ↓ maneja estado interactivo (useState, useTransition)
+  ↓ llama Server Actions para mutations
+actions.ts ("use server")
+  ↓ corren en el servidor, tienen acceso a la cookie via apiClient
+  ↓ llaman al backend y ejecutan revalidatePath()
+```
+
+**Ejemplo concreto** (`role-types`):
+
+```typescript
+// page.tsx — Server Component
+export default async function RoleTypesSettingsPage() {
+  const roleTypes = await roleTypesService.getAll(); // ← server-side, cookie incluida automáticamente
+  return <RoleTypesView initialRoleTypes={roleTypes} />;
+}
+
+// RoleTypesView.tsx — Client Component
+"use client";
+export function RoleTypesView({ initialRoleTypes }: { initialRoleTypes: RoleType[] }) {
+  const [roleTypes, setRoleTypes] = useState(initialRoleTypes);
+  // mutations llaman Server Actions — nunca apiClient directamente
+}
+
+// actions.ts — Server Actions
+"use server";
+export async function createRoleTypeAction(name: string) {
+  const roleType = await roleTypesService.create(name); // ← server-side
+  revalidatePath("/members/settings/role-types");
+  return { success: true, roleType };
+}
+```
+
+**Después de una mutation**, el Client Component puede actualizar estado local optimísticamente o llamar `router.refresh()` para que el Server Component re-ejecute y pase datos actualizados. Las páginas complejas (GDI admin, Area admin) usan `router.refresh()`.
+
 ### Server Components: reenvío de cookie
 
 Cuando un Server Component llama al backend vía `apiClient`, la cookie del browser no se envía automáticamente (el fetch del servidor no tiene contexto del browser). `client.ts` la reenvía explícitamente:
@@ -542,65 +595,9 @@ const authCookie = cookieStore.get('auth');
 
 ### UserContext
 
-`UserProvider` (en `(protected)/layout.tsx`) llama a `GET /auth/me` al montar y expone el usuario autenticado via `useUser()`. También expone `logout()` que limpia la cookie y redirige a `/login`.
+`UserProvider` (en `main-layout.tsx`) llama a `GET /api/auth/me` al montar y expone el usuario autenticado via `useUser()`. También expone `logout()` que limpia la cookie y redirige a `/login`.
 
-### Agregar una nueva ruta pública (sin auth)
-
-1. Crear la página **fuera** del grupo `(protected)/` (ej: `app/verify-email/page.tsx`)
-2. Agregar el path a `PUBLIC_PATHS` en `src/middleware.ts`:
-
-```typescript
-const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout', '/verify-email'];
-```
-
----
-
-## 🔐 Autenticación
-
-### Flujo general
-
-La autenticación usa JWT almacenado en cookie `httpOnly`. El middleware de Next.js protege todas las páginas del grupo `(protected)` antes de renderizar cualquier componente.
-
-```
-Navegación a cualquier página
-  ↓
-middleware.ts — ¿existe cookie 'auth'?
-  ├─ Sí → renderiza normalmente
-  └─ No → redirect a /login
-```
-
-### Login: por qué usa un Route Handler y no llama al backend directo
-
-El login NO usa `apiClient` directamente. Pasa por un Route Handler de Next.js (`/api/auth/login`):
-
-```
-Browser
-  ↓ POST /api/auth/login
-Next.js Route Handler (mismo dominio que el frontend)
-  ↓ fetch al backend (NestJS)
-NestJS → valida credenciales → devuelve JWT en Set-Cookie
-Route Handler extrae el JWT y lo reescribe como cookie del dominio frontend
-  ↓ Set-Cookie: auth=<JWT>; HttpOnly; SameSite=Lax (en localhost:3000 o app.tudominio.com)
-Browser → window.location.href = '/'
-Middleware ve la cookie → pasa ✔
-```
-
-Si el backend seteara la cookie directamente, quedaría en el dominio del backend. El middleware de Next.js no tendría acceso a ella en producción.
-
-### Server Components: reenvío de cookie
-
-Cuando un Server Component llama al backend vía `apiClient`, la cookie del browser no se envía automáticamente (el fetch del servidor no tiene contexto del browser). `client.ts` la reenvía explícitamente:
-
-```typescript
-// client.ts — solo en contexto de servidor
-const cookieStore = await cookies();
-const authCookie = cookieStore.get('auth');
-// se incluye como header Cookie en el fetch al backend
-```
-
-### UserContext
-
-`UserProvider` (en `(protected)/layout.tsx`) llama a `GET /auth/me` al montar y expone el usuario autenticado via `useUser()`. También expone `logout()` que limpia la cookie y redirige a `/login`.
+La llamada usa el Route Handler proxy `/api/auth/me` — el browser llama a su propio dominio, y el Route Handler reenvía al backend con la cookie. Esto resuelve el problema de cross-domain en producción.
 
 ### Agregar una nueva ruta pública (sin auth)
 

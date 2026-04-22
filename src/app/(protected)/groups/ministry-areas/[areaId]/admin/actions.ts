@@ -19,6 +19,38 @@ import {
 	updateMeetingSeriesForGroup,
 	updateMinistryAreaAndSyncMembers,
 } from "@/lib/api/services";
+import { areasService } from "@/lib/api/services/areasService";
+
+// --- Ministry Area Member Assignment Actions ---
+export async function assignAreaMembersAction(
+	areaId: string,
+	memberIds: string[],
+): Promise<{ success: boolean; message: string }> {
+	try {
+		for (const memberId of memberIds) {
+			await areasService.assignMember(areaId, memberId);
+		}
+		revalidatePath(`/groups/ministry-areas/${areaId}/admin`);
+		revalidatePath("/groups");
+		return { success: true, message: `${memberIds.length} miembro(s) agregado(s)` };
+	} catch (error: any) {
+		return { success: false, message: error.message || "Error al agregar miembros" };
+	}
+}
+
+export async function removeAreaMemberAction(
+	areaId: string,
+	memberId: string,
+): Promise<{ success: boolean; message: string }> {
+	try {
+		await areasService.removeMember(areaId, memberId);
+		revalidatePath(`/groups/ministry-areas/${areaId}/admin`);
+		revalidatePath("/groups");
+		return { success: true, message: "Miembro removido del Área Ministerial" };
+	} catch (error: any) {
+		return { success: false, message: error.message || "Error al remover miembro" };
+	}
+}
 
 // --- Ministry Area Detail Actions ---
 export async function updateMinistryAreaDetailsAction(

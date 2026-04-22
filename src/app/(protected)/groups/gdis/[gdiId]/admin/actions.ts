@@ -19,6 +19,38 @@ import {
 	updateMeetingInstanceMinuteForGroup,
 	updateMeetingSeriesForGroup,
 } from "@/lib/api/services";
+import { gdisService } from "@/lib/api/services/gdisService";
+
+// --- GDI Member Assignment Actions ---
+export async function assignGdiMembersAction(
+	gdiId: string,
+	memberIds: string[],
+): Promise<{ success: boolean; message: string }> {
+	try {
+		for (const memberId of memberIds) {
+			await gdisService.assignMember(gdiId, memberId);
+		}
+		revalidatePath(`/groups/gdis/${gdiId}/admin`);
+		revalidatePath("/groups");
+		return { success: true, message: `${memberIds.length} miembro(s) agregado(s)` };
+	} catch (error: any) {
+		return { success: false, message: error.message || "Error al agregar miembros" };
+	}
+}
+
+export async function removeGdiMemberAction(
+	gdiId: string,
+	memberId: string,
+): Promise<{ success: boolean; message: string }> {
+	try {
+		await gdisService.removeMember(gdiId, memberId);
+		revalidatePath(`/groups/gdis/${gdiId}/admin`);
+		revalidatePath("/groups");
+		return { success: true, message: "Miembro removido del GDI" };
+	} catch (error: any) {
+		return { success: false, message: error.message || "Error al remover miembro" };
+	}
+}
 
 // --- GDI Detail Actions ---
 export async function updateGdiDetailsAction(

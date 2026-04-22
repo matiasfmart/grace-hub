@@ -37,8 +37,16 @@ export const authEndpoint = {
     return apiClient.post<{ message: string }>('/auth/register', dto);
   },
 
+  /**
+   * Get current user via Next.js API proxy.
+   * The browser calls /api/auth/me (same domain), the Route Handler
+   * reads the httpOnly cookie server-side and forwards it to the backend.
+   * This prevents cross-domain cookie issues in production.
+   */
   async me(): Promise<MeResponse> {
-    return apiClient.get<MeResponse>('/auth/me');
+    const res = await fetch('/api/auth/me', { cache: 'no-store' });
+    if (!res.ok) throw new Error('Unauthorized');
+    return res.json() as Promise<MeResponse>;
   },
 
   /**

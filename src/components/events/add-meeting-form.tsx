@@ -15,7 +15,7 @@ import {
 import type React from "react";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
-import { roleTypesService } from "@/lib/api/services";
+import { getRoleTypesAction } from "@/app/(protected)/actions/memberActions";
 import type { RoleType } from "@/lib/api/mappers";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -265,10 +265,12 @@ export default function DefineMeetingSeriesForm({
 	useEffect(() => {
 		if (watchedAudienceType === "by_categories" && !roleTypesLoaded) {
 			setIsLoadingRoleTypes(true);
-			roleTypesService.getAll()
-				.then((data) => {
-					setRoleTypes(data);
-					setRoleTypesLoaded(true);
+			getRoleTypesAction()
+				.then((result) => {
+					if (result.success && result.data) {
+						setRoleTypes(result.data);
+						setRoleTypesLoaded(true);
+					}
 				})
 				.catch((error) => {
 					console.error("Error loading role types:", error);

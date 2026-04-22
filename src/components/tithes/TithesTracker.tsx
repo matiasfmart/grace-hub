@@ -80,7 +80,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import type { Member, TitheRecord } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { batchUpdateTithesForMonth } from "@/lib/api/services";
+import { batchUpdateTithesAction } from "@/app/(protected)/actions/tithesActions";
 import { Label } from "../ui/label";
 import TitheProgressionChart from "./TitheProgressionChart";
 import TitheSummaryCards from "./TitheSummaryCards";
@@ -273,7 +273,7 @@ export function TithesTracker({
 		);
 
 		startUpdateTransition(async () => {
-			const result = await batchUpdateTithesForMonth(
+			const result = await batchUpdateTithesAction(
 				editingMonth.year,
 				editingMonth.month,
 				updates,
@@ -317,7 +317,7 @@ export function TithesTracker({
 		}
 
 		startUpdateTransition(async () => {
-			const result = await batchUpdateTithesForMonth(year, monthNum, [
+			const result = await batchUpdateTithesAction(year, monthNum, [
 				{ memberId: member.id, didTithe: newValue },
 			]);
 			if (!result.success) {

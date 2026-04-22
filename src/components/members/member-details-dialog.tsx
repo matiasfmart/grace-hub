@@ -95,7 +95,11 @@ import {
 	computeMemberAttendanceData,
 	isMemberExpectedAtMeeting,
 } from "@/lib/utils/attendance";
-import { membersService } from "@/lib/api/services";
+import {
+	softDeleteMemberAction,
+	assignEcclesiasticalRoleAction,
+	removeEcclesiasticalRoleAction,
+} from "@/app/(protected)/actions/memberActions";
 import AddMemberForm from "./add-member-form";
 import MemberAttendanceSummary from "./member-attendance-chart";
 import MemberAttendanceLineChart from "./member-attendance-line-chart";
@@ -117,9 +121,6 @@ interface MemberDetailsDialogProps {
 	updateMemberAction: (
 		memberData: Member,
 	) => Promise<{ success: boolean; message: string; updatedMember?: Member }>;
-	deleteMemberAction: (
-		memberId: string,
-	) => Promise<{ success: boolean; message: string }>;
 }
 
 const roleDisplayNames: Record<MemberRoleType, string> = {
@@ -171,7 +172,6 @@ export default function MemberDetailsDialog({
 	onClose,
 	onMemberUpdated,
 	updateMemberAction,
-	deleteMemberAction,
 }: MemberDetailsDialogProps) {
 	const [isEditing, setIsEditing] = useState(false);
 	const [isPending, startTransition] = useTransition();
@@ -379,11 +379,11 @@ export default function MemberDetailsDialog({
 		}
 
 		try {
-			if (isCurrentlyAssigned) {
-				await membersService.removeRoleType(member.id, roleTypeId);
-			} else {
-				await membersService.assignRoleType(member.id, roleTypeId);
-			}
+			const action = isCurrentlyAssigned
+				? removeEcclesiasticalRoleAction
+				: assignEcclesiasticalRoleAction;
+			const result = await action(member.id, roleTypeId);
+			if (!result.success) throw new Error(result.message);
 			// Propagate change to parent so the member list reflects it
 			onMemberUpdated({
 				...member,
@@ -459,22 +459,26 @@ export default function MemberDetailsDialog({
 		});
 	};
 
+	// CU-M-004: Dar de baja — soft delete reversible (record_status → 'eliminado').
+	// El miembro pasa a la sección "Dados de baja"; su historial se conserva intacto.
+	// El hard delete (CU-M-004c) solo está disponible desde esa sección.
 	const handleDeleteConfirm = () => {
 		if (!member) return;
 
 		startTransition(async () => {
-			const result = await deleteMemberAction(member.id);
+			const result = await softDeleteMemberAction(member.id);
 			if (result.success) {
 				toast({
-					title: "Miembro Eliminado",
+					title: "Miembro dado de baja",
 					description: result.message,
 				});
 				setIsDeleteDialogOpen(false);
-				onClose(); // Close the main details dialog
-				// The parent component will trigger a router.refresh()
+				// Notifica al padre para actualización optimista + router.refresh()
+				onMemberUpdated({ ...member, status: "eliminado" });
+				onClose();
 			} else {
 				toast({
-					title: "Error al Eliminar",
+					title: "Error al dar de baja",
 					description: result.message,
 					variant: "destructive",
 				});
@@ -1012,21 +1016,21 @@ export default function MemberDetailsDialog({
 									className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
 								>
 									<Trash2 className="h-4 w-4 mr-1.5" />
-									Eliminar
+									Dar de baja
 								</Button>
 							</AlertDialogTrigger>
 							<AlertDialogContent>
 								<AlertDialogHeader>
 									<AlertDialogTitle>
-										¿Está absolutamente seguro?
+										¿Dar de baja a este miembro?
 									</AlertDialogTitle>
 									<AlertDialogDescription>
-										Esta acción no se puede deshacer. Esto eliminará
-										permanentemente al miembro{" "}
 										<b className="text-foreground">
 											{member.firstName} {member.lastName}
 										</b>{" "}
-										y todos sus datos asociados (asistencia, roles, etc.).
+										quedará archivado en la sección &quot;Dados de baja&quot;
+										y podrá ser restaurado en cualquier momento.
+										Su historial de asistencia y diezmos se conservará intacto.
 									</AlertDialogDescription>
 								</AlertDialogHeader>
 								<AlertDialogFooter>
@@ -1038,7 +1042,7 @@ export default function MemberDetailsDialog({
 										{isPending ? (
 											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 										) : null}
-										Sí, eliminar miembro
+										Dar de baja
 									</AlertDialogAction>
 								</AlertDialogFooter>
 							</AlertDialogContent>
