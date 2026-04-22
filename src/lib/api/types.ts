@@ -433,6 +433,10 @@ export interface ApiMembersFilterParams {
   ageMin?: number;
   /** Maximum age (inclusive) */
   ageMax?: number;
+  /** Field to sort by */
+  sortBy?: 'fullName' | 'churchJoinDate' | 'birthDate';
+  /** Sort direction */
+  sortOrder?: 'asc' | 'desc';
 }
 
 export interface ApiListResponse<T> {

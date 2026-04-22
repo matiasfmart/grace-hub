@@ -115,6 +115,8 @@ async function getMembersPageData(
 	customAgeMin?: number,
 	/** used only when agePreset === "custom" */
 	customAgeMax?: number,
+	sortBy?: 'fullName' | 'churchJoinDate' | 'birthDate',
+	sortOrder?: 'asc' | 'desc',
 ) {
 	let joinDateFrom: string | undefined;
 	let joinDateTo: string | undefined;
@@ -154,6 +156,8 @@ async function getMembersPageData(
 		joinDateTo,
 		ageMin,
 		ageMax,
+		sortBy,
+		sortOrder,
 	);
 	const allMembersForDropdowns = await getAllMembersNonPaginated();
 	const allGDIsData = await getAllGdis();
@@ -200,6 +204,8 @@ interface MembersPageProps {
 		ageMin?: string;
 		/** used when agePreset === "custom" */
 		ageMax?: string;
+		sortBy?: string;
+		sortOrder?: string;
 	}>;
 }
 
@@ -221,6 +227,8 @@ interface MembersPageContentProps {
 	currentRoleFiltersArray: string[];
 	currentGuideFiltersArray: string[];
 	currentAreaFiltersArray: string[];
+	sortBy: 'fullName' | 'churchJoinDate' | 'birthDate';
+	sortOrder: 'asc' | 'desc';
 }
 
 async function MembersPageContent({
@@ -241,6 +249,8 @@ async function MembersPageContent({
 	currentRoleFiltersArray,
 	currentGuideFiltersArray,
 	currentAreaFiltersArray,
+	sortBy,
+	sortOrder,
 }: MembersPageContentProps) {
 	const viewKey = `${currentPage}-${pageSize}-${memberStatusFilterString}-${roleFilterString}-${guideFilterString}-${areaFilterString}-${joinPreset}-${agePreset}-${customJoinFrom}-${customJoinTo}-${customAgeMin}-${customAgeMax}`;
 
@@ -258,6 +268,8 @@ async function MembersPageContent({
 		customJoinTo || undefined,
 		customAgeMin ? parseInt(customAgeMin, 10) : undefined,
 		customAgeMax ? parseInt(customAgeMax, 10) : undefined,
+		sortBy,
+		sortOrder,
 	);
 	const {
 		members,
@@ -319,6 +331,8 @@ async function MembersPageContent({
 				currentAgeMax={customAgeMax ? parseInt(customAgeMax, 10) : undefined}
 				totalMembers={totalMembers}
 				absoluteTotalMembers={absoluteTotalMembers}
+				currentSortBy={sortBy}
+				currentSortOrder={sortOrder}
 			/>
 		</div>
 	);
@@ -340,6 +354,10 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
 	const customJoinTo = resolvedParams.joinTo || "";
 	const customAgeMin = resolvedParams.ageMin || "";
 	const customAgeMax = resolvedParams.ageMax || "";
+	const sortBy = (resolvedParams.sortBy === 'churchJoinDate' || resolvedParams.sortBy === 'birthDate')
+		? resolvedParams.sortBy
+		: 'fullName';
+	const sortOrder: 'asc' | 'desc' = resolvedParams.sortOrder === 'desc' ? 'desc' : 'asc';
 
 	const currentMemberStatusFiltersArray = memberStatusFilterString
 		? memberStatusFilterString.split(",")
@@ -374,6 +392,8 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
 				currentRoleFiltersArray={currentRoleFiltersArray}
 				currentGuideFiltersArray={currentGuideFiltersArray}
 				currentAreaFiltersArray={currentAreaFiltersArray}
+				sortBy={sortBy}
+				sortOrder={sortOrder}
 			/>
 		</Suspense>
 	);

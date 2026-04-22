@@ -41,6 +41,8 @@ export const membersEndpoint = {
     if (params.joinTo) queryParams.set('joinTo', params.joinTo);
     if (params.ageMin !== undefined) queryParams.set('ageMin', params.ageMin.toString());
     if (params.ageMax !== undefined) queryParams.set('ageMax', params.ageMax.toString());
+    if (params.sortBy) queryParams.set('sortBy', params.sortBy);
+    if (params.sortOrder) queryParams.set('sortOrder', params.sortOrder);
 
     const queryString = queryParams.toString();
     const url = queryString ? `${ENDPOINT}/search?${queryString}` : `${ENDPOINT}/search`;

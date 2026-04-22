@@ -162,6 +162,8 @@ export async function getAllMembers(
   joinDateTo?: string,
   ageMin?: number,
   ageMax?: number,
+  sortBy?: 'fullName' | 'churchJoinDate' | 'birthDate',
+  sortOrder?: 'asc' | 'desc',
 ): Promise<{ members: Member[]; totalMembers: number; totalPages: number }> {
   const params: import('../types').ApiMembersFilterParams = {
     page,
@@ -175,6 +177,8 @@ export async function getAllMembers(
     joinTo: joinDateTo || undefined,
     ageMin: ageMin !== undefined ? ageMin : undefined,
     ageMax: ageMax !== undefined ? ageMax : undefined,
+    sortBy: sortBy || undefined,
+    sortOrder: sortOrder || undefined,
   };
 
   const response = await membersEndpoint.search(params);

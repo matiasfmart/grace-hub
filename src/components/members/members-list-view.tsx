@@ -163,6 +163,8 @@ interface MembersListViewProps {
 	currentAgeMax?: number;
 	totalMembers: number;
 	absoluteTotalMembers: number;
+	currentSortBy?: SortKey;
+	currentSortOrder?: SortOrder;
 }
 
 type SortKey =
@@ -342,6 +344,8 @@ export default function MembersListView({
 	currentAgeMax,
 	totalMembers,
 	absoluteTotalMembers,
+	currentSortBy,
+	currentSortOrder,
 }: MembersListViewProps) {
 	const [members, setMembers] = useState<Member[]>(initialMembers);
 	const [searchInput, setSearchInput] = useState(currentSearchTerm);
@@ -359,8 +363,8 @@ export default function MembersListView({
 	const [showBajaSection, setShowBajaSection] = useState(false);
 	const [bajaSearchTerm, setBajaSearchTerm] = useState("");
 
-	const [sortKey, setSortKey] = useState<SortKey>("fullName");
-	const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+	const [sortKey, setSortKey] = useState<SortKey>(currentSortBy ?? "fullName");
+	const [sortOrder, setSortOrder] = useState<SortOrder>(currentSortOrder ?? "asc");
 	const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 	const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
 	const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false);
@@ -547,10 +551,13 @@ export default function MembersListView({
 			if (agePreset === "custom" && customAgeMin) params.set("ageMin", customAgeMin);
 			if (agePreset === "custom" && customAgeMax) params.set("ageMax", customAgeMax);
 		}
+		// Preserve current sort
+		if (sortKey !== "fullName") params.set("sortBy", sortKey);
+		if (sortOrder !== "asc") params.set("sortOrder", sortOrder);
 
 		router.push(`${pathname}?${params.toString()}`);
 		router.refresh();
-	}, [pathname, router, pageSize, searchInput, selectedJoinPreset, selectedAgePreset, customJoinFrom, customJoinTo, customAgeMin, customAgeMax]);
+	}, [pathname, router, pageSize, searchInput, selectedJoinPreset, selectedAgePreset, customJoinFrom, customJoinTo, customAgeMin, customAgeMax, sortKey, sortOrder]);
 
 	const toggleRoleFilter = (value: string) => {
 		const newRoles = selectedRoles.includes(value)
@@ -657,46 +664,20 @@ export default function MembersListView({
 	};
 
 	const handleSort = (key: SortKey) => {
-		if (sortKey === key) {
-			setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-		} else {
-			setSortKey(key);
-			setSortOrder("asc");
-		}
+		const newOrder: SortOrder = sortKey === key && sortOrder === "asc" ? "desc" : "asc";
+		setSortKey(key);
+		setSortOrder(newOrder);
+
+		const params = new URLSearchParams(searchParamsHook.toString());
+		params.set("sortBy", key);
+		params.set("sortOrder", newOrder);
+		params.set("page", "1");
+		router.push(`${pathname}?${params.toString()}`);
+		router.refresh();
 	};
 
-	const processedMembers = useMemo(() => {
-		const membersToProcess = [...members];
-		membersToProcess.sort((a, b) => {
-			let valA, valB;
-			if (sortKey === "fullName") {
-				valA = `${a.firstName} ${a.lastName}`;
-				valB = `${b.firstName} ${b.lastName}`;
-			} else {
-				valA = a[sortKey as keyof Member];
-				valB = b[sortKey as keyof Member];
-			}
-
-			if (valA === undefined || valA === null) valA = "";
-			if (valB === undefined || valB === null) valB = "";
-
-			if (typeof valA === "string" && typeof valB === "string") {
-				return sortOrder === "asc"
-					? valA.localeCompare(valB)
-					: valB.localeCompare(valA);
-			}
-			if (typeof valA === "number" && typeof valB === "number") {
-				return sortOrder === "asc" ? valA - valB : valB - valA;
-			}
-			if (sortKey === "birthDate" || sortKey === "churchJoinDate") {
-				const dateA = valA ? new Date(valA as string).getTime() : 0;
-				const dateB = valB ? new Date(valB as string).getTime() : 0;
-				return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
-			}
-			return 0;
-		});
-		return membersToProcess;
-	}, [members, sortKey, sortOrder]);
+	// Members come pre-sorted from the server — no client-side sort needed
+	const processedMembers = members;
 
 	const handleOpenDetailsDialog = (member: Member) => {
 		setSelectedMember(member);
@@ -1500,7 +1481,7 @@ export default function MembersListView({
 												</span>
 											)}
 											{memberAreas.length > 2 && (
-												<TooltipProvider>
+												<TooltipProvider delayDuration={200}>
 													<Tooltip>
 														<TooltipTrigger asChild>
 															<Badge variant="secondary" className="text-xs cursor-default">
