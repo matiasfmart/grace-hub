@@ -214,6 +214,38 @@ function calculateOperativeLevel(member: Member): OperativeLevel {
 	return 0;
 }
 
+/**
+ * Returns a label listing ALL structural roles the member holds, in hierarchy order.
+ * The dot/badge color reflects the highest level (calculateOperativeLevel), but the
+ * text enumerates every role so the label always matches the active filter vocabulary.
+ *
+ * Examples:
+ *   GdiMentor + AreaLeader          → "Mentor GDI · Líder Área"
+ *   GdiMentor + GdiGuide            → "Mentor GDI · Guía GDI"
+ *   GdiMentor + AreaMentor + GdiGuide → "Mentor GDI · Mentor Área · Guía GDI"
+ *   GdiGuide only                   → "Guía GDI"
+ *   Worker                          → "Obrero"
+ *   Member (GDI, no role)           → "Miembro"
+ *   Unassigned                      → "No integrado"
+ */
+function getOperativeLevelLabel(member: Member): string {
+	const roles = member.roles ?? [];
+	const parts: string[] = [];
+
+	// Enumerate all structural roles in descending hierarchy order
+	if (roles.includes("GdiMentor"))  parts.push("Mentor GDI");
+	if (roles.includes("AreaMentor")) parts.push("Mentor Área");
+	if (roles.includes("GdiGuide"))   parts.push("Guía GDI");
+	if (roles.includes("AreaLeader")) parts.push("Líder Área");
+	if (roles.includes("Worker"))     parts.push("Obrero");
+
+	if (parts.length > 0) return parts.join(" · ");
+
+	// No structural role — fall back to membership level
+	const level = calculateOperativeLevel(member);
+	return operativeLevelConfig[level].label;
+}
+
 const operativeLevelConfig: Record<OperativeLevel, {
 	label: string;
 	badgeClass: string;
@@ -1511,7 +1543,7 @@ export default function MembersListView({
 														variant="outline"
 														className={cn("text-xs border", cfg.badgeClass)}
 													>
-														{cfg.label}
+														{getOperativeLevelLabel(member)}
 													</Badge>
 												</div>
 											);
