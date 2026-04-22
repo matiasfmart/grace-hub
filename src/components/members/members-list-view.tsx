@@ -30,6 +30,7 @@ import {
 	useCallback,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 	useTransition,
 } from "react";
@@ -45,6 +46,16 @@ import {
 	CommandItem,
 	CommandList,
 } from "@/components/ui/command";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
 	Dialog,
 	DialogContent,
@@ -79,6 +90,12 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type {
 	AddMemberFormValues,
 	AttendanceRecord,
@@ -181,6 +198,56 @@ const roleBadgeColors: Record<MemberRoleType, string> = {
 	AreaLeader: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700/40",
 	AreaMentor: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-700/40",
 	Worker: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/40",
+};
+
+// ─── Nivel operativo (ADR-004) ─────────────────────────────────────────────
+export type OperativeLevel = 0 | 1 | 2 | 3 | 4;
+
+function calculateOperativeLevel(member: Member): OperativeLevel {
+	const roles = member.roles ?? [];
+	if (roles.includes("GdiMentor") || roles.includes("AreaMentor")) return 4;
+	if (roles.includes("GdiGuide") || roles.includes("AreaLeader")) return 3;
+	if (roles.includes("Worker")) return 2;
+	if (member.assignedGDIId) return 1;
+	return 0;
+}
+
+const operativeLevelConfig: Record<OperativeLevel, {
+	label: string;
+	badgeClass: string;
+	dotClass: string;
+	avatarClass: string;
+}> = {
+	4: {
+		label: "Mentor",
+		badgeClass: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300",
+		dotClass: "bg-purple-500",
+		avatarClass: "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300",
+	},
+	3: {
+		label: "Líder",
+		badgeClass: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300",
+		dotClass: "bg-blue-500",
+		avatarClass: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
+	},
+	2: {
+		label: "Obrero",
+		badgeClass: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300",
+		dotClass: "bg-emerald-500",
+		avatarClass: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
+	},
+	1: {
+		label: "Miembro",
+		badgeClass: "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400",
+		dotClass: "bg-gray-400",
+		avatarClass: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+	},
+	0: {
+		label: "No integrado",
+		badgeClass: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300",
+		dotClass: "bg-orange-500",
+		avatarClass: "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300",
+	},
 };
 
 const roleFilterOptions: {
@@ -290,14 +357,20 @@ export default function MembersListView({
 	const [customAgeMin, setCustomAgeMin] = useState<string>(currentAgeMin !== undefined ? String(currentAgeMin) : "");
 	const [customAgeMax, setCustomAgeMax] = useState<string>(currentAgeMax !== undefined ? String(currentAgeMax) : "");
 	const [showBajaSection, setShowBajaSection] = useState(false);
+	const [bajaSearchTerm, setBajaSearchTerm] = useState("");
 
 	const [sortKey, setSortKey] = useState<SortKey>("fullName");
 	const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
 	const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 	const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
 	const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false);
+	const [softDeletePendingMember, setSoftDeletePendingMember] = useState<Member | null>(null);
+	const [hardDeletePendingMemberId, setHardDeletePendingMemberId] = useState<string | null>(null);
 	const [isProcessingMember, startMemberTransition] = useTransition();
 	const { toast } = useToast();
+	const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const searchInputRef = useRef<HTMLInputElement>(null);
+	const isSearchPendingRef = useRef(false);
 
 	const router = useRouter();
 	const pathname = usePathname();
@@ -322,6 +395,16 @@ export default function MembersListView({
 			.filter(m => m.status === "eliminado")
 			.sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`));
 	}, [allMembersForDropdowns]);
+
+	const filteredEliminadosMembers = useMemo(() => {
+		if (!bajaSearchTerm.trim()) return eliminadosMembers;
+		const term = bajaSearchTerm.toLowerCase().trim();
+		return eliminadosMembers.filter(m =>
+			`${m.firstName} ${m.lastName}`.toLowerCase().includes(term) ||
+			m.firstName.toLowerCase().includes(term) ||
+			m.lastName.toLowerCase().includes(term)
+		);
+	}, [eliminadosMembers, bajaSearchTerm]);
 
 	// A member can only be permanently deleted if they have no historical records
 	const canHardDelete = useCallback((member: Member): boolean => {
@@ -374,7 +457,17 @@ export default function MembersListView({
 
 	useEffect(() => {
 		setMembers(initialMembers);
+		if (isSearchPendingRef.current) {
+			isSearchPendingRef.current = false;
+			searchInputRef.current?.focus();
+		}
 	}, [initialMembers]);
+
+	useEffect(() => {
+		return () => {
+			if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+		};
+	}, []);
 
 	// Members now come enriched with GDI, Areas, and Roles from backend
 
@@ -661,12 +754,14 @@ export default function MembersListView({
 	};
 
 	// Soft delete: moves member to "Dados de baja" section (reversible)
-	const handleSoftDelete = async (member: Member) => {
-		const confirmed = window.confirm(
-			`¿Dar de baja a ${member.firstName} ${member.lastName}?\n\nEl miembro quedará archivado y podrá ser restaurado en cualquier momento.`
-		);
-		if (!confirmed) return;
+	const handleSoftDelete = (member: Member) => {
+		setSoftDeletePendingMember(member);
+	};
 
+	const confirmSoftDelete = () => {
+		if (!softDeletePendingMember) return;
+		const member = softDeletePendingMember;
+		setSoftDeletePendingMember(null);
 		startMemberTransition(async () => {
 			const result = await softDeleteMemberAction(member.id);
 			if (result.success) {
@@ -693,15 +788,14 @@ export default function MembersListView({
 	};
 
 	// Hard delete: permanent, only available for members with no historical records
-	const handleHardDelete = async (memberId: string) => {
-		const member = allMembersForDropdowns.find(m => m.id === memberId);
-		if (!member) return;
+	const handleHardDelete = (memberId: string) => {
+		setHardDeletePendingMemberId(memberId);
+	};
 
-		const confirmed = window.confirm(
-			`¿Eliminar permanentemente a ${member.firstName} ${member.lastName}?\n\nEsta acción no se puede deshacer. Solo es posible porque este miembro no tiene historial de asistencia ni diezmos.`
-		);
-		if (!confirmed) return;
-
+	const confirmHardDelete = () => {
+		if (!hardDeletePendingMemberId) return;
+		const memberId = hardDeletePendingMemberId;
+		setHardDeletePendingMemberId(null);
 		startMemberTransition(async () => {
 			const result = await deleteMemberAction(memberId);
 			if (result.success) {
@@ -820,11 +914,23 @@ export default function MembersListView({
 							<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
 							<Input
 								id="memberSearchInput"
-								type="search"
+								ref={searchInputRef}
+								type="text"
 								placeholder="Buscar por nombre, email..."
 								className="w-full pl-10 pr-4 py-2 border rounded-lg shadow-sm focus:ring-primary focus:border-primary"
 								value={searchInput}
-								onChange={(e) => setSearchInput(e.target.value)}
+								onChange={(e) => {
+									const value = e.target.value;
+									setSearchInput(value);
+									if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+									searchDebounceRef.current = setTimeout(() => {
+										isSearchPendingRef.current = true;
+										applyFiltersWithValues(selectedRoles, selectedGuideIds, selectedAreaIds, selectedJoinPreset, selectedAgePreset, value);
+									}, 400);
+								}}
+								onBlur={() => {
+									if (isSearchPendingRef.current) searchInputRef.current?.focus();
+								}}
 							/>
 							<button type="submit" className="hidden" />
 						</form>
@@ -1331,7 +1437,7 @@ export default function MembersListView({
 							*/}
 							<TableHead>GDI</TableHead>
 							<TableHead>Áreas</TableHead>
-							<TableHead>Roles</TableHead>
+							<TableHead>Nivel</TableHead>
 							<TableHead
 								onClick={() => handleSort("lastAttendance" as SortKey)}
 								className="cursor-pointer"
@@ -1355,7 +1461,7 @@ export default function MembersListView({
 									<TableCell>
 										<div className="flex items-center gap-3">
 											<Avatar className="h-8 w-8">
-												<AvatarFallback className="text-xs">
+												<AvatarFallback className={cn("text-xs font-medium", operativeLevelConfig[calculateOperativeLevel(member)].avatarClass)}>
 													{member.firstName.substring(0, 1)}
 													{member.lastName.substring(0, 1)}
 												</AvatarFallback>
@@ -1394,29 +1500,41 @@ export default function MembersListView({
 												</span>
 											)}
 											{memberAreas.length > 2 && (
-												<Badge variant="secondary" className="text-xs">
-													+{memberAreas.length - 2}
-												</Badge>
+												<TooltipProvider>
+													<Tooltip>
+														<TooltipTrigger asChild>
+															<Badge variant="secondary" className="text-xs cursor-default">
+																+{memberAreas.length - 2}
+															</Badge>
+														</TooltipTrigger>
+														<TooltipContent side="top">
+															<ul className="space-y-0.5">
+																{memberAreas.slice(2).map((area) => (
+																	<li key={area} className="text-xs">{area}</li>
+																))}
+															</ul>
+														</TooltipContent>
+													</Tooltip>
+												</TooltipProvider>
 											)}
 										</div>
 									</TableCell>
 									<TableCell>
-										<div className="flex flex-wrap gap-1">
-											{member.roles && member.roles.length > 0 ? (
-												member.roles.map((role) => (
+										{(() => {
+											const level = calculateOperativeLevel(member);
+											const cfg = operativeLevelConfig[level];
+											return (
+												<div className="flex items-center gap-1.5">
+													<span className={cn("w-2 h-2 rounded-full shrink-0", cfg.dotClass)} />
 													<Badge
-														key={role}
-											className={cn("text-xs border", roleBadgeColors[role] || "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300")}
+														variant="outline"
+														className={cn("text-xs border", cfg.badgeClass)}
 													>
-														{roleDisplayMap[role] || role}
+														{cfg.label}
 													</Badge>
-												))
-											) : (
-												<span className="text-xs text-muted-foreground">
-													—
-												</span>
-											)}
-										</div>
+												</div>
+											);
+										})()}
 									</TableCell>
 									<TableCell>
 										<div className={cn(
@@ -1526,7 +1644,10 @@ export default function MembersListView({
 				<div className="mt-8 rounded-lg border border-border overflow-hidden">
 					<button
 						type="button"
-						onClick={() => setShowBajaSection(!showBajaSection)}
+						onClick={() => {
+							if (showBajaSection) setBajaSearchTerm("");
+							setShowBajaSection(!showBajaSection);
+						}}
 						className="w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted/60 transition-colors text-sm font-medium"
 					>
 						<div className="flex items-center gap-2 text-muted-foreground">
@@ -1543,6 +1664,29 @@ export default function MembersListView({
 					</button>
 
 					{showBajaSection && (
+						<>
+						{eliminadosMembers.length > 5 && (
+							<div className="px-3 py-2 border-b bg-muted/20">
+								<div className="relative">
+									<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+									<Input
+										type="text"
+										placeholder="Buscar en dados de baja..."
+										value={bajaSearchTerm}
+										onChange={(e) => setBajaSearchTerm(e.target.value)}
+										className="h-8 pl-8 text-xs w-full max-w-xs"
+									/>
+									{bajaSearchTerm && (
+										<button
+											onClick={() => setBajaSearchTerm("")}
+											className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+										>
+											<X className="h-3.5 w-3.5" />
+										</button>
+									)}
+								</div>
+							</div>
+						)}
 						<div className="overflow-x-auto">
 							<Table>
 								<TableHeader>
@@ -1554,7 +1698,7 @@ export default function MembersListView({
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{eliminadosMembers.map((member) => {
+									{filteredEliminadosMembers.map((member) => {
 										const hardDeleteAllowed = canHardDelete(member);
 										const attendanceStatus = getAttendanceStatus(member.id);
 										return (
@@ -1565,7 +1709,7 @@ export default function MembersListView({
 												<TableCell>
 													<div className="flex items-center gap-3">
 														<Avatar className="h-8 w-8">
-															<AvatarFallback className="text-xs">
+															<AvatarFallback className="text-xs bg-gray-100 text-gray-400 dark:bg-gray-800">
 																{member.firstName.substring(0, 1)}
 																{member.lastName.substring(0, 1)}
 															</AvatarFallback>
@@ -1631,6 +1775,12 @@ export default function MembersListView({
 								</TableBody>
 							</Table>
 						</div>
+						{filteredEliminadosMembers.length === 0 && bajaSearchTerm && (
+							<p className="text-center text-muted-foreground text-sm py-4">
+								No se encontró “{bajaSearchTerm}” en dados de baja.
+							</p>
+						)}
+						</>
 					)}
 				</div>
 			)}
@@ -1679,6 +1829,61 @@ export default function MembersListView({
 					</div>
 				</DialogContent>
 			</Dialog>
+			{/* AlertDialog: Dar de baja (soft delete) */}
+			<AlertDialog
+				open={softDeletePendingMember !== null}
+				onOpenChange={(open) => { if (!open) setSoftDeletePendingMember(null); }}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>¿Dar de baja a este miembro?</AlertDialogTitle>
+						<AlertDialogDescription>
+							<strong>{softDeletePendingMember?.firstName} {softDeletePendingMember?.lastName}</strong> quedará
+							archivado en la sección &quot;Dados de baja&quot; y podrá ser restaurado en cualquier momento.
+							Su historial de asistencia y diezmos se conservará.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancelar</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={confirmSoftDelete}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							Dar de baja
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+			{/* AlertDialog: Eliminar permanentemente (hard delete) */}
+			{(() => {
+				const member = allMembersForDropdowns.find(m => m.id === hardDeletePendingMemberId);
+				return (
+					<AlertDialog
+						open={hardDeletePendingMemberId !== null}
+						onOpenChange={(open) => { if (!open) setHardDeletePendingMemberId(null); }}
+					>
+						<AlertDialogContent>
+							<AlertDialogHeader>
+								<AlertDialogTitle>¿Eliminar permanentemente?</AlertDialogTitle>
+								<AlertDialogDescription>
+									Esta acción <strong>no se puede deshacer</strong>. Se eliminará completamente
+									el registro de <strong>{member?.firstName} {member?.lastName}</strong>.
+									Solo es posible porque este miembro no tiene historial de asistencia ni diezmos.
+								</AlertDialogDescription>
+							</AlertDialogHeader>
+							<AlertDialogFooter>
+								<AlertDialogCancel>Cancelar</AlertDialogCancel>
+								<AlertDialogAction
+									onClick={confirmHardDelete}
+									className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+								>
+									Eliminar permanentemente
+								</AlertDialogAction>
+							</AlertDialogFooter>
+						</AlertDialogContent>
+					</AlertDialog>
+				);
+			})()}
 		</>
 	);
 }

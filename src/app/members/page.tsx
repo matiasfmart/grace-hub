@@ -242,7 +242,7 @@ async function MembersPageContent({
 	currentGuideFiltersArray,
 	currentAreaFiltersArray,
 }: MembersPageContentProps) {
-	const viewKey = `${currentPage}-${pageSize}-${searchTerm}-${memberStatusFilterString}-${roleFilterString}-${guideFilterString}-${areaFilterString}-${joinPreset}-${agePreset}-${customJoinFrom}-${customJoinTo}-${customAgeMin}-${customAgeMax}`;
+	const viewKey = `${currentPage}-${pageSize}-${memberStatusFilterString}-${roleFilterString}-${guideFilterString}-${areaFilterString}-${joinPreset}-${agePreset}-${customJoinFrom}-${customJoinTo}-${customAgeMin}-${customAgeMax}`;
 
 	const rawData = await getMembersPageData(
 		currentPage,
