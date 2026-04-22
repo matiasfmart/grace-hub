@@ -3,7 +3,7 @@ import {
 	addMinistryAreaActionSvc,
 	deleteGdiActionSvc,
 	deleteMinistryAreaActionSvc,
-} from "@/app/actions/groupActions";
+} from "@/app/(protected)/actions/groupActions";
 import ManageGroupsTabs from "@/components/groups/manage-groups-tabs";
 import { PageHeader } from "@/components/ui/page-header";
 import type { GDI, Member, MinistryArea } from "@/lib/types";

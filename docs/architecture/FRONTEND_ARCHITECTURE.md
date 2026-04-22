@@ -70,34 +70,33 @@ Cada capa tiene una única responsabilidad:
 ```
 src/
 ├── app/                              # Next.js App Router
-│   ├── layout.tsx                    # Root layout
+│   ├── layout.tsx                    # Root layout (sin sidebar — solo html/body/Toaster)
 │   ├── globals.css                   # Global styles
-│   ├── page.tsx                      # Dashboard (home page)
 │   │
-│   ├── actions/                      # Server Actions (mutaciones)
-│   │   ├── memberActions.ts          # CRUD members
-│   │   ├── eventActions.ts           # CRUD meetings
-│   │   └── groupActions.ts           # CRUD GDIs/Areas
+│   ├── (protected)/                  # Route group: páginas protegidas (requieren auth)
+│   │   ├── layout.tsx                # Layout con MainLayout (sidebar)
+│   │   ├── page.tsx                  # Dashboard (home page)
+│   │   │
+│   │   ├── actions/                  # Server Actions (mutaciones)
+│   │   │   ├── memberActions.ts      # CRUD members
+│   │   │   ├── eventActions.ts       # CRUD meetings
+│   │   │   └── groupActions.ts       # CRUD GDIs/Areas
+│   │   │
+│   │   ├── members/                  # Feature: Members
+│   │   ├── events/                   # Feature: Events/Meetings
+│   │   ├── groups/                   # Feature: Groups
+│   │   ├── tithes/                   # Feature: Tithes
+│   │   └── resources/                # Feature: Resources
 │   │
-│   ├── members/                      # Feature: Members
-│   │   ├── page.tsx                  # Lista de miembros
-│   │   └── bulk-add/
-│   │       └── page.tsx              # Agregar múltiples
-│   │
-│   ├── events/                       # Feature: Events/Meetings
-│   │   ├── page.tsx                  # Lista de eventos
-│   │   └── [meetingId]/
-│   │       └── page.tsx              # Detalle de meeting
-│   │
-│   ├── groups/                       # Feature: Groups
-│   │   ├── page.tsx                  # Overview
-│   │   ├── gdis/                     # GDI management
-│   │   └── ministry-areas/           # Ministry areas
-│   │
-│   ├── tithes/                       # Feature: Tithes
+│   ├── login/                        # Página de login (pública, sin sidebar)
 │   │   └── page.tsx
 │   │
-│   └── resources/                    # Feature: Resources
+│   └── api/                          # Route Handlers de Next.js
+│       └── auth/
+│           ├── login/route.ts        # Proxy: llama al backend, setea cookie
+│           └── logout/route.ts       # Limpia la cookie
+│
+├── middleware.ts                      # Intercepta navegación: redirige a /login si no hay cookie
 │       └── page.tsx
 │
 ├── components/                       # React Components
@@ -126,12 +125,13 @@ src/
 │   ├── utils.ts                      # Utilidades generales
 │   │
 │   └── api/                          # ⭐ CAPA DE API
-│       ├── client.ts                 # HTTP Client (fetch wrapper)
+│       ├── client.ts                 # HTTP Client (fetch wrapper, credentials:include, cookie SSR forwarding)
 │       ├── types.ts                  # Tipos del BACKEND (Api*)
 │       ├── index.ts                  # Re-exports principales
 │       │
 │       ├── endpoints/                # Llamadas HTTP
 │       │   ├── index.ts
+│       │   ├── authEndpoint.ts       # login (proxy), register, me, logout (proxy)
 │       │   ├── membersEndpoint.ts
 │       │   ├── gdisEndpoint.ts
 │       │   ├── meetingsEndpoint.ts
@@ -493,6 +493,122 @@ export interface MemberWriteData {
   status: MemberStatus;
   // ...
 }
+```
+
+---
+
+## 🔐 Autenticación
+
+### Flujo general
+
+La autenticación usa JWT almacenado en cookie `httpOnly`. El middleware de Next.js protege todas las páginas del grupo `(protected)` antes de renderizar cualquier componente.
+
+```
+Navegación a cualquier página
+  ↓
+middleware.ts — ¿existe cookie 'auth'?
+  ├─ Sí → renderiza normalmente
+  └─ No → redirect a /login
+```
+
+### Login: por qué usa un Route Handler y no llama al backend directo
+
+El login NO usa `apiClient` directamente. Pasa por un Route Handler de Next.js (`/api/auth/login`):
+
+```
+Browser
+  ↓ POST /api/auth/login
+Next.js Route Handler (mismo dominio que el frontend)
+  ↓ fetch al backend (NestJS)
+NestJS → valida credenciales → devuelve JWT en Set-Cookie
+Route Handler extrae el JWT y lo reescribe como cookie del dominio frontend
+  ↓ Set-Cookie: auth=<JWT>; HttpOnly; SameSite=Lax (en localhost:3000 o app.tudominio.com)
+Browser → window.location.href = '/'
+Middleware ve la cookie → pasa ✔
+```
+
+Si el backend seteara la cookie directamente, quedaría en el dominio del backend. El middleware de Next.js no tendría acceso a ella en producción.
+
+### Server Components: reenvío de cookie
+
+Cuando un Server Component llama al backend vía `apiClient`, la cookie del browser no se envía automáticamente (el fetch del servidor no tiene contexto del browser). `client.ts` la reenvía explícitamente:
+
+```typescript
+// client.ts — solo en contexto de servidor
+const cookieStore = await cookies();
+const authCookie = cookieStore.get('auth');
+// se incluye como header Cookie en el fetch al backend
+```
+
+### UserContext
+
+`UserProvider` (en `(protected)/layout.tsx`) llama a `GET /auth/me` al montar y expone el usuario autenticado via `useUser()`. También expone `logout()` que limpia la cookie y redirige a `/login`.
+
+### Agregar una nueva ruta pública (sin auth)
+
+1. Crear la página **fuera** del grupo `(protected)/` (ej: `app/verify-email/page.tsx`)
+2. Agregar el path a `PUBLIC_PATHS` en `src/middleware.ts`:
+
+```typescript
+const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout', '/verify-email'];
+```
+
+---
+
+## 🔐 Autenticación
+
+### Flujo general
+
+La autenticación usa JWT almacenado en cookie `httpOnly`. El middleware de Next.js protege todas las páginas del grupo `(protected)` antes de renderizar cualquier componente.
+
+```
+Navegación a cualquier página
+  ↓
+middleware.ts — ¿existe cookie 'auth'?
+  ├─ Sí → renderiza normalmente
+  └─ No → redirect a /login
+```
+
+### Login: por qué usa un Route Handler y no llama al backend directo
+
+El login NO usa `apiClient` directamente. Pasa por un Route Handler de Next.js (`/api/auth/login`):
+
+```
+Browser
+  ↓ POST /api/auth/login
+Next.js Route Handler (mismo dominio que el frontend)
+  ↓ fetch al backend (NestJS)
+NestJS → valida credenciales → devuelve JWT en Set-Cookie
+Route Handler extrae el JWT y lo reescribe como cookie del dominio frontend
+  ↓ Set-Cookie: auth=<JWT>; HttpOnly; SameSite=Lax (en localhost:3000 o app.tudominio.com)
+Browser → window.location.href = '/'
+Middleware ve la cookie → pasa ✔
+```
+
+Si el backend seteara la cookie directamente, quedaría en el dominio del backend. El middleware de Next.js no tendría acceso a ella en producción.
+
+### Server Components: reenvío de cookie
+
+Cuando un Server Component llama al backend vía `apiClient`, la cookie del browser no se envía automáticamente (el fetch del servidor no tiene contexto del browser). `client.ts` la reenvía explícitamente:
+
+```typescript
+// client.ts — solo en contexto de servidor
+const cookieStore = await cookies();
+const authCookie = cookieStore.get('auth');
+// se incluye como header Cookie en el fetch al backend
+```
+
+### UserContext
+
+`UserProvider` (en `(protected)/layout.tsx`) llama a `GET /auth/me` al montar y expone el usuario autenticado via `useUser()`. También expone `logout()` que limpia la cookie y redirige a `/login`.
+
+### Agregar una nueva ruta pública (sin auth)
+
+1. Crear la página **fuera** del grupo `(protected)/` (ej: `app/verify-email/page.tsx`)
+2. Agregar el path a `PUBLIC_PATHS` en `src/middleware.ts`:
+
+```typescript
+const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout', '/verify-email'];
 ```
 
 ---

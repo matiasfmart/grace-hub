@@ -7,7 +7,7 @@ import {
 	restoreMemberAction,
 	softDeleteMemberAction,
 	updateMemberAction,
-} from "@/app/actions/memberActions";
+} from "@/app/(protected)/actions/memberActions";
 import MembersListView from "@/components/members/members-list-view";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";

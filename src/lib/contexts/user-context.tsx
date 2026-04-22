@@ -1,10 +1,10 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { authEndpoint } from "@/lib/api/endpoints/authEndpoint";
 
 /**
  * User entity representing the authenticated user.
- * This is prepared for future authentication integration.
  */
 export interface User {
 	id: string;
@@ -17,38 +17,52 @@ export interface User {
 interface UserContextValue {
 	user: User | null;
 	isAuthenticated: boolean;
-	// Future: login, logout, updateProfile methods
+	isLoading: boolean;
+	logout: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextValue | undefined>(undefined);
 
-/**
- * Mock user for development.
- * Replace with real authentication when implemented.
- */
-const MOCK_USER: User = {
-	id: "mock-user-001",
-	email: "admin@gracehub.church",
-	displayName: "Administrador",
-	role: "admin",
-};
-
 interface UserProviderProps {
 	children: ReactNode;
-	/** Override mock user for testing */
-	mockUser?: User | null;
 }
 
-export function UserProvider({ children, mockUser }: UserProviderProps) {
-	// For now, always return the mock user
-	// Future: integrate with real auth (NextAuth, Clerk, etc.)
-	const user = mockUser !== undefined ? mockUser : MOCK_USER;
+export function UserProvider({ children }: UserProviderProps) {
+	const [user, setUser] = useState<User | null>(null);
+	const [isLoading, setIsLoading] = useState(true);
+
+	useEffect(() => {
+		authEndpoint
+			.me()
+			.then((me) => {
+				setUser({
+					id: String(me.id),
+					email: me.email,
+					displayName: me.email.split("@")[0],
+					role: "admin",
+				});
+			})
+			.catch(() => {
+				setUser(null);
+			})
+			.finally(() => {
+				setIsLoading(false);
+			});
+	}, []);
+
+	const logout = async () => {
+		await authEndpoint.logout();
+		setUser(null);
+		window.location.href = "/login";
+	};
 
 	return (
 		<UserContext.Provider
 			value={{
 				user,
 				isAuthenticated: user !== null,
+				isLoading,
+				logout,
 			}}
 		>
 			{children}

@@ -16,7 +16,7 @@ import {
 	defineMeetingSeriesAction,
 	deleteMeetingSeriesAction,
 	updateMeetingSeriesAction,
-} from "@/app/actions/eventActions";
+} from "@/app/(protected)/actions/eventActions";
 import AttendanceLineChart from "@/components/events/AttendanceFrequencySummaryTable";
 import AddOccasionalMeetingDialog from "@/components/events/add-occasional-meeting-dialog";
 import EventsTableFilters from "@/components/events/events-table-filters";

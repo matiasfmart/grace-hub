@@ -5,6 +5,7 @@ import {
 	ChevronLeft,
 	HandCoins,
 	Home,
+	LogOut,
 	Moon,
 	Sun,
 	Tag,
@@ -116,7 +117,7 @@ function ThemeToggle() {
 }
 
 function UserMenu() {
-	const { user } = useUser();
+	const { user, logout } = useUser();
 	const { state } = useSidebar();
 	const isCollapsed = state === "collapsed";
 
@@ -171,7 +172,11 @@ function UserMenu() {
 					</Link>
 				</DropdownMenuItem>
 				<DropdownMenuSeparator />
-				<DropdownMenuItem disabled className="text-destructive">
+				<DropdownMenuItem
+					className="text-destructive focus:text-destructive cursor-pointer"
+					onClick={() => void logout()}
+				>
+					<LogOut className="h-4 w-4 mr-2" />
 					Cerrar Sesión
 				</DropdownMenuItem>
 			</DropdownMenuContent>

@@ -1,4 +1,4 @@
-import { addBulkMembersAction } from "@/app/actions/memberActions";
+import { addBulkMembersAction } from "@/app/(protected)/actions/memberActions";
 import BulkAddMembersView from "@/components/members/bulk-add-members-view";
 import { PageHeader } from "@/components/ui/page-header";
 import type { GDI, Member, MinistryArea } from "@/lib/types";
