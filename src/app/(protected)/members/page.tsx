@@ -117,6 +117,7 @@ async function getMembersPageData(
 	customAgeMax?: number,
 	sortBy?: 'fullName' | 'churchJoinDate' | 'birthDate',
 	sortOrder?: 'asc' | 'desc',
+	ecclesiasticalRoleTypeIds?: number[],
 ) {
 	let joinDateFrom: string | undefined;
 	let joinDateTo: string | undefined;
@@ -158,6 +159,7 @@ async function getMembersPageData(
 		ageMax,
 		sortBy,
 		sortOrder,
+		ecclesiasticalRoleTypeIds,
 	);
 	const allMembersForDropdowns = await getAllMembersNonPaginated();
 	const allGDIsData = await getAllGdis();
@@ -194,6 +196,7 @@ interface MembersPageProps {
 		role?: string;
 		guide?: string;
 		area?: string;
+		label?: string;
 		joinPreset?: string;
 		agePreset?: string;
 		/** YYYY-MM — used when joinPreset === "custom" */
@@ -227,6 +230,7 @@ interface MembersPageContentProps {
 	currentRoleFiltersArray: string[];
 	currentGuideFiltersArray: string[];
 	currentAreaFiltersArray: string[];
+	currentLabelFiltersArray: number[];
 	sortBy: 'fullName' | 'churchJoinDate' | 'birthDate';
 	sortOrder: 'asc' | 'desc';
 }
@@ -249,10 +253,11 @@ async function MembersPageContent({
 	currentRoleFiltersArray,
 	currentGuideFiltersArray,
 	currentAreaFiltersArray,
+	currentLabelFiltersArray,
 	sortBy,
 	sortOrder,
 }: MembersPageContentProps) {
-	const viewKey = `${currentPage}-${pageSize}-${memberStatusFilterString}-${roleFilterString}-${guideFilterString}-${areaFilterString}-${joinPreset}-${agePreset}-${customJoinFrom}-${customJoinTo}-${customAgeMin}-${customAgeMax}`;
+	const viewKey = `${currentPage}-${pageSize}-${memberStatusFilterString}-${roleFilterString}-${guideFilterString}-${areaFilterString}-${joinPreset}-${agePreset}-${customJoinFrom}-${customJoinTo}-${customAgeMin}-${customAgeMax}-${currentLabelFiltersArray.join(',')}`;
 
 	const rawData = await getMembersPageData(
 		currentPage,
@@ -270,6 +275,7 @@ async function MembersPageContent({
 		customAgeMax ? parseInt(customAgeMax, 10) : undefined,
 		sortBy,
 		sortOrder,
+		currentLabelFiltersArray.length ? currentLabelFiltersArray : undefined,
 	);
 	const {
 		members,
@@ -323,6 +329,7 @@ async function MembersPageContent({
 				currentRoleFilters={currentRoleFiltersArray}
 				currentGuideIdFilters={currentGuideFiltersArray}
 				currentAreaFilters={currentAreaFiltersArray}
+				currentLabelFilters={currentLabelFiltersArray}
 				currentJoinPreset={joinPreset}
 				currentAgePreset={agePreset}
 				currentJoinFrom={customJoinFrom}
@@ -348,6 +355,7 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
 	const roleFilterString = resolvedParams.role || "";
 	const guideFilterString = resolvedParams.guide || "";
 	const areaFilterString = resolvedParams.area || "";
+	const labelFilterString = resolvedParams.label || "";
 	const joinPreset = resolvedParams.joinPreset || "";
 	const agePreset = resolvedParams.agePreset || "";
 	const customJoinFrom = resolvedParams.joinFrom || "";
@@ -365,6 +373,9 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
 	const currentRoleFiltersArray = roleFilterString ? roleFilterString.split(",") : [];
 	const currentGuideFiltersArray = guideFilterString ? guideFilterString.split(",") : [];
 	const currentAreaFiltersArray = areaFilterString ? areaFilterString.split(",") : [];
+	const currentLabelFiltersArray = labelFilterString
+		? labelFilterString.split(',').map(Number).filter(n => !isNaN(n))
+		: [];
 
 	return (
 		<Suspense
@@ -391,8 +402,7 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
 				currentMemberStatusFiltersArray={currentMemberStatusFiltersArray}
 				currentRoleFiltersArray={currentRoleFiltersArray}
 				currentGuideFiltersArray={currentGuideFiltersArray}
-				currentAreaFiltersArray={currentAreaFiltersArray}
-				sortBy={sortBy}
+				currentAreaFiltersArray={currentAreaFiltersArray}			currentLabelFiltersArray={currentLabelFiltersArray}				sortBy={sortBy}
 				sortOrder={sortOrder}
 			/>
 		</Suspense>

@@ -437,6 +437,8 @@ export interface ApiMembersFilterParams {
   sortBy?: 'fullName' | 'churchJoinDate' | 'birthDate';
   /** Sort direction */
   sortOrder?: 'asc' | 'desc';
+  /** Filter by ecclesiastical label role type IDs — OR semantics */
+  label?: number[];
 }
 
 export interface ApiListResponse<T> {

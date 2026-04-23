@@ -18,6 +18,7 @@ import {
 	Search,
 	ShieldCheck,
 	Smile,
+	Tag,
 	Trash2,
 	UserCheck,
 	UserPlus,
@@ -151,6 +152,7 @@ interface MembersListViewProps {
 	currentRoleFilters?: string[];
 	currentGuideIdFilters?: string[];
 	currentAreaFilters?: string[];
+	currentLabelFilters?: number[];
 	currentJoinPreset?: string;
 	currentAgePreset?: string;
 	/** YYYY-MM — used when joinPreset === "custom" */
@@ -384,6 +386,7 @@ export default function MembersListView({
 	currentRoleFilters = [],
 	currentGuideIdFilters = [],
 	currentAreaFilters = [],
+	currentLabelFilters = [],
 	currentJoinPreset = "",
 	currentAgePreset = "",
 	currentJoinFrom = "",
@@ -402,6 +405,7 @@ export default function MembersListView({
 	);
 	const [selectedGuideIds, setSelectedGuideIds] = useState<string[]>(currentGuideIdFilters || []);
 	const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>(currentAreaFilters || []);
+	const [selectedLabels, setSelectedLabels] = useState<number[]>(currentLabelFilters || []);
 	const [selectedJoinPreset, setSelectedJoinPreset] = useState<string>(currentJoinPreset);
 	const [selectedAgePreset, setSelectedAgePreset] = useState<string>(currentAgePreset);
 	// Custom join range state (YYYY-MM format each)
@@ -581,6 +585,7 @@ export default function MembersListView({
 		joinPreset: string = selectedJoinPreset,
 		agePreset: string = selectedAgePreset,
 		search: string = searchInput,
+		labels: number[] = selectedLabels,
 	) => {
 		const params = new URLSearchParams();
 		params.set("page", "1");
@@ -591,6 +596,7 @@ export default function MembersListView({
 		if (roles.length > 0) params.set("role", roles.join(","));
 		if (gdiIds.length > 0) params.set("guide", gdiIds.join(","));
 		if (areaIds.length > 0) params.set("area", areaIds.join(","));
+		if (labels.length > 0) params.set("label", labels.join(","));
 		if (joinPreset) {
 			params.set("joinPreset", joinPreset);
 			if (joinPreset === "custom" && customJoinFrom) params.set("joinFrom", customJoinFrom);
@@ -607,7 +613,7 @@ export default function MembersListView({
 
 		router.push(`${pathname}?${params.toString()}`);
 		router.refresh();
-	}, [pathname, router, pageSize, searchInput, selectedJoinPreset, selectedAgePreset, customJoinFrom, customJoinTo, customAgeMin, customAgeMax, sortKey, sortOrder]);
+	}, [pathname, router, pageSize, searchInput, selectedJoinPreset, selectedAgePreset, selectedLabels, customJoinFrom, customJoinTo, customAgeMin, customAgeMax, sortKey, sortOrder]);
 
 	const toggleRoleFilter = (value: string) => {
 		const newNiveles = selectedRoles.includes(value)
@@ -635,6 +641,14 @@ export default function MembersListView({
 			: [...selectedAreaIds, value];
 		setSelectedAreaIds(newAreaIds);
 		applyFiltersWithValues(selectedRoles, selectedGuideIds, newAreaIds);
+	};
+
+	const toggleLabelFilter = (value: number) => {
+		const newLabels = selectedLabels.includes(value)
+			? selectedLabels.filter(l => l !== value)
+			: [...selectedLabels, value];
+		setSelectedLabels(newLabels);
+		applyFiltersWithValues(selectedRoles, selectedGuideIds, selectedAreaIds, selectedJoinPreset, selectedAgePreset, searchInput, newLabels);
 	};
 
 	const selectJoinPreset = (value: string) => {
@@ -665,11 +679,12 @@ export default function MembersListView({
 	};
 
 	// Remove single filter chip
-	const removeFilterChip = (type: 'role' | 'gdi' | 'area' | 'join' | 'age', value: string) => {
+	const removeFilterChip = (type: 'role' | 'gdi' | 'area' | 'label' | 'join' | 'age', value: string) => {
 		switch (type) {
 			case 'role':  toggleRoleFilter(value); break;
 			case 'gdi':   toggleGdiFilter(value); break;
 			case 'area':  toggleAreaFilter(value); break;
+			case 'label': toggleLabelFilter(Number(value)); break;
 			case 'join':  selectJoinPreset(""); break;
 			case 'age':   selectAgePreset(""); break;
 		}
@@ -702,6 +717,7 @@ export default function MembersListView({
 		setSelectedRoles([]);
 		setSelectedGuideIds([]);
 		setSelectedAreaIds([]);
+		setSelectedLabels([]);
 		setSelectedJoinPreset("");
 		setSelectedAgePreset("");
 		setCustomJoinFrom("");
@@ -870,6 +886,7 @@ export default function MembersListView({
 		selectedRoles.length > 0 ||
 		selectedGuideIds.length > 0 ||
 		selectedAreaIds.length > 0 ||
+		selectedLabels.length > 0 ||
 		(selectedJoinPreset !== "" && selectedJoinPreset !== "custom") ||
 		(selectedJoinPreset === "custom" && !!customJoinFrom && !!customJoinTo) ||
 		(selectedAgePreset !== "" && selectedAgePreset !== "custom") ||
@@ -1146,6 +1163,40 @@ export default function MembersListView({
 						</DropdownMenuContent>
 					</DropdownMenu>
 
+					{/* Etiqueta filter — ecclesiastical role types */}
+					{allRoleTypes.length > 0 && (
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									variant="ghost"
+									size="sm"
+									className="text-muted-foreground hover:text-primary data-[state=open]:text-primary"
+								>
+									<Tag className="mr-2 h-3.5 w-3.5" />
+									<span>
+										{selectedLabels.length > 0
+											? `Etiqueta (${selectedLabels.length})`
+											: "Etiqueta"}
+									</span>
+									<ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="start" className="w-56">
+								<DropdownMenuLabel>Filtrar por Etiqueta</DropdownMenuLabel>
+								<DropdownMenuSeparator />
+								{allRoleTypes.map((rt) => (
+									<DropdownMenuCheckboxItem
+										key={rt.id}
+										checked={selectedLabels.includes(Number(rt.id))}
+										onCheckedChange={() => toggleLabelFilter(Number(rt.id))}
+									>
+										{rt.name}
+									</DropdownMenuCheckboxItem>
+								))}
+							</DropdownMenuContent>
+						</DropdownMenu>
+					)}
+
 					{/* Ingreso filter — preset-based join date range */}
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
@@ -1411,6 +1462,17 @@ export default function MembersListView({
 								<X className="h-3 w-3" />
 							</Badge>
 						))}
+						{selectedLabels.map(labelId => (
+							<Badge
+								key={`label-${labelId}`}
+								variant="secondary"
+								className="pl-2 pr-1 py-1 gap-1 cursor-pointer hover:bg-destructive/20"
+								onClick={() => removeFilterChip('label', String(labelId))}
+							>
+								Etiqueta: {allRoleTypes.find(rt => Number(rt.id) === labelId)?.name ?? String(labelId)}
+								<X className="h-3 w-3" />
+							</Badge>
+						))}
 						{selectedJoinPreset && selectedJoinPreset !== "custom" && (
 							<Badge
 								variant="secondary"
@@ -1559,14 +1621,41 @@ export default function MembersListView({
 											const level = calculateOperativeLevel(member);
 											const cfg = operativeLevelConfig[level];
 											return (
-												<div className="flex items-center gap-1.5">
-													<span className={cn("w-2 h-2 rounded-full shrink-0", cfg.dotClass)} />
-													<Badge
-														variant="outline"
-														className={cn("text-xs border", cfg.badgeClass)}
-													>
-														{getOperativeLevelLabel(member)}
-													</Badge>
+												<div className="space-y-1">
+													<div className="flex items-center gap-1.5">
+														<span className={cn("w-2 h-2 rounded-full shrink-0", cfg.dotClass)} />
+														<Badge
+															variant="outline"
+															className={cn("text-xs border", cfg.badgeClass)}
+														>
+															{getOperativeLevelLabel(member)}
+														</Badge>
+													</div>
+													{member.ecclesiasticalRoles && member.ecclesiasticalRoles.length > 0 && (
+														<div className="flex items-center gap-1 pl-3.5">
+															<Badge variant="outline" className="text-xs border border-gray-200 text-gray-500">
+																{member.ecclesiasticalRoles[0].name}
+															</Badge>
+															{member.ecclesiasticalRoles.length > 1 && (
+																<TooltipProvider delayDuration={200}>
+																	<Tooltip>
+																		<TooltipTrigger asChild>
+																			<Badge variant="secondary" className="text-xs cursor-default">
+																				+{member.ecclesiasticalRoles.length - 1}
+																			</Badge>
+																		</TooltipTrigger>
+																		<TooltipContent side="top">
+																			<ul className="space-y-0.5">
+																				{member.ecclesiasticalRoles.slice(1).map(r => (
+																					<li key={r.roleTypeId} className="text-xs">{r.name}</li>
+																				))}
+																			</ul>
+																		</TooltipContent>
+																	</Tooltip>
+																</TooltipProvider>
+															)}
+														</div>
+													)}
 												</div>
 											);
 										})()}

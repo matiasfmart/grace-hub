@@ -164,6 +164,7 @@ export async function getAllMembers(
   ageMax?: number,
   sortBy?: 'fullName' | 'churchJoinDate' | 'birthDate',
   sortOrder?: 'asc' | 'desc',
+  ecclesiasticalRoleTypeIds?: number[],
 ): Promise<{ members: Member[]; totalMembers: number; totalPages: number }> {
   const params: import('../types').ApiMembersFilterParams = {
     page,
@@ -179,6 +180,7 @@ export async function getAllMembers(
     ageMax: ageMax !== undefined ? ageMax : undefined,
     sortBy: sortBy || undefined,
     sortOrder: sortOrder || undefined,
+    label: ecclesiasticalRoleTypeIds?.length ? ecclesiasticalRoleTypeIds : undefined,
   };
 
   const response = await membersEndpoint.search(params);
