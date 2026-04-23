@@ -423,8 +423,8 @@ export interface ApiMembersFilterParams {
   search?: string;
   status?: string[];
   role?: string[];
-  gdi?: number[];
-  area?: number[];
+  gdi?: string[];
+  area?: string[];
   /** ISO date YYYY-MM-DD — lower bound for church join date */
   joinFrom?: string;
   /** ISO date YYYY-MM-DD — upper bound for church join date */

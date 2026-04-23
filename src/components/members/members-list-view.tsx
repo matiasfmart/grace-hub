@@ -284,16 +284,32 @@ const operativeLevelConfig: Record<OperativeLevel, {
 	},
 };
 
-const roleFilterOptions: {
-	value: MemberRoleType | typeof NO_ROLE_FILTER_VALUE;
+// Nivel filter options — maps pastoral vocabulary to backend role sentinel values.
+// Multiple backend values for a single UI level use OR semantics (already supported
+// by buildFilterConditions in member.repository.impl.ts).
+// Level 1 "Miembro" (GDI sin rol) omitted: no backend sentinel exists yet.
+const nivelFilterOptions: {
+	value: string;
 	label: string;
+	backendValues: string[];
 }[] = [
-	...Object.entries(roleDisplayMap).map(([value, label]) => ({
-		value: value as MemberRoleType,
-		label,
-	})),
-	{ value: NO_ROLE_FILTER_VALUE, label: "Sin Rol Asignado" },
+	{ value: "no-role-assigned", label: "No integrado",  backendValues: ["no-role-assigned"] },
+	{ value: "Worker",           label: "Obrero",        backendValues: ["Worker"] },
+	{ value: "Lider",            label: "Líder",         backendValues: ["GdiGuide", "AreaLeader"] },
+	{ value: "Mentor",           label: "Mentor",        backendValues: ["GdiMentor", "AreaMentor"] },
 ];
+
+// Converts an array of backend role values (from URL params) to nivel UI keys.
+// Example: ["GdiGuide", "AreaLeader"] → ["Lider"]
+// Example: ["Worker", "GdiMentor"]   → ["Worker", "Mentor"]
+function backendRolesToNivelKeys(backendRoles: string[]): string[] {
+	const nivelKeys = new Set<string>();
+	for (const nivel of nivelFilterOptions) {
+		const matches = nivel.backendValues.some(bv => backendRoles.includes(bv));
+		if (matches) nivelKeys.add(nivel.value);
+	}
+	return Array.from(nivelKeys);
+}
 
 const statusDisplayMap: Record<Member["status"], string> = {
 	vigente: "Activo",
@@ -381,7 +397,9 @@ export default function MembersListView({
 }: MembersListViewProps) {
 	const [members, setMembers] = useState<Member[]>(initialMembers);
 	const [searchInput, setSearchInput] = useState(currentSearchTerm);
-	const [selectedRoles, setSelectedRoles] = useState<string[]>(currentRoleFilters || []);
+	const [selectedRoles, setSelectedRoles] = useState<string[]>(
+		backendRolesToNivelKeys(currentRoleFilters || [])
+	);
 	const [selectedGuideIds, setSelectedGuideIds] = useState<string[]>(currentGuideIdFilters || []);
 	const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>(currentAreaFilters || []);
 	const [selectedJoinPreset, setSelectedJoinPreset] = useState<string>(currentJoinPreset);
@@ -415,7 +433,7 @@ export default function MembersListView({
 	// KPI Stats calculation — based on vigente members only
 	const stats = useMemo(() => {
 		const activeMembers = allMembersForDropdowns.filter(m => m.status === "vigente");
-		const withoutGdi = activeMembers.filter(m => !m.assignedGDIId);
+		const withoutGdi = activeMembers.filter(m => calculateOperativeLevel(m) === 0);
 		const withoutArea = activeMembers.filter(m => !m.assignedAreaIds || m.assignedAreaIds.length === 0);
 		return {
 			total: absoluteTotalMembers,
@@ -592,11 +610,15 @@ export default function MembersListView({
 	}, [pathname, router, pageSize, searchInput, selectedJoinPreset, selectedAgePreset, customJoinFrom, customJoinTo, customAgeMin, customAgeMax, sortKey, sortOrder]);
 
 	const toggleRoleFilter = (value: string) => {
-		const newRoles = selectedRoles.includes(value)
+		const newNiveles = selectedRoles.includes(value)
 			? selectedRoles.filter(r => r !== value)
 			: [...selectedRoles, value];
-		setSelectedRoles(newRoles);
-		applyFiltersWithValues(newRoles, selectedGuideIds, selectedAreaIds);
+		setSelectedRoles(newNiveles);
+		// Expand nivel UI keys to the backend role sentinel values before navigating
+		const expandedRoleValues = newNiveles.flatMap(
+			nivel => nivelFilterOptions.find(o => o.value === nivel)?.backendValues ?? [nivel]
+		);
+		applyFiltersWithValues(expandedRoleValues, selectedGuideIds, selectedAreaIds);
 	};
 
 	const toggleGdiFilter = (value: string) => {
@@ -657,7 +679,7 @@ export default function MembersListView({
 	const getFilterLabel = (type: 'role' | 'gdi' | 'area', value: string): string => {
 		switch (type) {
 			case 'role':
-				return value === NO_ROLE_FILTER_VALUE ? "Sin Rol" : (roleDisplayMap[value as MemberRoleType] || value);
+				return nivelFilterOptions.find(o => o.value === value)?.label ?? value;
 			case 'gdi':
 				if (value === NO_GDI_FILTER_VALUE) return "Sin GDI";
 				const gdi = allGDIs.find(g => g.id === value);
@@ -982,16 +1004,16 @@ export default function MembersListView({
 								<ShieldCheck className="mr-2 h-3.5 w-3.5" />
 								<span>
 									{selectedRoles.length > 0
-										? `Rol (${selectedRoles.length})`
-										: "Rol"}
+										? `Nivel (${selectedRoles.length})`
+										: "Nivel"}
 								</span>
 								<ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="start" className="w-56">
-							<DropdownMenuLabel>Filtrar por Rol</DropdownMenuLabel>
+							<DropdownMenuLabel>Filtrar por Nivel</DropdownMenuLabel>
 							<DropdownMenuSeparator />
-							{roleFilterOptions.map((opt) => (
+							{nivelFilterOptions.map((opt) => (
 								<DropdownMenuCheckboxItem
 									key={opt.value}
 									checked={selectedRoles.includes(opt.value)}
@@ -1363,7 +1385,7 @@ export default function MembersListView({
 								className="pl-2 pr-1 py-1 gap-1 cursor-pointer hover:bg-destructive/20"
 								onClick={() => removeFilterChip('role', role)}
 							>
-								Rol: {getFilterLabel('role', role)}
+								Nivel: {getFilterLabel('role', role)}
 								<X className="h-3 w-3" />
 							</Badge>
 						))}
