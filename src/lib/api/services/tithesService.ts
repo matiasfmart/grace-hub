@@ -89,6 +89,25 @@ export const tithesService = {
       month: now.getMonth() + 1, // JavaScript months are 0-indexed
     });
   },
+
+  /**
+   * Batch upsert tithes for a given month.
+   * Creates records for members who tithed, deletes for those who didn't.
+   * Delegates the full create/delete logic to the backend in a single request.
+   */
+  async batchUpsert(
+    year: number,
+    month: number,
+    updates: { memberId: string; didTithe: boolean }[],
+  ): Promise<void> {
+    const items = updates.map((u) => ({
+      memberId: Number(u.memberId),
+      year,
+      month,
+      didTithe: u.didTithe,
+    }));
+    await tithesEndpoint.batchUpsert(items);
+  },
 };
 
 // ==============================================
@@ -100,39 +119,6 @@ export const tithesService = {
  */
 export async function getAllTitheRecords(): Promise<TitheRecord[]> {
   return tithesService.getAll();
-}
-
-/**
- * Batch update tithes for month
- * Delegates the full create/delete logic to the backend batch endpoint
- * in a single request instead of N individual calls.
- */
-export async function batchUpdateTithesForMonth(
-  year: number,
-  month: number,
-  updates: { memberId: string; didTithe: boolean }[]
-): Promise<{ success: boolean; message: string }> {
-  try {
-    const items = updates.map(u => ({
-      memberId: Number(u.memberId),
-      year,
-      month,
-      didTithe: u.didTithe,
-    }));
-
-    await tithesEndpoint.batchUpsert(items);
-
-    return {
-      success: true,
-      message: "Registros de diezmos actualizados exitosamente.",
-    };
-  } catch (error: any) {
-    console.error("Error batch updating tithes:", error);
-    return {
-      success: false,
-      message: `Error al actualizar diezmos: ${error.message}`,
-    };
-  }
 }
 
 export default tithesService;

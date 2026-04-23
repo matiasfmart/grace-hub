@@ -164,6 +164,7 @@ export async function getAllMembers(
   ageMax?: number,
   sortBy?: 'fullName' | 'churchJoinDate' | 'birthDate',
   sortOrder?: 'asc' | 'desc',
+  ecclesiasticalRoleTypeIds?: number[],
 ): Promise<{ members: Member[]; totalMembers: number; totalPages: number }> {
   const params: import('../types').ApiMembersFilterParams = {
     page,
@@ -171,14 +172,15 @@ export async function getAllMembers(
     search: searchTerm?.trim() || undefined,
     status: memberStatusFilters?.length ? memberStatusFilters : undefined,
     role: roleFilters?.length ? roleFilters : undefined,
-    gdi: gdiFilters?.length ? gdiFilters.map(g => Number(g)).filter(n => !isNaN(n)) : undefined,
-    area: areaFilters?.length ? areaFilters.map(a => Number(a)).filter(n => !isNaN(n)) : undefined,
+    gdi: gdiFilters?.length ? gdiFilters : undefined,
+    area: areaFilters?.length ? areaFilters : undefined,
     joinFrom: joinDateFrom || undefined,
     joinTo: joinDateTo || undefined,
     ageMin: ageMin !== undefined ? ageMin : undefined,
     ageMax: ageMax !== undefined ? ageMax : undefined,
     sortBy: sortBy || undefined,
     sortOrder: sortOrder || undefined,
+    label: ecclesiasticalRoleTypeIds?.length ? ecclesiasticalRoleTypeIds : undefined,
   };
 
   const response = await membersEndpoint.search(params);

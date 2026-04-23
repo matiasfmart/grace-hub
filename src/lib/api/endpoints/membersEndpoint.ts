@@ -43,6 +43,7 @@ export const membersEndpoint = {
     if (params.ageMax !== undefined) queryParams.set('ageMax', params.ageMax.toString());
     if (params.sortBy) queryParams.set('sortBy', params.sortBy);
     if (params.sortOrder) queryParams.set('sortOrder', params.sortOrder);
+    if (params.label?.length) queryParams.set('label', params.label.join(','));
 
     const queryString = queryParams.toString();
     const url = queryString ? `${ENDPOINT}/search?${queryString}` : `${ENDPOINT}/search`;

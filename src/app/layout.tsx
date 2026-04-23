@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import MainLayout from "@/components/layout/main-layout";
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
@@ -22,7 +21,7 @@ export default function RootLayout({
 				{/* PT Sans is imported via globals.css */}
 			</head>
 			<body className="font-sans antialiased">
-				<MainLayout>{children}</MainLayout>
+				{children}
 				<Toaster />
 			</body>
 		</html>

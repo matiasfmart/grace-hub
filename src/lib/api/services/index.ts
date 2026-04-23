@@ -81,7 +81,6 @@ export {
 // Tithes
 export {
   getAllTitheRecords,
-  batchUpdateTithesForMonth,
 } from './tithesService';
 
 // Role Types (Ecclesiastical Labels) - convenience function

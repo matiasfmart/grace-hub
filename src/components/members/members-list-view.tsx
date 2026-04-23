@@ -18,6 +18,7 @@ import {
 	Search,
 	ShieldCheck,
 	Smile,
+	Tag,
 	Trash2,
 	UserCheck,
 	UserPlus,
@@ -151,6 +152,7 @@ interface MembersListViewProps {
 	currentRoleFilters?: string[];
 	currentGuideIdFilters?: string[];
 	currentAreaFilters?: string[];
+	currentLabelFilters?: number[];
 	currentJoinPreset?: string;
 	currentAgePreset?: string;
 	/** YYYY-MM — used when joinPreset === "custom" */
@@ -284,16 +286,32 @@ const operativeLevelConfig: Record<OperativeLevel, {
 	},
 };
 
-const roleFilterOptions: {
-	value: MemberRoleType | typeof NO_ROLE_FILTER_VALUE;
+// Nivel filter options — maps pastoral vocabulary to backend role sentinel values.
+// Multiple backend values for a single UI level use OR semantics (already supported
+// by buildFilterConditions in member.repository.impl.ts).
+// Level 1 "Miembro" (GDI sin rol) omitted: no backend sentinel exists yet.
+const nivelFilterOptions: {
+	value: string;
 	label: string;
+	backendValues: string[];
 }[] = [
-	...Object.entries(roleDisplayMap).map(([value, label]) => ({
-		value: value as MemberRoleType,
-		label,
-	})),
-	{ value: NO_ROLE_FILTER_VALUE, label: "Sin Rol Asignado" },
+	{ value: "no-role-assigned", label: "No integrado",  backendValues: ["no-role-assigned"] },
+	{ value: "Worker",           label: "Obrero",        backendValues: ["Worker"] },
+	{ value: "Lider",            label: "Líder",         backendValues: ["GdiGuide", "AreaLeader"] },
+	{ value: "Mentor",           label: "Mentor",        backendValues: ["GdiMentor", "AreaMentor"] },
 ];
+
+// Converts an array of backend role values (from URL params) to nivel UI keys.
+// Example: ["GdiGuide", "AreaLeader"] → ["Lider"]
+// Example: ["Worker", "GdiMentor"]   → ["Worker", "Mentor"]
+function backendRolesToNivelKeys(backendRoles: string[]): string[] {
+	const nivelKeys = new Set<string>();
+	for (const nivel of nivelFilterOptions) {
+		const matches = nivel.backendValues.some(bv => backendRoles.includes(bv));
+		if (matches) nivelKeys.add(nivel.value);
+	}
+	return Array.from(nivelKeys);
+}
 
 const statusDisplayMap: Record<Member["status"], string> = {
 	vigente: "Activo",
@@ -368,6 +386,7 @@ export default function MembersListView({
 	currentRoleFilters = [],
 	currentGuideIdFilters = [],
 	currentAreaFilters = [],
+	currentLabelFilters = [],
 	currentJoinPreset = "",
 	currentAgePreset = "",
 	currentJoinFrom = "",
@@ -381,9 +400,12 @@ export default function MembersListView({
 }: MembersListViewProps) {
 	const [members, setMembers] = useState<Member[]>(initialMembers);
 	const [searchInput, setSearchInput] = useState(currentSearchTerm);
-	const [selectedRoles, setSelectedRoles] = useState<string[]>(currentRoleFilters || []);
+	const [selectedRoles, setSelectedRoles] = useState<string[]>(
+		backendRolesToNivelKeys(currentRoleFilters || [])
+	);
 	const [selectedGuideIds, setSelectedGuideIds] = useState<string[]>(currentGuideIdFilters || []);
 	const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>(currentAreaFilters || []);
+	const [selectedLabels, setSelectedLabels] = useState<number[]>(currentLabelFilters || []);
 	const [selectedJoinPreset, setSelectedJoinPreset] = useState<string>(currentJoinPreset);
 	const [selectedAgePreset, setSelectedAgePreset] = useState<string>(currentAgePreset);
 	// Custom join range state (YYYY-MM format each)
@@ -415,7 +437,7 @@ export default function MembersListView({
 	// KPI Stats calculation — based on vigente members only
 	const stats = useMemo(() => {
 		const activeMembers = allMembersForDropdowns.filter(m => m.status === "vigente");
-		const withoutGdi = activeMembers.filter(m => !m.assignedGDIId);
+		const withoutGdi = activeMembers.filter(m => calculateOperativeLevel(m) === 0);
 		const withoutArea = activeMembers.filter(m => !m.assignedAreaIds || m.assignedAreaIds.length === 0);
 		return {
 			total: absoluteTotalMembers,
@@ -563,6 +585,7 @@ export default function MembersListView({
 		joinPreset: string = selectedJoinPreset,
 		agePreset: string = selectedAgePreset,
 		search: string = searchInput,
+		labels: number[] = selectedLabels,
 	) => {
 		const params = new URLSearchParams();
 		params.set("page", "1");
@@ -573,6 +596,7 @@ export default function MembersListView({
 		if (roles.length > 0) params.set("role", roles.join(","));
 		if (gdiIds.length > 0) params.set("guide", gdiIds.join(","));
 		if (areaIds.length > 0) params.set("area", areaIds.join(","));
+		if (labels.length > 0) params.set("label", labels.join(","));
 		if (joinPreset) {
 			params.set("joinPreset", joinPreset);
 			if (joinPreset === "custom" && customJoinFrom) params.set("joinFrom", customJoinFrom);
@@ -589,14 +613,18 @@ export default function MembersListView({
 
 		router.push(`${pathname}?${params.toString()}`);
 		router.refresh();
-	}, [pathname, router, pageSize, searchInput, selectedJoinPreset, selectedAgePreset, customJoinFrom, customJoinTo, customAgeMin, customAgeMax, sortKey, sortOrder]);
+	}, [pathname, router, pageSize, searchInput, selectedJoinPreset, selectedAgePreset, selectedLabels, customJoinFrom, customJoinTo, customAgeMin, customAgeMax, sortKey, sortOrder]);
 
 	const toggleRoleFilter = (value: string) => {
-		const newRoles = selectedRoles.includes(value)
+		const newNiveles = selectedRoles.includes(value)
 			? selectedRoles.filter(r => r !== value)
 			: [...selectedRoles, value];
-		setSelectedRoles(newRoles);
-		applyFiltersWithValues(newRoles, selectedGuideIds, selectedAreaIds);
+		setSelectedRoles(newNiveles);
+		// Expand nivel UI keys to the backend role sentinel values before navigating
+		const expandedRoleValues = newNiveles.flatMap(
+			nivel => nivelFilterOptions.find(o => o.value === nivel)?.backendValues ?? [nivel]
+		);
+		applyFiltersWithValues(expandedRoleValues, selectedGuideIds, selectedAreaIds);
 	};
 
 	const toggleGdiFilter = (value: string) => {
@@ -613,6 +641,14 @@ export default function MembersListView({
 			: [...selectedAreaIds, value];
 		setSelectedAreaIds(newAreaIds);
 		applyFiltersWithValues(selectedRoles, selectedGuideIds, newAreaIds);
+	};
+
+	const toggleLabelFilter = (value: number) => {
+		const newLabels = selectedLabels.includes(value)
+			? selectedLabels.filter(l => l !== value)
+			: [...selectedLabels, value];
+		setSelectedLabels(newLabels);
+		applyFiltersWithValues(selectedRoles, selectedGuideIds, selectedAreaIds, selectedJoinPreset, selectedAgePreset, searchInput, newLabels);
 	};
 
 	const selectJoinPreset = (value: string) => {
@@ -643,11 +679,12 @@ export default function MembersListView({
 	};
 
 	// Remove single filter chip
-	const removeFilterChip = (type: 'role' | 'gdi' | 'area' | 'join' | 'age', value: string) => {
+	const removeFilterChip = (type: 'role' | 'gdi' | 'area' | 'label' | 'join' | 'age', value: string) => {
 		switch (type) {
 			case 'role':  toggleRoleFilter(value); break;
 			case 'gdi':   toggleGdiFilter(value); break;
 			case 'area':  toggleAreaFilter(value); break;
+			case 'label': toggleLabelFilter(Number(value)); break;
 			case 'join':  selectJoinPreset(""); break;
 			case 'age':   selectAgePreset(""); break;
 		}
@@ -657,7 +694,7 @@ export default function MembersListView({
 	const getFilterLabel = (type: 'role' | 'gdi' | 'area', value: string): string => {
 		switch (type) {
 			case 'role':
-				return value === NO_ROLE_FILTER_VALUE ? "Sin Rol" : (roleDisplayMap[value as MemberRoleType] || value);
+				return nivelFilterOptions.find(o => o.value === value)?.label ?? value;
 			case 'gdi':
 				if (value === NO_GDI_FILTER_VALUE) return "Sin GDI";
 				const gdi = allGDIs.find(g => g.id === value);
@@ -680,6 +717,7 @@ export default function MembersListView({
 		setSelectedRoles([]);
 		setSelectedGuideIds([]);
 		setSelectedAreaIds([]);
+		setSelectedLabels([]);
 		setSelectedJoinPreset("");
 		setSelectedAgePreset("");
 		setCustomJoinFrom("");
@@ -766,10 +804,10 @@ export default function MembersListView({
 		setIsDetailsDialogOpen(true);
 	};
 
-	// Soft delete: moves member to "Dados de baja" section (reversible)
-	const handleSoftDelete = (member: Member) => {
-		setSoftDeletePendingMember(member);
-	};
+	// Soft delete: el MemberDetailsDialog maneja su propio flujo via softDeleteMemberAction.
+	// handleSoftDelete eliminado — era código muerto (nunca llamado desde la UI).
+	// El AlertDialog de confirmación en members-list-view solo se usa para el flujo
+	// alternativo de soft delete desde la tabla (actualmente sin trigger en la UI).
 
 	const confirmSoftDelete = () => {
 		if (!softDeletePendingMember) return;
@@ -848,6 +886,7 @@ export default function MembersListView({
 		selectedRoles.length > 0 ||
 		selectedGuideIds.length > 0 ||
 		selectedAreaIds.length > 0 ||
+		selectedLabels.length > 0 ||
 		(selectedJoinPreset !== "" && selectedJoinPreset !== "custom") ||
 		(selectedJoinPreset === "custom" && !!customJoinFrom && !!customJoinTo) ||
 		(selectedAgePreset !== "" && selectedAgePreset !== "custom") ||
@@ -982,16 +1021,16 @@ export default function MembersListView({
 								<ShieldCheck className="mr-2 h-3.5 w-3.5" />
 								<span>
 									{selectedRoles.length > 0
-										? `Rol (${selectedRoles.length})`
-										: "Rol"}
+										? `Nivel (${selectedRoles.length})`
+										: "Nivel"}
 								</span>
 								<ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="start" className="w-56">
-							<DropdownMenuLabel>Filtrar por Rol</DropdownMenuLabel>
+							<DropdownMenuLabel>Filtrar por Nivel</DropdownMenuLabel>
 							<DropdownMenuSeparator />
-							{roleFilterOptions.map((opt) => (
+							{nivelFilterOptions.map((opt) => (
 								<DropdownMenuCheckboxItem
 									key={opt.value}
 									checked={selectedRoles.includes(opt.value)}
@@ -1123,6 +1162,40 @@ export default function MembersListView({
 							</Command>
 						</DropdownMenuContent>
 					</DropdownMenu>
+
+					{/* Etiqueta filter — ecclesiastical role types */}
+					{allRoleTypes.length > 0 && (
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									variant="ghost"
+									size="sm"
+									className="text-muted-foreground hover:text-primary data-[state=open]:text-primary"
+								>
+									<Tag className="mr-2 h-3.5 w-3.5" />
+									<span>
+										{selectedLabels.length > 0
+											? `Etiqueta (${selectedLabels.length})`
+											: "Etiqueta"}
+									</span>
+									<ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="start" className="w-56">
+								<DropdownMenuLabel>Filtrar por Etiqueta</DropdownMenuLabel>
+								<DropdownMenuSeparator />
+								{allRoleTypes.map((rt) => (
+									<DropdownMenuCheckboxItem
+										key={rt.id}
+										checked={selectedLabels.includes(Number(rt.id))}
+										onCheckedChange={() => toggleLabelFilter(Number(rt.id))}
+									>
+										{rt.name}
+									</DropdownMenuCheckboxItem>
+								))}
+							</DropdownMenuContent>
+						</DropdownMenu>
+					)}
 
 					{/* Ingreso filter — preset-based join date range */}
 					<DropdownMenu>
@@ -1363,7 +1436,7 @@ export default function MembersListView({
 								className="pl-2 pr-1 py-1 gap-1 cursor-pointer hover:bg-destructive/20"
 								onClick={() => removeFilterChip('role', role)}
 							>
-								Rol: {getFilterLabel('role', role)}
+								Nivel: {getFilterLabel('role', role)}
 								<X className="h-3 w-3" />
 							</Badge>
 						))}
@@ -1386,6 +1459,17 @@ export default function MembersListView({
 								onClick={() => removeFilterChip('area', areaId)}
 							>
 								Área: {getFilterLabel('area', areaId)}
+								<X className="h-3 w-3" />
+							</Badge>
+						))}
+						{selectedLabels.map(labelId => (
+							<Badge
+								key={`label-${labelId}`}
+								variant="secondary"
+								className="pl-2 pr-1 py-1 gap-1 cursor-pointer hover:bg-destructive/20"
+								onClick={() => removeFilterChip('label', String(labelId))}
+							>
+								Etiqueta: {allRoleTypes.find(rt => Number(rt.id) === labelId)?.name ?? String(labelId)}
 								<X className="h-3 w-3" />
 							</Badge>
 						))}
@@ -1537,14 +1621,41 @@ export default function MembersListView({
 											const level = calculateOperativeLevel(member);
 											const cfg = operativeLevelConfig[level];
 											return (
-												<div className="flex items-center gap-1.5">
-													<span className={cn("w-2 h-2 rounded-full shrink-0", cfg.dotClass)} />
-													<Badge
-														variant="outline"
-														className={cn("text-xs border", cfg.badgeClass)}
-													>
-														{getOperativeLevelLabel(member)}
-													</Badge>
+												<div className="space-y-1">
+													<div className="flex items-center gap-1.5">
+														<span className={cn("w-2 h-2 rounded-full shrink-0", cfg.dotClass)} />
+														<Badge
+															variant="outline"
+															className={cn("text-xs border", cfg.badgeClass)}
+														>
+															{getOperativeLevelLabel(member)}
+														</Badge>
+													</div>
+													{member.ecclesiasticalRoles && member.ecclesiasticalRoles.length > 0 && (
+														<div className="flex items-center gap-1 pl-3.5">
+															<Badge variant="outline" className="text-xs border border-gray-200 text-gray-500">
+																{member.ecclesiasticalRoles[0].name}
+															</Badge>
+															{member.ecclesiasticalRoles.length > 1 && (
+																<TooltipProvider delayDuration={200}>
+																	<Tooltip>
+																		<TooltipTrigger asChild>
+																			<Badge variant="secondary" className="text-xs cursor-default">
+																				+{member.ecclesiasticalRoles.length - 1}
+																			</Badge>
+																		</TooltipTrigger>
+																		<TooltipContent side="top">
+																			<ul className="space-y-0.5">
+																				{member.ecclesiasticalRoles.slice(1).map(r => (
+																					<li key={r.roleTypeId} className="text-xs">{r.name}</li>
+																				))}
+																			</ul>
+																		</TooltipContent>
+																	</Tooltip>
+																</TooltipProvider>
+															)}
+														</div>
+													)}
 												</div>
 											);
 										})()}
@@ -1813,7 +1924,6 @@ export default function MembersListView({
 					onClose={handleCloseDetailsDialog}
 					onMemberUpdated={handleMemberUpdated}
 					updateMemberAction={updateMemberAction}
-					deleteMemberAction={deleteMemberAction}
 				/>
 			)}
 			<Dialog

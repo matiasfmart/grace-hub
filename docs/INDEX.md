@@ -1,6 +1,6 @@
 # Grace Hub Frontend - Documentación
 
-> **Última actualización:** 2026-04-18
+> **Última actualización:** 2026-04-22
 
 ## Índice
 
@@ -11,7 +11,7 @@
 - [blueprint.md](./blueprint.md) - Visión del producto, features y estilo
 
 ### Arquitectura
-- [FRONTEND_ARCHITECTURE.md](./architecture/FRONTEND_ARCHITECTURE.md) - Arquitectura completa del frontend
+- [FRONTEND_ARCHITECTURE.md](./architecture/FRONTEND_ARCHITECTURE.md) - Arquitectura completa del frontend (incluye sección de autenticación)
 - [ARCHITECTURE_RULES.md](./architecture/ARCHITECTURE_RULES.md) - Reglas por capa
 
 ### Prompts
@@ -37,6 +37,7 @@ Para documentación funcional y de negocio, ver:
 | Ruta | Página | Estado | Notas UX |
 |------|--------|--------|----------|
 | `/` | Dashboard | ✅ Completa | Gráficos de asistencia |
+| `/login` | Login | ✅ Completa | Sin sidebar, cookie httpOnly |
 | `/members` | Directorio de Miembros | ✅ Completa | Paginación, filtros |
 | `/members/bulk-add` | Agregar Múltiples | ✅ Completa | Staging flow, edición antes de guardar, breadcrumb |
 | `/members/settings/role-types` | Administración de Etiquetas Eclesiásticas | ✅ Completa | CRUD de `role_types` |

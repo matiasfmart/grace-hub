@@ -2,7 +2,7 @@
 
 import { PlusCircle } from "lucide-react";
 import { useState } from "react";
-import { defineMeetingSeriesAction } from "@/app/actions/eventActions";
+import { defineMeetingSeriesAction } from "@/app/(protected)/actions/eventActions";
 import DefineMeetingSeriesForm from "@/components/events/add-meeting-form";
 import { Button } from "@/components/ui/button";
 import {

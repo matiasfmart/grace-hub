@@ -15,8 +15,8 @@ import type { ApiErrorResponse } from './types';
 // API_URL → runtime env var, used by the Next.js server inside Docker to reach the backend container
 const API_BASE_URL =
   typeof window === 'undefined'
-    ? (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001')
-    : (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001');
+    ? (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001')
+    : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001');
 const API_PREFIX = '/api/v1';
 
 // ==============================================
@@ -85,6 +85,23 @@ function buildUrl(endpoint: string, params?: RequestParams): string {
   return url.toString();
 }
 
+/**
+ * Build auth cookie header for server-side requests.
+ * When Next.js Server Components call the API, the browser cookie is not
+ * automatically included — we must forward it from the incoming request.
+ */
+async function getAuthCookieHeader(): Promise<string | null> {
+  if (typeof window !== 'undefined') return null; // client-side: credentials:include handles it
+  try {
+    const { cookies } = await import('next/headers');
+    const cookieStore = await cookies();
+    const authCookie = cookieStore.get('auth');
+    return authCookie ? `auth=${authCookie.value}` : null;
+  } catch {
+    return null; // not in a Server Component context (e.g., build time)
+  }
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   // For non-content responses (e.g., 204 No Content)
   if (response.status === 204) {
@@ -122,12 +139,15 @@ export const apiClient = {
    */
   async get<T>(endpoint: string, params?: RequestParams): Promise<T> {
     const url = buildUrl(endpoint, params);
+    const authCookie = await getAuthCookieHeader();
     
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        ...(authCookie ? { Cookie: authCookie } : {}),
       },
+      credentials: 'include',
     });
     
     return handleResponse<T>(response);
@@ -138,12 +158,15 @@ export const apiClient = {
    */
   async post<T>(endpoint: string, body?: unknown): Promise<T> {
     const url = buildUrl(endpoint);
+    const authCookie = await getAuthCookieHeader();
     
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(authCookie ? { Cookie: authCookie } : {}),
       },
+      credentials: 'include',
       body: body ? JSON.stringify(body) : undefined,
     });
     
@@ -155,12 +178,15 @@ export const apiClient = {
    */
   async put<T>(endpoint: string, body?: unknown): Promise<T> {
     const url = buildUrl(endpoint);
+    const authCookie = await getAuthCookieHeader();
     
     const response = await fetch(url, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        ...(authCookie ? { Cookie: authCookie } : {}),
       },
+      credentials: 'include',
       body: body ? JSON.stringify(body) : undefined,
     });
     
@@ -172,12 +198,15 @@ export const apiClient = {
    */
   async patch<T>(endpoint: string, body?: unknown): Promise<T> {
     const url = buildUrl(endpoint);
+    const authCookie = await getAuthCookieHeader();
     
     const response = await fetch(url, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
+        ...(authCookie ? { Cookie: authCookie } : {}),
       },
+      credentials: 'include',
       body: body ? JSON.stringify(body) : undefined,
     });
     
@@ -189,12 +218,15 @@ export const apiClient = {
    */
   async delete<T = void>(endpoint: string): Promise<T> {
     const url = buildUrl(endpoint);
+    const authCookie = await getAuthCookieHeader();
     
     const response = await fetch(url, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
+        ...(authCookie ? { Cookie: authCookie } : {}),
       },
+      credentials: 'include',
     });
     
     return handleResponse<T>(response);

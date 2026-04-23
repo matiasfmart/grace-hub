@@ -4,6 +4,41 @@
 
 ---
 
+## [2026-04-22] - Sistema de Autenticación JWT (cookie httpOnly)
+
+### ✨ Nuevas Funcionalidades
+
+#### Autenticación — Full Stack
+
+**Backend (grace-hub-service):**
+- **`src/modules/auth/`**: Nuevo módulo completo de autenticación.
+  - **`UserEntity`**: Entidad TypeORM → tabla `users` (id, email, password_hash). Creada automáticamente por `synchronize: true`.
+  - **`AuthService`**: Lógica de register (bcrypt 12 rounds), login (comparación de tiempo constante), getMe.
+  - **`AuthGuard`**: Guard global registrado en `AppModule` via `APP_GUARD`. Protege todos los endpoints por defecto.
+  - **`@Public()`**: Decorador para marcar endpoints que no requieren autenticación.
+  - **`AuthController`**: Endpoints `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `POST /auth/logout`.
+- **`main.ts`**: Agregado `app.use(cookieParser())`.
+- **`app.module.ts`**: Registrados `AuthModule` y guard global `{ provide: APP_GUARD, useClass: AuthGuard }`.
+- **`.env`**: Variables `JWT_SECRET` y `JWT_EXPIRES_IN=1d`.
+
+**Frontend (grace-hub):**
+- **`src/app/(protected)/`**: Nuevo route group para páginas protegidas (sidebar). Las URLs no cambian.
+- **`src/app/(protected)/layout.tsx`**: Layout con `MainLayout` (sidebar).
+- **`src/app/login/page.tsx`**: Nueva página de login standalone (sin sidebar). Formulario con email/password, manejo de errores.
+- **`src/app/api/auth/login/route.ts`**: Route Handler proxy — llama al backend, extrae el JWT del `Set-Cookie`, reescribe la cookie en el dominio del frontend (`localhost:3000` / `app.tudominio.com`).
+- **`src/app/api/auth/logout/route.ts`**: Route Handler que limpia la cookie `auth`.
+- **`src/middleware.ts`**: Nuevo archivo. Intercepta todas las navegaciones; redirige a `/login` si no existe la cookie `auth`.
+- **`src/lib/api/endpoints/authEndpoint.ts`**: Nuevo archivo. Funciones `login`, `register`, `me`, `logout`.
+- **`src/lib/api/client.ts`**: Agregado `credentials: 'include'` en todos los métodos. Agregado reenvío de cookie para Server Components (`next/headers`).
+- **`src/lib/api/client.ts`**: Root layout simplificado (sin `MainLayout`).
+- **`src/lib/contexts/user-context.tsx`**: Reemplazado mock user por llamada real a `GET /auth/me`. Agregado `isLoading` y `logout()`.
+- **`src/components/layout/app-sidebar.tsx`**: Botón "Cerrar Sesión" conectado a `logout()` del contexto.
+
+### 🏗️ Arquitectura
+La cookie la setea el Route Handler de Next.js (no el backend directamente) para garantizar que pertenezca al dominio del frontend y sea visible para el middleware. Ver [ADR-006](../../../docs-grace-hub/decisions/006-autenticacion-jwt.md) para los trade-offs.
+
+---
+
 ## [2026-04-19] - Filtros de Ingreso y Edad en Módulo Miembros
 
 ### ✨ Nuevas Funcionalidades

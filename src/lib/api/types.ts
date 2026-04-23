@@ -423,8 +423,8 @@ export interface ApiMembersFilterParams {
   search?: string;
   status?: string[];
   role?: string[];
-  gdi?: number[];
-  area?: number[];
+  gdi?: string[];
+  area?: string[];
   /** ISO date YYYY-MM-DD — lower bound for church join date */
   joinFrom?: string;
   /** ISO date YYYY-MM-DD — upper bound for church join date */
@@ -437,6 +437,8 @@ export interface ApiMembersFilterParams {
   sortBy?: 'fullName' | 'churchJoinDate' | 'birthDate';
   /** Sort direction */
   sortOrder?: 'asc' | 'desc';
+  /** Filter by ecclesiastical label role type IDs — OR semantics */
+  label?: number[];
 }
 
 export interface ApiListResponse<T> {
