@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, PlusCircle, Users, UsersRound } from "lucide-react";
+import { AlertTriangle, PlusCircle, Search, Users, UserCheck, UsersRound } from "lucide-react";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import {
 	Dialog,
@@ -11,6 +11,14 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import type { GDI, Member, MinistryArea } from "@/lib/types";
 import { Button } from "../ui/button";
@@ -75,23 +83,47 @@ export default function ManageGroupsTabs({
 		[allMembers],
 	);
 
-	// KPIs calculados
+	// KPIs de cobertura (ADR-004: todo miembro activo debe tener GDI)
 	const stats = useMemo(() => {
-		const areasWithoutMentor = initialMinistryAreas.filter(a => !a.mentorId).length;
-		const gdisWithoutMentor = initialGdis.filter(g => !g.mentorId).length;
-		const totalMembers = new Set([
-			...initialMinistryAreas.flatMap(a => a.memberIds),
-			...initialGdis.flatMap(g => g.memberIds)
-		]).size;
+		const gdisWithMentor = initialGdis.filter(g => !!g.mentorId).length;
+		const areasWithMentor = initialMinistryAreas.filter(a => !!a.mentorId).length;
+
+		// Miembros sin GDI — viola RN-001
+		const allGdiGuideIds = new Set(initialGdis.map(g => g.guideId).filter(Boolean));
+		const allGdiMemberIds = new Set(initialGdis.flatMap(g => g.memberIds));
+		const membersWithoutGdi = activeMembers.filter(
+			m => !allGdiGuideIds.has(m.id) && !allGdiMemberIds.has(m.id)
+		).length;
+
 		return {
 			totalAreas: initialMinistryAreas.length,
 			totalGdis: initialGdis.length,
-			withoutMentor: areasWithoutMentor + gdisWithoutMentor,
-			totalMembers,
+			gdisWithMentor,
+			areasWithMentor,
+			membersWithoutGdi,
 		};
-	}, [initialMinistryAreas, initialGdis]);
+	}, [initialMinistryAreas, initialGdis, activeMembers]);
 
-	const [activeTab, setActiveTab] = useState<"ministry-areas" | "gdis">("ministry-areas");
+	// Búsqueda y filtro
+	const [searchTerm, setSearchTerm] = useState("");
+	const [mentorFilter, setMentorFilter] = useState<string>("all");
+
+	// Mentores únicos (cross-GDIs + Áreas) para el filtro
+	const uniqueMentors = useMemo(() => {
+		const mentorIds = new Set<string>();
+		[...initialGdis, ...initialMinistryAreas].forEach(g => {
+			if (g.mentorId) mentorIds.add(g.mentorId);
+		});
+		return Array.from(mentorIds)
+			.map(id => {
+				const member = allMembers.find(m => m.id === id);
+				return member ? { id, label: `${member.firstName} ${member.lastName}` } : null;
+			})
+			.filter((x): x is { id: string; label: string } => x !== null)
+			.sort((a, b) => a.label.localeCompare(b.label));
+	}, [initialGdis, initialMinistryAreas, allMembers]);
+
+	const [activeTab, setActiveTab] = useState<"ministry-areas" | "gdis">("gdis");
 
 	const handleAddMinistryAreaSubmit = useCallback(
 		async (
@@ -183,99 +215,132 @@ export default function ManageGroupsTabs({
 
 	return (
 		<>
-			{/* KPI Summary Cards */}
+			{/* KPI de cobertura — muestra estado estructural de la organización */}
 			<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-				<Card className="border-l-4 border-l-primary">
-					<CardContent className="p-4">
-						<div className="flex items-center gap-3">
-							<UsersRound className="h-8 w-8 text-primary" />
-							<div>
-								<p className="text-2xl font-bold">{stats.totalAreas}</p>
-								<p className="text-xs text-muted-foreground">Áreas</p>
-							</div>
-						</div>
-					</CardContent>
-				</Card>
 				<Card className="border-l-4 border-l-primary">
 					<CardContent className="p-4">
 						<div className="flex items-center gap-3">
 							<Users className="h-8 w-8 text-primary" />
 							<div>
 								<p className="text-2xl font-bold">{stats.totalGdis}</p>
-								<p className="text-xs text-muted-foreground">GDIs</p>
+								<p className="text-xs text-muted-foreground">GDIs activos</p>
 							</div>
 						</div>
 					</CardContent>
 				</Card>
-				<Card className="border-l-4 border-l-blue-400">
+				<Card className={`border-l-4 ${stats.gdisWithMentor < stats.totalGdis ? "border-l-amber-400" : "border-l-emerald-500"}`}>
 					<CardContent className="p-4">
 						<div className="flex items-center gap-3">
-							<Users className="h-8 w-8 text-blue-400" />
+							<UserCheck className={`h-8 w-8 ${stats.gdisWithMentor < stats.totalGdis ? "text-amber-400" : "text-emerald-500"}`} />
 							<div>
-								<p className="text-2xl font-bold">{stats.totalMembers}</p>
-								<p className="text-xs text-muted-foreground">Miembros asignados</p>
+								<p className="text-2xl font-bold">{stats.gdisWithMentor}/{stats.totalGdis}</p>
+								<p className="text-xs text-muted-foreground">GDIs con mentor</p>
 							</div>
 						</div>
 					</CardContent>
 				</Card>
-				{stats.withoutMentor > 0 && (
-					<Card className="border-l-4 border-l-warning bg-warning/5">
-						<CardContent className="p-4">
-							<div className="flex items-center gap-3">
-								<AlertTriangle className="h-8 w-8 text-warning" />
-								<div>
-									<p className="text-2xl font-bold">{stats.withoutMentor}</p>
-									<p className="text-xs text-muted-foreground">Sin mentor</p>
-								</div>
+				<Card className="border-l-4 border-l-primary">
+					<CardContent className="p-4">
+						<div className="flex items-center gap-3">
+							<UsersRound className="h-8 w-8 text-primary" />
+							<div>
+								<p className="text-2xl font-bold">{stats.totalAreas}</p>
+								<p className="text-xs text-muted-foreground">Áreas activas</p>
 							</div>
-						</CardContent>
-					</Card>
-				)}
+						</div>
+					</CardContent>
+				</Card>
+				{/* Alerta RN-001: miembros sin GDI */}
+				<Card className={`border-l-4 ${stats.membersWithoutGdi > 0 ? "border-l-destructive bg-destructive/5" : "border-l-emerald-500"}`}>
+					<CardContent className="p-4">
+						<div className="flex items-center gap-3">
+							{stats.membersWithoutGdi > 0
+								? <AlertTriangle className="h-8 w-8 text-destructive" />
+								: <UserCheck className="h-8 w-8 text-emerald-500" />
+							}
+							<div>
+								<p className="text-2xl font-bold">{stats.membersWithoutGdi}</p>
+								<p className="text-xs text-muted-foreground">
+									{stats.membersWithoutGdi > 0 ? "Sin GDI ⚠" : "Todos en un GDI"}
+								</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
 			</div>
 
-			{/* Navigation Bar with Tabs and Action Button */}
-			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-				<Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "ministry-areas" | "gdis")} className="w-full sm:w-auto">
-					<TabsList className="grid w-full sm:w-auto grid-cols-2">
-						<TabsTrigger value="ministry-areas" className="gap-2">
-							<UsersRound className="h-4 w-4" />
-							<span className="hidden sm:inline">Áreas Ministeriales</span>
-							<span className="sm:hidden">Áreas</span>
-							<span className="ml-1 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{stats.totalAreas}</span>
-						</TabsTrigger>
-						<TabsTrigger value="gdis" className="gap-2">
-							<Users className="h-4 w-4" />
-							<span>GDIs</span>
-							<span className="ml-1 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{stats.totalGdis}</span>
-						</TabsTrigger>
-					</TabsList>
-				</Tabs>
+			{/* Barra de búsqueda + filtros + acción */}
+			<div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+				<div className="relative flex-1">
+					<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+					<Input
+						placeholder="Buscar grupo por nombre..."
+						value={searchTerm}
+						onChange={e => setSearchTerm(e.target.value)}
+						className="pl-9"
+					/>
+				</div>
+				{uniqueMentors.length > 0 && (
+					<Select value={mentorFilter} onValueChange={setMentorFilter}>
+						<SelectTrigger className="w-full sm:w-[200px]">
+							<SelectValue placeholder="Filtrar por mentor" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">Todos los mentores</SelectItem>
+							{uniqueMentors.map(m => (
+								<SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				)}
 				<Button
 					onClick={() => activeTab === "ministry-areas" ? setIsAddAreaDialogOpen(true) : setIsAddGdiDialogOpen(true)}
 					disabled={isPending}
-					className="w-full sm:w-auto"
+					className="w-full sm:w-auto shrink-0"
 				>
 					<PlusCircle className="mr-2 h-4 w-4" />
 					{activeTab === "ministry-areas" ? "Nueva Área" : "Nuevo GDI"}
 				</Button>
 			</div>
 
-			{/* Content */}
-			{activeTab === "ministry-areas" ? (
-				<MinistryAreasManager
-					ministryAreas={initialMinistryAreas}
-					allMembers={allMembers}
-					activeMembers={activeMembers}
-					deleteMinistryAreaAction={deleteMinistryAreaAction}
-				/>
-			) : (
-				<GdisManager
-					gdis={initialGdis}
-					allMembers={allMembers}
-					activeMembers={activeMembers}
-					deleteGdiAction={deleteGdiAction}
-				/>
-			)}
+			{/* Tabs de navegación — GDIs primero (RN-001: el GDI es la base) */}
+			<Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "ministry-areas" | "gdis")} className="space-y-6">
+				<TabsList className="grid w-full sm:w-auto sm:inline-grid grid-cols-2">
+					<TabsTrigger value="gdis" className="gap-2">
+						<Users className="h-4 w-4" />
+						<span>GDIs</span>
+						<span className="ml-1 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{stats.totalGdis}</span>
+					</TabsTrigger>
+					<TabsTrigger value="ministry-areas" className="gap-2">
+						<UsersRound className="h-4 w-4" />
+						<span className="hidden sm:inline">Áreas Ministeriales</span>
+						<span className="sm:hidden">Áreas</span>
+						<span className="ml-1 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{stats.totalAreas}</span>
+					</TabsTrigger>
+				</TabsList>
+
+				<TabsContent value="gdis">
+					<GdisManager
+						gdis={initialGdis}
+						allMembers={allMembers}
+						activeMembers={activeMembers}
+						deleteGdiAction={deleteGdiAction}
+						searchTerm={searchTerm}
+						mentorFilter={mentorFilter === "all" ? "" : mentorFilter}
+					/>
+				</TabsContent>
+
+				<TabsContent value="ministry-areas">
+					<MinistryAreasManager
+						ministryAreas={initialMinistryAreas}
+						allMembers={allMembers}
+						activeMembers={activeMembers}
+						deleteMinistryAreaAction={deleteMinistryAreaAction}
+						searchTerm={searchTerm}
+						mentorFilter={mentorFilter === "all" ? "" : mentorFilter}
+					/>
+				</TabsContent>
+			</Tabs>
 
 			<Dialog open={isAddAreaDialogOpen} onOpenChange={setIsAddAreaDialogOpen}>
 				<DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">

@@ -127,10 +127,17 @@ export default function GroupAdminMeetingsTab({
 		let meetingsWithAttendance = 0;
 		for (const meeting of allMeetings) {
 			const records = allAttendanceRecords.filter(r => r.meetingId === meeting.id);
-			const presentCount = records.filter(r => r.attended).length;
-			const expectedCount = meeting.attendeeUids?.length || members.length;
-			if (expectedCount > 0 && records.length > 0) {
-				totalRate += (presentCount / expectedCount) * 100;
+			// Deduplicar: un registro por miembro
+			const memberMap = new Map<string, boolean>();
+			for (const r of records) memberMap.set(r.memberId, r.attended);
+			if (memberMap.size === 0) continue; // sin registros → no contar
+			const uniquePresent = [...memberMap.values()].filter(Boolean).length;
+			const expectedCount =
+				(meeting.attendeeUids?.length ?? 0) > 0
+					? meeting.attendeeUids.length
+					: memberMap.size > 0 ? memberMap.size : members.length;
+			if (expectedCount > 0) {
+				totalRate += Math.min(100, (uniquePresent / expectedCount) * 100);
 				meetingsWithAttendance++;
 			}
 		}
@@ -179,9 +186,15 @@ export default function GroupAdminMeetingsTab({
 	// Calculate attendance for a meeting
 	const getAttendanceStats = (meeting: Meeting) => {
 		const records = allAttendanceRecords.filter(r => r.meetingId === meeting.id);
-		const presentCount = records.filter(r => r.attended).length;
-		const expectedCount = meeting.attendeeUids?.length || members.length;
-		const percentage = expectedCount > 0 ? Math.round((presentCount / expectedCount) * 100) : 0;
+		// Deduplicar: un registro por miembro
+		const memberMap = new Map<string, boolean>();
+		for (const r of records) memberMap.set(r.memberId, r.attended);
+		const presentCount = [...memberMap.values()].filter(Boolean).length;
+		const expectedCount =
+			(meeting.attendeeUids?.length ?? 0) > 0
+				? meeting.attendeeUids.length
+				: memberMap.size > 0 ? memberMap.size : members.length;
+		const percentage = expectedCount > 0 ? Math.min(100, Math.round((presentCount / expectedCount) * 100)) : 0;
 		return { presentCount, expectedCount, percentage };
 	};
 

@@ -107,6 +107,10 @@ export interface GDI {
 	guideId: string;
 	mentorId?: string;
 	memberIds: string[];
+	/** Average attendance % (0-100). null = no meetings yet, undefined = not loaded. */
+	avgAttendancePct?: number | null;
+	/** ISO date (YYYY-MM-DD) of most recent past meeting. null = none, undefined = not loaded. */
+	lastMeetingDate?: string | null;
 }
 
 export interface MinistryArea {
@@ -116,6 +120,10 @@ export interface MinistryArea {
 	leaderId: string;
 	mentorId: string;
 	memberIds: string[];
+	/** Average attendance % (0-100). null = no meetings yet, undefined = not loaded. */
+	avgAttendancePct?: number | null;
+	/** ISO date (YYYY-MM-DD) of most recent past meeting. null = none, undefined = not loaded. */
+	lastMeetingDate?: string | null;
 }
 
 export interface MeetingSeries {

@@ -18,6 +18,8 @@ export function mapApiAreaToMinistryArea(apiArea: ApiAreaResponse): MinistryArea
     leaderId: apiArea.leaderId ? String(apiArea.leaderId) : '',
     mentorId: apiArea.mentorId ? String(apiArea.mentorId) : '',
     memberIds: [], // Will be populated separately via member assignments
+    avgAttendancePct: apiArea.avgAttendancePct ?? null,
+    lastMeetingDate: apiArea.lastMeetingDate ?? null,
   };
 }
 

@@ -1,4 +1,3 @@
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -24,14 +23,15 @@ export async function POST(request: Request) {
     const tokenMatch = rawSetCookie.match(/^auth=([^;]+)/);
 
     if (tokenMatch) {
-      const cookieStore = await cookies();
-      cookieStore.set('auth', tokenMatch[1], {
+      const response = NextResponse.json({ message: 'Login successful' });
+      response.cookies.set('auth', tokenMatch[1], {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
         maxAge: 60 * 60 * 24, // 1 day
       });
+      return response;
     }
 
     return NextResponse.json({ message: 'Login successful' });
