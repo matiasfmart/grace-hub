@@ -1940,6 +1940,7 @@ export default function MembersListView({
 					</DialogHeader>
 					<div className="flex-grow overflow-y-auto">
 						<AddMemberForm
+							mode="create"
 							onSubmitMember={handleAddSingleMemberSubmit}
 							allGDIs={allGDIs}
 							allMinistryAreas={allMinistryAreas}

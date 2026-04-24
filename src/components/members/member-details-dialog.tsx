@@ -599,6 +599,7 @@ export default function MemberDetailsDialog({
 				{isEditing ? (
 					<div className="flex-grow overflow-y-auto min-h-0">
 						<AddMemberForm
+							mode="edit"
 							initialMemberData={member}
 							onSubmitMember={(data) => handleFormSubmit(data, member.id)}
 							allGDIs={allGDIs}

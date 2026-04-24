@@ -190,6 +190,7 @@ export function MinistryAreaAdminView({
 					<GroupAdminSummaryTab
 						groupName={ministryArea.name}
 						groupType="area"
+						groupId={ministryArea.id}
 						members={areaMembers}
 						leaderId={ministryArea.leaderId}
 						leaderLabel="Líder"

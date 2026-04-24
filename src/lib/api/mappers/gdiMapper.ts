@@ -17,6 +17,8 @@ export function mapApiGdiToGdi(apiGdi: ApiGdiResponse): GDI {
     guideId: apiGdi.guideId ? String(apiGdi.guideId) : '',
     mentorId: apiGdi.mentorId ? String(apiGdi.mentorId) : undefined,
     memberIds: [], // Will be populated separately via member assignments
+    avgAttendancePct: apiGdi.avgAttendancePct ?? null,
+    lastMeetingDate: apiGdi.lastMeetingDate ?? null,
   };
 }
 

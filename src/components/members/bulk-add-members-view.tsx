@@ -286,8 +286,7 @@ export default function BulkAddMembersView({
 							</CardHeader>
 							<CardContent>
 								<div className="max-h-[calc(100vh-280px)] overflow-y-auto pr-2">
-									<AddMemberForm
-										onSubmitMember={handleStageMember}
+									<AddMemberForm									mode="create"										onSubmitMember={handleStageMember}
 										allGDIs={allGDIs}
 										allMinistryAreas={allMinistryAreas}
 										allMembers={allMembers}
@@ -390,8 +389,7 @@ export default function BulkAddMembersView({
 						</DialogTitle>
 					</DialogHeader>
 					{editingMember && (
-						<AddMemberForm
-							onSubmitMember={handleStageMember}
+						<AddMemberForm						mode="edit"							onSubmitMember={handleStageMember}
 							onDialogClose={() => {
 								setIsEditDialogOpen(false);
 								setEditingMember(null);

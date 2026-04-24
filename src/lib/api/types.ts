@@ -103,6 +103,10 @@ export interface ApiGdiResponse {
   mentorId?: number;
   createdAt: string;
   updatedAt: string;
+  /** Average attendance % (0-100). null if no meetings recorded yet. */
+  avgAttendancePct?: number | null;
+  /** ISO date (YYYY-MM-DD) of the most recent past meeting. null if no meetings yet. */
+  lastMeetingDate?: string | null;
 }
 
 /**
@@ -116,6 +120,10 @@ export interface ApiAreaResponse {
   mentorId?: number;
   createdAt: string;
   updatedAt: string;
+  /** Average attendance % (0-100). null if no meetings recorded yet. */
+  avgAttendancePct?: number | null;
+  /** ISO date (YYYY-MM-DD) of the most recent past meeting. null if no meetings yet. */
+  lastMeetingDate?: string | null;
 }
 
 /**

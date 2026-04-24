@@ -182,6 +182,7 @@ export function GdiAdminView({
 					<GroupAdminSummaryTab
 						groupName={gdi.name}
 						groupType="gdi"
+						groupId={gdi.id}
 						members={gdiMembers}
 						leaderId={gdi.guideId}
 						leaderLabel="Guía"

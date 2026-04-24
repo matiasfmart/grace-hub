@@ -68,26 +68,30 @@ export default function GroupAdminMembersTab({
 	const [selectedToAdd, setSelectedToAdd] = useState<string[]>([]);
 	const [addSearchTerm, setAddSearchTerm] = useState("");
 
-	// Current members (including leader)
+	// Integrantes reales (excluye mentor — RN-035: el Mentor NO está en memberships)
 	const currentMembers = useMemo(() => {
-		const allIds = new Set([leaderId, ...memberIds]);
+		const memberOnlyIds = new Set([leaderId, ...memberIds]);
+		// Si el mentor también es integrante (caso excepcional RN-031), se mueve a la sección de supervisión
+		memberOnlyIds.delete(mentorId ?? "");
 		return allMembers
-			.filter(m => allIds.has(m.id))
-			.filter(m => 
+			.filter(m => memberOnlyIds.has(m.id))
+			.filter(m =>
 				`${m.firstName} ${m.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
 				m.email?.toLowerCase().includes(searchTerm.toLowerCase())
 			)
 			.sort((a, b) => {
-				// Leader first
+				// Guía primero
 				if (a.id === leaderId) return -1;
 				if (b.id === leaderId) return 1;
-				// Mentor second
-				if (a.id === mentorId) return -1;
-				if (b.id === mentorId) return 1;
-				// Then alphabetically
 				return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
 			});
-	}, [leaderId, memberIds, allMembers, searchTerm, mentorId]);
+	}, [leaderId, memberIds, mentorId, allMembers, searchTerm]);
+
+	// Objeto mentor para sección de Supervisión
+	const mentorMember = useMemo(() => {
+		if (!mentorId) return null;
+		return allMembers.find(m => m.id === mentorId) ?? null;
+	}, [mentorId, allMembers]);
 
 	// Available members to add
 	const availableMembers = useMemo(() => {
@@ -309,11 +313,55 @@ export default function GroupAdminMembersTab({
 				)}
 			</div>
 
-			{/* Summary */}
+			{/* Summary — solo cuenta integrantes reales, no el mentor */}
 			<p className="text-sm text-muted-foreground">
-				Total: {currentMembers.length} miembros
+				Total: {currentMembers.length} miembro{currentMembers.length !== 1 ? "s" : ""}
 				{searchTerm && ` (filtrados de ${memberIds.length + 1})`}
 			</p>
+
+			{/* Sección de Supervisión — el Mentor es figura externa al grupo (RN-035) */}
+			{mentorMember && (
+				<div className="pt-2">
+					<div className="border-t border-border/50 pt-4">
+						<p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+							Supervisión
+						</p>
+						<div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+							<div className="flex items-center justify-between p-3">
+								<div className="flex items-center gap-3">
+									<div className="h-9 w-9 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+										<span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+											{mentorMember.firstName[0]}{mentorMember.lastName[0]}
+										</span>
+									</div>
+									<div>
+										<div className="flex items-center gap-2">
+											<span className="font-medium">
+												{mentorMember.firstName} {mentorMember.lastName}
+											</span>
+											<Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+												Mentor
+											</Badge>
+										</div>
+										{mentorMember.email && (
+											<p className="text-xs text-muted-foreground">{mentorMember.email}</p>
+										)}
+									</div>
+								</div>
+								<a
+									href={`/members?search=${encodeURIComponent(`${mentorMember.firstName} ${mentorMember.lastName}`)}`}
+									className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+								>
+									<ExternalLink className="h-4 w-4" />
+								</a>
+							</div>
+						</div>
+						<p className="text-xs text-muted-foreground mt-2">
+							El Mentor supervisa el grupo pero no es integrante. Su asignación se gestiona desde la pestaña Config.
+						</p>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { authEndpoint } from "@/lib/api/endpoints/authEndpoint";
 
 export default function LoginPage() {
 	const [email, setEmail] = useState("");
@@ -15,17 +14,24 @@ export default function LoginPage() {
 		setIsLoading(true);
 
 		try {
-			await authEndpoint.login({ email, password });
+			const res = await fetch('/api/auth/login', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email, password }),
+			});
+			if (!res.ok) {
+				const status = res.status;
+				if (status === 401 || status === 400) {
+					setError("Email o contraseña incorrectos.");
+				} else {
+					setError("Error al iniciar sesión. Intenta de nuevo.");
+				}
+				return;
+			}
 			// Full reload ensures middleware sees the new cookie
 			window.location.href = '/';
-		} catch (err) {
-			const status = (err as { statusCode?: number })?.statusCode;
-			if (status === 401 || status === 400) {
-				setError("Email o contraseña incorrectos.");
-			} else {
-				setError("Error al iniciar sesión. Intenta de nuevo.");
-			}
-			setIsLoading(false);
+		} catch {
+			setError("Error al iniciar sesión. Intenta de nuevo.");
 		} finally {
 			setIsLoading(false);
 		}
