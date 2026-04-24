@@ -1,10 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useMemo } from "react"; // Added useMemo
-import { useForm } from "react-hook-form";
+import { AlertTriangle } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Combobox } from "@/components/ui/combobox";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
 	Form,
@@ -33,16 +35,19 @@ import type {
 import { AddMemberFormSchema, NONE_GDI_OPTION_VALUE } from "@/lib/types";
 import { parseApiDate } from "@/lib/utils/date";
 
+export type AddMemberFormMode = "create" | "edit";
+
 interface AddMemberFormProps {
-	onDialogClose?: () => void; // For dialog control
-	onSubmitMember: (data: AddMemberFormValues, memberId?: string) => void; // Combined submit for add/edit
-	initialMemberData?: Member | null; // For pre-filling form in edit mode
+	onDialogClose?: () => void;
+	onSubmitMember: (data: AddMemberFormValues, memberId?: string) => void;
+	initialMemberData?: Member | null;
 	allGDIs: GDI[];
 	allMinistryAreas: MinistryArea[];
-	allMembers: Member[]; // For GDI/Area leader name lookup
+	allMembers: Member[];
 	submitButtonText: string;
 	cancelButtonText: string;
-	isSubmitting?: boolean; // To show loading state on submit button
+	isSubmitting?: boolean;
+	mode?: AddMemberFormMode;
 }
 
 export default function AddMemberForm({
@@ -55,6 +60,7 @@ export default function AddMemberForm({
 	submitButtonText,
 	cancelButtonText,
 	isSubmitting = false,
+	mode = "edit",
 }: AddMemberFormProps) {
 	const defaultValues: AddMemberFormValues = {
 		firstName: initialMemberData?.firstName || "",
@@ -109,7 +115,7 @@ export default function AddMemberForm({
 		const submissionValues = {
 			...values,
 			assignedGDIId:
-				values.assignedGDIId === NONE_GDI_OPTION_VALUE
+				values.assignedGDIId === NONE_GDI_OPTION_VALUE || !values.assignedGDIId
 					? null
 					: values.assignedGDIId,
 		};
@@ -157,12 +163,31 @@ export default function AddMemberForm({
 		return memberNameMap.get(memberId) || "Nombre no encontrado";
 	};
 
+	// Opciones para el Combobox de GDI (buscable por nombre de GDI o guía)
+	const gdiOptions = useMemo(() => {
+		const noneOption = { value: NONE_GDI_OPTION_VALUE, label: "Ninguno" };
+		const gdiList = allGDIs.map((gdi) => ({
+			value: gdi.id,
+			label: `${gdi.name} — Guía: ${
+				gdi.guideId ? (memberNameMap.get(gdi.guideId) ?? "N/A") : "N/A"
+			}`,
+		}));
+		return [noneOption, ...gdiList];
+	}, [allGDIs, memberNameMap]);
+
+	// Observar el campo GDI para mostrar advertencia RN-001 en modo alta
+	const watchedGDIId = useWatch({ control: form.control, name: "assignedGDIId" });
+	const showGdiWarning =
+		mode === "create" &&
+		(watchedGDIId === NONE_GDI_OPTION_VALUE || !watchedGDIId);
+
 	return (
 		<Form {...form}>
 			<form
 				onSubmit={form.handleSubmit(processSubmit)}
 				className="space-y-6 p-1 sm:p-6"
 			>
+				{/* Sección 1 — Datos personales */}
 				<div className="space-y-4">
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<FormField
@@ -201,24 +226,6 @@ export default function AddMemberForm({
 						/>
 						<FormField
 							control={form.control}
-							name="email"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Email</FormLabel>
-									<FormControl>
-										<Input
-											type="email"
-											placeholder="ejemplo@email.com"
-											className="text-sm max-w-full"
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-						<FormField
-							control={form.control}
 							name="phone"
 							render={({ field }) => (
 								<FormItem>
@@ -235,6 +242,156 @@ export default function AddMemberForm({
 								</FormItem>
 							)}
 						/>
+						<FormField
+							control={form.control}
+							name="email"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Email</FormLabel>
+									<FormControl>
+										<Input
+											type="email"
+											placeholder="ejemplo@email.com"
+											className="text-sm max-w-full"
+											{...field}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+					</div>
+				</div>
+
+				{/* Sección 2 — Asignación de grupo (GDI) */}
+				<div className="space-y-2">
+					<FormField
+						control={form.control}
+						name="assignedGDIId"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>
+									Asignar a GDI
+									{mode === "create" && (
+										<span className="ml-1 text-xs text-muted-foreground font-normal">
+											(requerido por RN-001)
+										</span>
+									)}
+								</FormLabel>
+								<FormControl>
+									<Combobox
+										options={gdiOptions}
+										value={field.value || NONE_GDI_OPTION_VALUE}
+										onChange={field.onChange}
+										placeholder="Seleccionar un GDI"
+										searchPlaceholder="Buscar GDI por nombre o guía..."
+										emptyStateMessage="No se encontraron GDIs con ese término."
+									/>
+								</FormControl>
+								<FormMessage />
+								{showGdiWarning && (
+									<div className="flex items-start gap-2 mt-1.5 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 dark:bg-amber-900/20 dark:border-amber-800">
+										<AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+										<p className="text-xs text-amber-700 dark:text-amber-300">
+											Sin GDI asignado: este miembro quedará como{" "}
+											<strong>No integrado</strong>. Podés asignarlo después
+											desde la vista del grupo.
+										</p>
+									</div>
+								)}
+							</FormItem>
+						)}
+					/>
+				</div>
+
+				{/* Sección 3 — Estado (solo en modo edición) */}
+				{mode === "edit" && (
+					<FormField
+						control={form.control}
+						name="status"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Estado</FormLabel>
+								<Select onValueChange={field.onChange} value={field.value}>
+									<FormControl>
+										<SelectTrigger>
+											<SelectValue placeholder="Seleccionar estado del miembro" />
+										</SelectTrigger>
+									</FormControl>
+									<SelectContent>
+										<SelectItem value="vigente">Vigente</SelectItem>
+										<SelectItem value="eliminado">Eliminado</SelectItem>
+									</SelectContent>
+								</Select>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+				)}
+
+				{/* Sección 4 — Participación */}
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4">
+					<FormField
+						key="attendsLifeSchool"
+						control={form.control}
+						name="attendsLifeSchool"
+						render={({ field }) => (
+							<FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 shadow-sm">
+								<FormControl>
+									<Checkbox
+										checked={field.value}
+										onCheckedChange={field.onChange}
+									/>
+								</FormControl>
+								<FormLabel className="font-normal mb-0!">
+									¿Asiste a Escuela de Vida?
+								</FormLabel>
+							</FormItem>
+						)}
+					/>
+					<FormField
+						key="attendsBibleInstitute"
+						control={form.control}
+						name="attendsBibleInstitute"
+						render={({ field }) => (
+							<FormItem
+								key="attendsBibleInstitute-item"
+								className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 shadow-sm"
+							>
+								<FormControl>
+									<Checkbox
+										checked={field.value}
+										onCheckedChange={field.onChange}
+									/>
+								</FormControl>
+								<FormLabel className="font-normal mb-0!">
+									¿Asiste al Instituto Bíblico (IBE)?
+								</FormLabel>
+							</FormItem>
+						)}
+					/>
+					<FormField
+						control={form.control}
+						name="fromAnotherChurch"
+						render={({ field }) => (
+							<FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 shadow-sm md:col-span-2">
+								<FormControl>
+									<Checkbox
+										checked={field.value}
+										onCheckedChange={field.onChange}
+									/>
+								</FormControl>
+								<FormLabel className="font-normal mb-0!">
+									¿Vino de otra iglesia?
+								</FormLabel>
+							</FormItem>
+						)}
+					/>
+				</div>
+
+				{/* Sección 5 — Datos adicionales */}
+				<div className="space-y-4">
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<FormField
 							control={form.control}
 							name="birthDate"
@@ -282,30 +439,9 @@ export default function AddMemberForm({
 						/>
 						<FormField
 							control={form.control}
-							name="status"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Estado</FormLabel>
-									<Select onValueChange={field.onChange} value={field.value}>
-										<FormControl>
-											<SelectTrigger>
-												<SelectValue placeholder="Seleccionar estado del miembro" />
-											</SelectTrigger>
-										</FormControl>
-										<SelectContent>
-											<SelectItem value="vigente">Vigente</SelectItem>
-											<SelectItem value="eliminado">Eliminado</SelectItem>
-										</SelectContent>
-									</Select>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-						<FormField
-							control={form.control}
 							name="address"
 							render={({ field }) => (
-								<FormItem className="md:col-span-2">
+								<FormItem>
 									<FormLabel>Dirección (Opcional)</FormLabel>
 									<FormControl>
 										<Input
@@ -320,96 +456,6 @@ export default function AddMemberForm({
 							)}
 						/>
 					</div>
-
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4 pt-2">
-						<FormField
-							key="attendsLifeSchool"
-							control={form.control}
-							name="attendsLifeSchool"
-							render={({ field }) => (
-								<FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 shadow-sm">
-									<FormControl>
-										<Checkbox
-											checked={field.value}
-											onCheckedChange={field.onChange}
-										/>
-									</FormControl>
-									<FormLabel className="font-normal mb-0!">
-										¿Asiste a Escuela de Vida?
-									</FormLabel>
-								</FormItem>
-							)}
-						/>
-						<FormField
-							key="attendsBibleInstitute"
-							control={form.control}
-							name="attendsBibleInstitute"
-							render={({ field }) => (
-								<FormItem
-									key="attendsBibleInstitute-item"
-									className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 shadow-sm"
-								>
-									<FormControl>
-										<Checkbox
-											checked={field.value}
-											onCheckedChange={field.onChange}
-										/>
-									</FormControl>
-									<FormLabel className="font-normal mb-0!">
-										¿Asiste al Instituto Bíblico (IBE)?
-									</FormLabel>
-								</FormItem>
-							)}
-						/>
-						<FormField
-							control={form.control}
-							name="fromAnotherChurch"
-							render={({ field }) => (
-								<FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 shadow-sm md:col-span-2">
-									<FormControl>
-										<Checkbox
-											checked={field.value}
-											onCheckedChange={field.onChange}
-										/>
-									</FormControl>
-									<FormLabel className="font-normal mb-0!">
-										¿Vino de otra iglesia?
-									</FormLabel>
-								</FormItem>
-							)}
-						/>
-					</div>
-
-					<FormField
-						control={form.control}
-						name="assignedGDIId"
-						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Asignar a GDI</FormLabel>
-								<Select
-									onValueChange={field.onChange}
-									value={field.value || NONE_GDI_OPTION_VALUE}
-								>
-									<FormControl>
-										<SelectTrigger>
-											<SelectValue placeholder="Seleccionar un GDI" />
-										</SelectTrigger>
-									</FormControl>
-									<SelectContent>
-										<SelectItem value={NONE_GDI_OPTION_VALUE}>
-											Ninguno
-										</SelectItem>
-										{allGDIs.map((gdi) => (
-											<SelectItem key={gdi.id} value={gdi.id}>
-												{gdi.name} (Guía: {getMemberName(gdi.guideId)})
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
 
 					<div className="space-y-2">
 						<Label>Asignar a Áreas de Ministerio</Label>
@@ -463,6 +509,7 @@ export default function AddMemberForm({
 						</FormMessage>
 					</div>
 				</div>
+
 				<div className="flex justify-end space-x-2 pt-6 border-t mt-6">
 					<Button
 						type="button"
