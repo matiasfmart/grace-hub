@@ -21,9 +21,11 @@ async function getGroupsData(): Promise<{
 	gdis: GDI[];
 	members: Member[];
 }> {
-	const ministryAreas = await getAllMinistryAreas();
-	const gdis = await getAllGdis();
-	const members = await getAllMembersNonPaginated();
+	const [ministryAreas, gdis, members] = await Promise.all([
+		getAllMinistryAreas(),
+		getAllGdis(),
+		getAllMembersNonPaginated(),
+	]);
 	return { ministryAreas, gdis, members };
 }
 

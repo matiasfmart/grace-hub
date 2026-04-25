@@ -280,7 +280,117 @@ async getAll() {
 
 ---
 
-## ✅ Patrones Obligatorios
+## ⚡ Reglas de Rendimiento — Server Components
+
+Estas reglas aplican a TODA página o función de data-fetching en `src/app/(protected)/`.
+Son tan inviolables como las reglas de capas. Un código funcionalmente correcto que viole
+estas reglas tiene un bug de rendimiento y DEBE corregirse.
+
+### Regla P-1: Llamadas independientes SIEMPRE en paralelo con `Promise.all`
+
+Cuando una función de data-fetching necesita múltiples recursos que NO dependen entre sí,
+DEBEN ejecutarse en paralelo. Nunca con `await` secuencial.
+
+```typescript
+// ❌ PROHIBIDO — cada await bloquea al siguiente
+// Con N=9 calls de 300ms cada una, total = 2.7s
+const members = await getAllMembers(...);
+const allGDIs = await getAllGdis();
+const allAreas = await getAllMinistryAreas();
+const allMeetings = await getAllMeetings();
+// ... etc
+
+// ✅ CORRECTO — todas las calls independientes en paralelo
+// Total = tiempo del request más lento (~300ms)
+const [members, allGDIs, allAreas, allMeetings] = await Promise.all([
+  getAllMembers(...),
+  getAllGdis(),
+  getAllMinistryAreas(),
+  getAllMeetings(),
+]);
+```
+
+> **Por qué importa:** `force-dynamic` desactiva todo cache. Cada navegación y cada filtro
+> ejecuta el Server Component desde cero. Con 9 awaits secuenciales de 300ms cada uno,
+> la página tarda mínimo 2.7s antes de enviar cualquier HTML al browser.
+
+### Regla P-2: No cargar datos masivos que no se necesitan en el render inicial
+
+Los datos que solo se usan en un flujo secundario (dialog al click, modal, panel que se abre)
+NO deben cargarse en el Server Component. Deben diferirse al momento en que realmente se necesitan.
+
+```typescript
+// ❌ PROHIBIDO — se cargan todos los registros históricos en cada render de la página
+// aunque el usuario solo esté viendo la lista
+const allAttendanceRecords = await getAllAttendanceRecords(); // puede ser miles de registros
+const allTitheRecords = await getAllTitheRecords();           // crece con el tiempo
+// ...se pasan como props a un dialog que el 99% de los renders nunca abre
+
+// ✅ CORRECTO — datos diferidos: se cargan cuando se abren en el dialog (on-demand)
+// En memberActions.ts (Server Action):
+export async function getMemberAttendanceAction(memberId: string) {
+  const data = await attendanceService.getByMember(memberId);
+  return { success: true, data };
+}
+// En el Client Component (MemberDetailsDialog):
+useEffect(() => {
+  if (!isOpen || !member) return;
+  Promise.all([
+    getMemberAttendanceAction(member.id),
+    getMemberTithesAction(member.id),
+  ]).then(([attendance, tithes]) => { ... });
+}, [isOpen, member?.id]);
+```
+
+> **Por qué importa:** `getAllAttendanceRecords()` trae TODOS los registros de asistencia
+> de la historia de la app. Con el tiempo puede ser decenas de miles de filas. Cargarlo
+> en cada filtro de miembros es un problema que se agrava con el uso.
+
+### Regla P-3: Datos no paginados no deben cargarse más de una vez por render
+
+Si una página usa datos no paginados (ej: `getAllMembersNonPaginated()` para dropdowns),
+deben cargarse UNA sola vez en el Server Component y pasarse por props. Nunca llamarlos
+en múltiples lugares del mismo render.
+
+### Regla P-4: El `Promise.all` es el patrón estándar — aplicar siempre
+
+No es una optimización opcional. Es el patrón correcto para cualquier función que fetche
+más de un recurso. La excepción es cuando el resultado del request A es necesario como
+input del request B (dependencia real). En ese caso el await secuencial es correcto y
+debe estar comentado explicando la dependencia:
+
+```typescript
+// ✅ Secuencial justificado — B necesita el ID retornado por A
+const newMember = await membersService.create(data);
+await gdisService.assignMember(gdiId, newMember.id); // necesita newMember.id
+```
+
+### Regla P-5: Datos on-demand via Server Actions para Client Components
+
+Cuando un Client Component necesita datos que no estaban disponibles en el render inicial
+(lazy load, on-demand fetch), el flujo correcto es:
+
+```
+Client Component → Server Action → Service → Endpoint → Backend
+```
+
+Nunca un Client Component puede llamar a un service directamente. La regla BFF aplica
+también a los fetches on-demand.
+
+---
+
+## 📋 Checklist de rendimiento (agregar al code review)
+
+### Al revisar una función de data-fetching en un Server Component:
+
+- [ ] ¿Todas las llamadas independientes usan `Promise.all`?
+- [ ] ¿No se están cargando datasets masivos que solo se usan en flujos secundarios?
+- [ ] ¿Los datos no paginados se cargan una sola vez y se pasan por props?
+- [ ] ¿Los fetches on-demand van via Server Action (no service directo en Client Component)?
+
+---
+
+
 
 ### 1. Crear nuevo endpoint
 

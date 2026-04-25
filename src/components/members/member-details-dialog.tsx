@@ -99,6 +99,8 @@ import {
 	softDeleteMemberAction,
 	assignEcclesiasticalRoleAction,
 	removeEcclesiasticalRoleAction,
+	getMemberAttendanceAction,
+	getMemberTithesAction,
 } from "@/app/(protected)/actions/memberActions";
 import AddMemberForm from "./add-member-form";
 import MemberAttendanceSummary from "./member-attendance-chart";
@@ -112,8 +114,6 @@ interface MemberDetailsDialogProps {
 	allMinistryAreas: MinistryArea[];
 	allMeetings: Meeting[];
 	allMeetingSeries: MeetingSeries[];
-	allAttendanceRecords: AttendanceRecord[];
-	allTitheRecords: TitheRecord[];
 	allRoleTypes: RoleType[];
 	isOpen: boolean;
 	onClose: () => void;
@@ -165,8 +165,6 @@ export default function MemberDetailsDialog({
 	allMinistryAreas,
 	allMeetings,
 	allMeetingSeries,
-	allAttendanceRecords,
-	allTitheRecords,
 	allRoleTypes,
 	isOpen,
 	onClose,
@@ -195,6 +193,22 @@ export default function MemberDetailsDialog({
 		new Date().getFullYear(),
 	);
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+	// On-demand attendance and tithe records for this member — fetched when the dialog opens.
+	// Not loaded at page render to avoid fetching all records on every filter change.
+	const [memberAttendanceRecords, setMemberAttendanceRecords] = useState<AttendanceRecord[]>([]);
+	const [memberTitheRecords, setMemberTitheRecords] = useState<TitheRecord[]>([]);
+
+	useEffect(() => {
+		if (!isOpen || !member) return;
+		Promise.all([
+			getMemberAttendanceAction(member.id),
+			getMemberTithesAction(member.id),
+		]).then(([attendanceResult, tithesResult]) => {
+			setMemberAttendanceRecords(attendanceResult.data);
+			setMemberTitheRecords(tithesResult.data);
+		});
+	}, [isOpen, member?.id]);
 
 	// Tithe range filter — independent from attendance year selector
 	const [titheStartMonth, setTitheStartMonth] = useState<number>(1);
@@ -274,36 +288,32 @@ export default function MemberDetailsDialog({
 			attendanceSelectedSeriesId,
 			allMeetings,
 			allMeetingSeries,
-			allAttendanceRecords,
+			memberAttendanceRecords,
 		);
-	}, [member, selectedYear, attendanceSelectedSeriesId, allMeetings, allMeetingSeries, allAttendanceRecords]);
+	}, [member, selectedYear, attendanceSelectedSeriesId, allMeetings, allMeetingSeries, memberAttendanceRecords]);
 
 	// Calculate KPIs for the member (global, not filtered by year)
 	const memberKPIs = useMemo(() => {
 		if (!member) return { attendanceRate: 0, titheMonths: 0, churchYears: 0, totalMeetingsExpected: 0 };
 
-		// Build record set once for O(1) lookup
+		// Build record set once for O(1) lookup — memberAttendanceRecords contains only this member's records
 		const recordSet = new Set<string>(
-			allAttendanceRecords.map((r) => `${r.meetingId}:${r.memberId}`),
+			memberAttendanceRecords.map((r) => `${r.meetingId}:${r.memberId}`),
 		);
 		const seriesMap = new Map(allMeetingSeries.map((s) => [s.id, s]));
 
 		const expectedMeetings = allMeetings.filter((m) =>
 			isMemberExpectedAtMeeting(member, m, seriesMap.get(m.seriesId), recordSet),
 		);
-		const attendedCount = allAttendanceRecords.filter(
-			(r) => r.memberId === member.id && r.attended,
-		).length;
-		const recordedCount = allAttendanceRecords.filter(
-			(r) => r.memberId === member.id,
-		).length;
+		const attendedCount = memberAttendanceRecords.filter((r) => r.attended).length;
+		const recordedCount = memberAttendanceRecords.length;
 		const attendanceRate = recordedCount > 0
 			? Math.round((attendedCount / recordedCount) * 100)
 			: 0;
 
 		const currentYear = new Date().getFullYear();
-		const titheMonths = allTitheRecords.filter(
-			(r) => r.memberId === member.id && r.year === currentYear,
+		const titheMonths = memberTitheRecords.filter(
+			(r) => r.year === currentYear,
 		).length;
 
 		let churchYears = 0;
@@ -317,7 +327,7 @@ export default function MemberDetailsDialog({
 			churchYears,
 			totalMeetingsExpected: expectedMeetings.length,
 		};
-	}, [member, allMeetings, allMeetingSeries, allAttendanceRecords, allTitheRecords]);
+	}, [member, allMeetings, allMeetingSeries, memberAttendanceRecords, memberTitheRecords]);
 
 	const displayStatus = (status: Member["status"]) => {
 		switch (status) {
@@ -334,7 +344,7 @@ export default function MemberDetailsDialog({
 		if (!member) return [];
 
 		const recordSet = new Set<string>(
-			allAttendanceRecords.map((r) => `${r.meetingId}:${r.memberId}`),
+			memberAttendanceRecords.map((r) => `${r.meetingId}:${r.memberId}`),
 		);
 		const seriesMap = new Map(allMeetingSeries.map((s) => [s.id, s]));
 
@@ -348,7 +358,7 @@ export default function MemberDetailsDialog({
 		return allMeetingSeries
 			.filter((s) => relevantSeriesIds.has(s.id))
 			.sort((a, b) => a.name.localeCompare(b.name));
-	}, [member, allMeetings, allMeetingSeries, allAttendanceRecords]);
+	}, [member, allMeetings, allMeetingSeries, memberAttendanceRecords]);
 
 	const _expectedAttendeesMap = useMemo(() => {
 		const map: Record<string, Set<string>> = {};
@@ -994,7 +1004,7 @@ export default function MemberDetailsDialog({
 									})()}
 									<MemberTitheHistory
 										memberId={member.id}
-										allTitheRecords={allTitheRecords}
+										allTitheRecords={memberTitheRecords}
 										startDate={startOfMonth(new Date(titheStartYear, titheStartMonth - 1, 1))}
 										endDate={endOfMonth(new Date(titheEndYear, titheEndMonth - 1, 1))}
 									/>

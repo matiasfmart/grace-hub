@@ -20,7 +20,6 @@ import {
 	getAllMembersNonPaginated,
 	getAllMinistryAreas,
 	getAllRoleTypes,
-	getAllTitheRecords,
 } from "@/lib/api/services";
 
 export const dynamic = "force-dynamic";
@@ -145,35 +144,45 @@ async function getMembersPageData(
 		ageMax = range.ageMax;
 	}
 
-	const { members, totalMembers, totalPages } = await getAllMembers(
-		currentPageParam,
-		pageSizeParam,
-		searchTermParam,
-		memberStatusFiltersParam,
-		roleFiltersParam,
-		guideFiltersParam,
-		areaFiltersParam,
-		joinDateFrom,
-		joinDateTo,
-		ageMin,
-		ageMax,
-		sortBy,
-		sortOrder,
-		ecclesiasticalRoleTypeIds,
-	);
-	const allMembersForDropdowns = await getAllMembersNonPaginated();
-	const allGDIsData = await getAllGdis();
-	const allMinistryAreasData = await getAllMinistryAreas();
-	const allMeetingsData = await getAllMeetings();
-	const allMeetingSeriesData = await getAllMeetingSeries();
-	const allAttendanceRecordsData = await getAllAttendanceRecords();
-	const allTitheRecordsData = await getAllTitheRecords();
-	const allRoleTypesData = await getAllRoleTypes();
+	const [
+		{ members, totalMembers, totalPages },
+		allMembersForDropdowns,
+		allGDIsData,
+		allMinistryAreasData,
+		allMeetingsData,
+		allMeetingSeriesData,
+		allAttendanceRecordsData,
+		allRoleTypesData,
+	] = await Promise.all([
+		getAllMembers(
+			currentPageParam,
+			pageSizeParam,
+			searchTermParam,
+			memberStatusFiltersParam,
+			roleFiltersParam,
+			guideFiltersParam,
+			areaFiltersParam,
+			joinDateFrom,
+			joinDateTo,
+			ageMin,
+			ageMax,
+			sortBy,
+			sortOrder,
+			ecclesiasticalRoleTypeIds,
+		),
+		getAllMembersNonPaginated(),
+		getAllGdis(),
+		getAllMinistryAreas(),
+		getAllMeetings(),
+		getAllMeetingSeries(),
+		getAllAttendanceRecords(),
+		getAllRoleTypes(),
+	]);
 	const absoluteTotalMembers = allMembersForDropdowns.length;
 
 	return {
 		members,
-		totalMembers, // This is the count AFTER filters
+		totalMembers,
 		totalPages,
 		allMembersForDropdowns,
 		allGDIs: allGDIsData,
@@ -181,9 +190,8 @@ async function getMembersPageData(
 		allMeetings: allMeetingsData,
 		allMeetingSeries: allMeetingSeriesData,
 		allAttendanceRecords: allAttendanceRecordsData,
-		allTitheRecords: allTitheRecordsData,
 		allRoleTypes: allRoleTypesData,
-		absoluteTotalMembers, // New prop: absolute total
+		absoluteTotalMembers,
 	};
 }
 
@@ -287,7 +295,6 @@ async function MembersPageContent({
 		allMeetings,
 		allMeetingSeries,
 		allAttendanceRecords,
-		allTitheRecords,
 		allRoleTypes,
 		absoluteTotalMembers,
 	} = removeSymbols(rawData);
@@ -315,7 +322,6 @@ async function MembersPageContent({
 				allMeetings={allMeetings}
 				allMeetingSeries={allMeetingSeries}
 				allAttendanceRecords={allAttendanceRecords}
-				allTitheRecords={allTitheRecords}
 				allRoleTypes={allRoleTypes}
 				addSingleMemberAction={addSingleMemberAction}
 				updateMemberAction={updateMemberAction}

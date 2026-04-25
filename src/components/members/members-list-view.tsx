@@ -128,7 +128,6 @@ interface MembersListViewProps {
 	allMeetings: Meeting[];
 	allMeetingSeries: MeetingSeries[];
 	allAttendanceRecords: AttendanceRecord[];
-	allTitheRecords: TitheRecord[];
 	allRoleTypes: RoleType[];
 	addSingleMemberAction: (
 		newMemberData: MemberWriteData,
@@ -372,7 +371,6 @@ export default function MembersListView({
 	allMeetings,
 	allMeetingSeries,
 	allAttendanceRecords,
-	allTitheRecords,
 	allRoleTypes,
 	addSingleMemberAction,
 	updateMemberAction,
@@ -464,12 +462,11 @@ export default function MembersListView({
 		);
 	}, [eliminadosMembers, bajaSearchTerm]);
 
-	// A member can only be permanently deleted if they have no historical records
+	// A member can only be permanently deleted if they have no historical attendance records
 	const canHardDelete = useCallback((member: Member): boolean => {
 		const hasAttendance = allAttendanceRecords.some(r => r.memberId === member.id);
-		const hasTithes = allTitheRecords.some(r => r.memberId === member.id);
-		return !hasAttendance && !hasTithes;
-	}, [allAttendanceRecords, allTitheRecords]);
+		return !hasAttendance;
+	}, [allAttendanceRecords]);
 
 	// Calculate last attendance date for each member
 	const memberLastAttendance = useMemo(() => {
@@ -1917,8 +1914,6 @@ export default function MembersListView({
 					allMinistryAreas={allMinistryAreas}
 					allMeetings={allMeetings}
 					allMeetingSeries={allMeetingSeries}
-					allAttendanceRecords={allAttendanceRecords}
-					allTitheRecords={allTitheRecords}
 					allRoleTypes={allRoleTypes}
 					isOpen={isDetailsDialogOpen}
 					onClose={handleCloseDetailsDialog}

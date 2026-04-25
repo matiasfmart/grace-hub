@@ -12,6 +12,8 @@ import {
 	areasService,
 	membersService,
 	roleTypesService,
+	attendanceService,
+	tithesService,
 } from "@/lib/api/services";
 
 export async function addSingleMemberAction(
@@ -319,5 +321,37 @@ export async function getRoleTypesAction(): Promise<{
 		return { success: true, data };
 	} catch (error: any) {
 		return { success: false, message: `Error al cargar etiquetas: ${error.message}` };
+	}
+}
+
+/**
+ * Query action: obtiene los registros de asistencia de un miembro específico.
+ * Llamado desde MemberDetailsDialog al abrirse, en lugar de cargar todos los
+ * registros de asistencia en el render inicial de la página.
+ */
+export async function getMemberAttendanceAction(
+	memberId: string,
+): Promise<{ success: boolean; data: import("@/lib/types").AttendanceRecord[] }> {
+	try {
+		const data = await attendanceService.getByMember(memberId);
+		return { success: true, data };
+	} catch {
+		return { success: false, data: [] };
+	}
+}
+
+/**
+ * Query action: obtiene los registros de diezmos de un miembro específico.
+ * Llamado desde MemberDetailsDialog al abrirse, en lugar de cargar todos los
+ * registros de diezmos en el render inicial de la página.
+ */
+export async function getMemberTithesAction(
+	memberId: string,
+): Promise<{ success: boolean; data: import("@/lib/types").TitheRecord[] }> {
+	try {
+		const data = await tithesService.getByMember(memberId);
+		return { success: true, data };
+	} catch {
+		return { success: false, data: [] };
 	}
 }
