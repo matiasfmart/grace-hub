@@ -5,17 +5,23 @@ const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const authCookie = request.cookies.get('auth');
+
+  // PL-7: If already authenticated and visiting /login → redirect to dashboard
+  if (pathname === '/login' && authCookie) {
+    return NextResponse.redirect(new URL('/', request.url));
+  }
 
   // Allow public paths through without auth check
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
-  // If no auth cookie, redirect to login
-  const authCookie = request.cookies.get('auth');
+  // PL-6: If no auth cookie, redirect to /login preserving the original destination
   if (!authCookie) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
+    loginUrl.searchParams.set('returnTo', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
