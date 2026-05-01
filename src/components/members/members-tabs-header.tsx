@@ -39,7 +39,7 @@ export default function MembersTabsHeader({
 	};
 
 	return (
-		<div className="flex gap-1 rounded-lg bg-muted/40 p-1 w-fit">
+		<div className="flex gap-1 rounded-md bg-muted p-1 w-fit">
 			{tabs.map((tab) => (
 				<button
 					key={tab.id}
