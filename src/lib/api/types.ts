@@ -454,6 +454,56 @@ export interface ApiListResponse<T> {
 }
 
 // ==============================================
+// PROSPECT API TYPES
+// ==============================================
+
+export type ApiProspectStatus = 'pending' | 'integrated' | 'lost';
+export type ApiProspectSource = 'pwa' | 'manual';
+
+export interface ApiProspectResponse {
+  prospectId: number;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  contact?: string;
+  source: ApiProspectSource;
+  addedBy?: number;
+  addedByName?: string;
+  visitDate: string; // YYYY-MM-DD
+  notes?: string;
+  status: ApiProspectStatus;
+  memberId?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiCreateProspectRequest {
+  firstName: string;
+  lastName: string;
+  visitDate: string;
+  contact?: string;
+  source?: ApiProspectSource;
+  notes?: string;
+  addedBy?: number;
+}
+
+export interface ApiUpdateProspectRequest {
+  firstName?: string;
+  lastName?: string;
+  contact?: string;
+  notes?: string;
+  visitDate?: string;
+}
+
+export interface ApiIntegrateProspectRequest {
+  gdiId?: number;
+}
+
+export interface ApiProspectCountResponse {
+  count: number;
+}
+
+// ==============================================
 // API ERROR RESPONSE
 // ==============================================
 

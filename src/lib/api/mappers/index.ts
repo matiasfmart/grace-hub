@@ -29,6 +29,12 @@ export {
   mapMinistryAreaToApiUpdateRequest,
 } from './areaMapper';
 
+// Prospect mappers
+export {
+  mapApiProspectToProspect,
+  mapApiProspectsToProspects,
+} from './prospectMapper';
+
 // Meeting mappers
 export {
   mapApiMeetingToMeeting,

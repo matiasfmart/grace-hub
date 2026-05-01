@@ -1,6 +1,6 @@
 # Grace Hub - Product Blueprint
 
-> **Última actualización:** 2026-04-18
+> **Última actualización:** 2026-05-01
 
 ## Visión del Producto
 
@@ -23,12 +23,14 @@ Grace Hub es un sistema de gestión de membresía y asistencia para iglesias, di
 | **Tithe Tracking** | Seguimiento mensual de diezmos por miembro | ✅ Completo |
 | **Dashboard** | Vista general con gráficos de asistencia y distribución | ✅ Completo |
 | **Ecclesiastical Labels** | Etiquetas eclesiales configurables (Pastor, Diácono, etc.) con CRUD y asignación por miembro | ✅ Completo |
+| **Authentication** | Login con JWT en cookie httpOnly, guard global en backend, middleware en frontend | ✅ Completo |
+| **Prospects / Nuevos Ingresos** | Registro de visitantes desde admin desktop y PWA, flujo de integración como miembro, edición, historial de integrados y archivados | ✅ Completo |
+| **PWA Equipo de Bienvenida** | App web progresiva (`grace-hub-welcome`) para registrar visitantes desde celular. Auth por código de equipo + identidad voluntaria. | ✅ Completo |
 
 ### ❌ No Implementado
 
 | Feature | Descripción | Prioridad |
 |---------|-------------|-----------|
-| **Authentication** | Login de usuarios y control de acceso | Alta |
 | **Resources Section** | Recursos, artículos y anuncios | Baja |
 | **Notifications** | Alertas y recordatorios | Baja |
 | **Reports Export** | Exportación a Excel/PDF | Media |
@@ -52,7 +54,7 @@ Grace Hub es un sistema de gestión de membresía y asistencia para iglesias, di
 
 ### Iconografía
 
-- Iconos simples y claros de React Icons
+- Iconos simples y claros de `lucide-react`
 - Representación visual de secciones y acciones
 
 ### Layout

@@ -14,6 +14,7 @@ export { attendanceService } from './attendanceService';
 export { tithesService } from './tithesService';
 export { rolesService } from './rolesService';
 export { roleTypesService } from './roleTypesService';
+export { prospectsService } from './prospectsService';
 
 // ==============================================
 // CONVENIENCE FUNCTIONS (backward compatibility)

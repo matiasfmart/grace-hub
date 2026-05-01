@@ -1,6 +1,6 @@
 # Grace Hub Frontend - Documentación
 
-> **Última actualización:** 2026-04-22
+> **Última actualización:** 2026-05-01
 
 ## Índice
 
@@ -47,6 +47,7 @@ Para documentación funcional y de negocio, ver:
 | `/groups/gdis/[gdiId]/admin` | Admin GDI | ✅ Completa | |
 | `/groups/ministry-areas/[areaId]/admin` | Admin Área | ✅ Completa | |
 | `/tithes` | Tracker de Diezmos | ✅ Completa | KPIs con color, filtros avanzados, menús contextuales |
+| `/members` (tab Nuevos Ingresos) | Gestión de Prospects | ✅ Completa | 3 subtabs: Pendientes / Integrados / Archivados; edición; detalle; fuente PWA/Manual |
 | `/resources` | Recursos | 🚧 Placeholder | |
 | `/about` | About | ⚪ Estática | |
 
@@ -62,6 +63,7 @@ src/
 │   ├── events/             # Componentes de reuniones
 │   ├── groups/             # Componentes de grupos
 │   ├── members/            # Componentes de miembros
+│   ├── prospects/          # Componentes de nuevos ingresos (prospects)
 │   ├── tithes/             # Componentes de diezmos
 │   └── ui/                 # Componentes base (shadcn/ui)
 ├── hooks/                  # Custom hooks

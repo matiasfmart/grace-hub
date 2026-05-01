@@ -12,3 +12,4 @@ export { attendanceEndpoint } from './attendanceEndpoint';
 export { tithesEndpoint } from './tithesEndpoint';
 export { rolesEndpoint } from './rolesEndpoint';
 export { roleTypesEndpoint } from './roleTypesEndpoint';
+export { prospectsEndpoint } from './prospectsEndpoint';

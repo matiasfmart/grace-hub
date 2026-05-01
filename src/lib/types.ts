@@ -476,3 +476,31 @@ export interface PageProps {
 	params: { [key: string]: string };
 	searchParams: { [key: string]: string | string[] | undefined };
 }
+
+// ============================================
+// PROSPECT TYPES (Módulo de Prospectos)
+// ============================================
+
+export type ProspectStatus = 'pending' | 'integrated' | 'lost';
+export type ProspectSource = 'pwa' | 'manual';
+
+/**
+ * Frontend domain type for a Prospect (visitor registered by the welcome team).
+ * Dates kept as strings (YYYY-MM-DD) — same convention as Member.
+ */
+export interface Prospect {
+	id: string;
+	firstName: string;
+	lastName: string;
+	fullName: string;
+	contact?: string;
+	source: ProspectSource;
+	addedBy?: number;
+	addedByName?: string;
+	visitDate: string; // YYYY-MM-DD
+	notes?: string;
+	status: ProspectStatus;
+	memberId?: string; // present only when status = 'integrated'
+	createdAt: string;
+	updatedAt: string;
+}

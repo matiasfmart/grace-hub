@@ -2,7 +2,6 @@
 
 import {
 	AlertTriangle,
-	Archive,
 	ArrowDownNarrowWide,
 	ArrowUpNarrowWide,
 	Briefcase,
@@ -11,15 +10,12 @@ import {
 	ChevronDown,
 	ChevronLeft,
 	ChevronRight,
-	ChevronUp,
 	Info,
 	ListPlus,
-	RotateCcw,
 	Search,
 	ShieldCheck,
 	Smile,
 	Tag,
-	Trash2,
 	UserCheck,
 	UserPlus,
 	Users,
@@ -135,13 +131,7 @@ interface MembersListViewProps {
 	updateMemberAction: (
 		memberData: Member,
 	) => Promise<{ success: boolean; message: string; updatedMember?: Member }>;
-	deleteMemberAction: (
-		memberId: string,
-	) => Promise<{ success: boolean; message: string }>;
 	softDeleteMemberAction: (
-		memberId: string,
-	) => Promise<{ success: boolean; message: string }>;
-	restoreMemberAction: (
 		memberId: string,
 	) => Promise<{ success: boolean; message: string }>;
 	currentPage: number;
@@ -374,9 +364,7 @@ export default function MembersListView({
 	allRoleTypes,
 	addSingleMemberAction,
 	updateMemberAction,
-	deleteMemberAction,
 	softDeleteMemberAction,
-	restoreMemberAction,
 	currentPage,
 	totalPages,
 	pageSize,
@@ -412,16 +400,12 @@ export default function MembersListView({
 	// Custom age range state
 	const [customAgeMin, setCustomAgeMin] = useState<string>(currentAgeMin !== undefined ? String(currentAgeMin) : "");
 	const [customAgeMax, setCustomAgeMax] = useState<string>(currentAgeMax !== undefined ? String(currentAgeMax) : "");
-	const [showBajaSection, setShowBajaSection] = useState(false);
-	const [bajaSearchTerm, setBajaSearchTerm] = useState("");
-
 	const [sortKey, setSortKey] = useState<SortKey>(currentSortBy ?? "fullName");
 	const [sortOrder, setSortOrder] = useState<SortOrder>(currentSortOrder ?? "asc");
 	const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 	const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
 	const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false);
 	const [softDeletePendingMember, setSoftDeletePendingMember] = useState<Member | null>(null);
-	const [hardDeletePendingMemberId, setHardDeletePendingMemberId] = useState<string | null>(null);
 	const [isProcessingMember, startMemberTransition] = useTransition();
 	const { toast } = useToast();
 	const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -444,29 +428,6 @@ export default function MembersListView({
 			withoutArea: withoutArea.length,
 		};
 	}, [allMembersForDropdowns, absoluteTotalMembers]);
-
-	// Dados de baja — computed client-side from the full member list
-	const eliminadosMembers = useMemo(() => {
-		return allMembersForDropdowns
-			.filter(m => m.status === "eliminado")
-			.sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`));
-	}, [allMembersForDropdowns]);
-
-	const filteredEliminadosMembers = useMemo(() => {
-		if (!bajaSearchTerm.trim()) return eliminadosMembers;
-		const term = bajaSearchTerm.toLowerCase().trim();
-		return eliminadosMembers.filter(m =>
-			`${m.firstName} ${m.lastName}`.toLowerCase().includes(term) ||
-			m.firstName.toLowerCase().includes(term) ||
-			m.lastName.toLowerCase().includes(term)
-		);
-	}, [eliminadosMembers, bajaSearchTerm]);
-
-	// A member can only be permanently deleted if they have no historical attendance records
-	const canHardDelete = useCallback((member: Member): boolean => {
-		const hasAttendance = allAttendanceRecords.some(r => r.memberId === member.id);
-		return !hasAttendance;
-	}, [allAttendanceRecords]);
 
 	// Calculate last attendance date for each member
 	const memberLastAttendance = useMemo(() => {
@@ -815,39 +776,6 @@ export default function MembersListView({
 			if (result.success) {
 				toast({ title: "Éxito", description: result.message });
 				setMembers(prev => prev.filter(m => m.id !== member.id));
-				router.refresh();
-			} else {
-				toast({ title: "Error", description: result.message, variant: "destructive" });
-			}
-		});
-	};
-
-	// Restore: moves member back to vigentes
-	const handleRestore = async (member: Member) => {
-		startMemberTransition(async () => {
-			const result = await restoreMemberAction(member.id);
-			if (result.success) {
-				toast({ title: "Éxito", description: result.message });
-				router.refresh();
-			} else {
-				toast({ title: "Error", description: result.message, variant: "destructive" });
-			}
-		});
-	};
-
-	// Hard delete: permanent, only available for members with no historical records
-	const handleHardDelete = (memberId: string) => {
-		setHardDeletePendingMemberId(memberId);
-	};
-
-	const confirmHardDelete = () => {
-		if (!hardDeletePendingMemberId) return;
-		const memberId = hardDeletePendingMemberId;
-		setHardDeletePendingMemberId(null);
-		startMemberTransition(async () => {
-			const result = await deleteMemberAction(memberId);
-			if (result.success) {
-				toast({ title: "Éxito", description: result.message });
 				router.refresh();
 			} else {
 				toast({ title: "Error", description: result.message, variant: "destructive" });
@@ -1755,157 +1683,6 @@ export default function MembersListView({
 				</div>
 			)}
 
-			{/* =============================================
-			    SECCIÓN: DADOS DE BAJA
-			    Miembros con record_status = 'eliminado'.
-			    Operaciones: restaurar (siempre) o eliminar
-			    permanentemente (solo sin historial).
-			    ============================================= */}
-			{eliminadosMembers.length > 0 && (
-				<div className="mt-8 rounded-lg border border-border overflow-hidden">
-					<button
-						type="button"
-						onClick={() => {
-							if (showBajaSection) setBajaSearchTerm("");
-							setShowBajaSection(!showBajaSection);
-						}}
-						className="w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted/60 transition-colors text-sm font-medium"
-					>
-						<div className="flex items-center gap-2 text-muted-foreground">
-							<Archive className="h-4 w-4" />
-							<span>Dados de baja</span>
-							<Badge variant="secondary" className="ml-1 text-xs">
-								{eliminadosMembers.length}
-							</Badge>
-						</div>
-						{showBajaSection
-							? <ChevronUp className="h-4 w-4 text-muted-foreground" />
-							: <ChevronDown className="h-4 w-4 text-muted-foreground" />
-						}
-					</button>
-
-					{showBajaSection && (
-						<>
-						{eliminadosMembers.length > 5 && (
-							<div className="px-3 py-2 border-b bg-muted/20">
-								<div className="relative">
-									<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-									<Input
-										type="text"
-										placeholder="Buscar en dados de baja..."
-										value={bajaSearchTerm}
-										onChange={(e) => setBajaSearchTerm(e.target.value)}
-										className="h-8 pl-8 text-xs w-full max-w-xs"
-									/>
-									{bajaSearchTerm && (
-										<button
-											onClick={() => setBajaSearchTerm("")}
-											className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-										>
-											<X className="h-3.5 w-3.5" />
-										</button>
-									)}
-								</div>
-							</div>
-						)}
-						<div className="overflow-x-auto">
-							<Table>
-								<TableHeader>
-									<TableRow className="bg-muted/20">
-										<TableHead>Miembro</TableHead>
-										<TableHead>Último GDI</TableHead>
-										<TableHead>Última asistencia</TableHead>
-										<TableHead className="w-[120px]"><span className="sr-only">Acciones</span></TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{filteredEliminadosMembers.map((member) => {
-										const hardDeleteAllowed = canHardDelete(member);
-										const attendanceStatus = getAttendanceStatus(member.id);
-										return (
-											<TableRow
-												key={member.id}
-												className="opacity-60 hover:opacity-90 transition-opacity"
-											>
-												<TableCell>
-													<div className="flex items-center gap-3">
-														<Avatar className="h-8 w-8">
-															<AvatarFallback className="text-xs bg-gray-100 text-gray-400 dark:bg-gray-800">
-																{member.firstName.substring(0, 1)}
-																{member.lastName.substring(0, 1)}
-															</AvatarFallback>
-														</Avatar>
-														<span className="font-medium line-through text-muted-foreground">
-															{member.firstName} {member.lastName}
-														</span>
-													</div>
-												</TableCell>
-												<TableCell>
-													<span className="text-sm text-muted-foreground">
-														{getGdiName(member)}
-													</span>
-												</TableCell>
-												<TableCell>
-													<div className={cn(
-														"inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium",
-														attendanceStatus.bgColor,
-														attendanceStatus.color
-													)}>
-														{attendanceStatus.label}
-													</div>
-												</TableCell>
-												<TableCell>
-													<div className="flex items-center justify-center gap-1">
-														<Button
-															variant="ghost"
-															size="icon"
-															className="h-8 w-8"
-															disabled={isProcessingMember}
-															onClick={() => handleOpenDetailsDialog(member)}
-															title="Ver detalles"
-														>
-															<Info className="h-4 w-4 text-muted-foreground" />
-														</Button>
-														<Button
-															variant="ghost"
-															size="icon"
-															className="h-8 w-8"
-															disabled={isProcessingMember}
-															onClick={() => handleRestore(member)}
-															title="Restaurar miembro"
-														>
-															<RotateCcw className="h-4 w-4 text-muted-foreground" />
-														</Button>
-														{hardDeleteAllowed && (
-															<Button
-																variant="ghost"
-																size="icon"
-																className="h-8 w-8 text-destructive hover:text-destructive"
-																disabled={isProcessingMember}
-																onClick={() => handleHardDelete(member.id)}
-																title="Eliminar permanentemente"
-															>
-																<Trash2 className="h-4 w-4" />
-															</Button>
-														)}
-													</div>
-												</TableCell>
-											</TableRow>
-										);
-									})}
-								</TableBody>
-							</Table>
-						</div>
-						{filteredEliminadosMembers.length === 0 && bajaSearchTerm && (
-							<p className="text-center text-muted-foreground text-sm py-4">
-								No se encontró “{bajaSearchTerm}” en dados de baja.
-							</p>
-						)}
-						</>
-					)}
-				</div>
-			)}
-
 			{selectedMember && (
 				<MemberDetailsDialog
 					member={selectedMember}
@@ -1973,36 +1750,6 @@ export default function MembersListView({
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
-			{/* AlertDialog: Eliminar permanentemente (hard delete) */}
-			{(() => {
-				const member = allMembersForDropdowns.find(m => m.id === hardDeletePendingMemberId);
-				return (
-					<AlertDialog
-						open={hardDeletePendingMemberId !== null}
-						onOpenChange={(open) => { if (!open) setHardDeletePendingMemberId(null); }}
-					>
-						<AlertDialogContent>
-							<AlertDialogHeader>
-								<AlertDialogTitle>¿Eliminar permanentemente?</AlertDialogTitle>
-								<AlertDialogDescription>
-									Esta acción <strong>no se puede deshacer</strong>. Se eliminará completamente
-									el registro de <strong>{member?.firstName} {member?.lastName}</strong>.
-									Solo es posible porque este miembro no tiene historial de asistencia ni diezmos.
-								</AlertDialogDescription>
-							</AlertDialogHeader>
-							<AlertDialogFooter>
-								<AlertDialogCancel>Cancelar</AlertDialogCancel>
-								<AlertDialogAction
-									onClick={confirmHardDelete}
-									className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-								>
-									Eliminar permanentemente
-								</AlertDialogAction>
-							</AlertDialogFooter>
-						</AlertDialogContent>
-					</AlertDialog>
-				);
-			})()}
 		</>
 	);
 }

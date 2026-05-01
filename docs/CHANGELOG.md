@@ -4,6 +4,83 @@
 
 ---
 
+## [2026-05-01] - Módulo Nuevos Ingresos (Prospects) — Full Stack completo
+
+### ✨ Nuevas Funcionalidades
+
+#### PWA `grace-hub-welcome` — Aplicación web progresiva para el equipo de bienvenida
+
+Nueva aplicación Next.js 15 en `grace-hub-welcome/` (puerto 3001, `output: standalone`).
+
+**Autenticación de equipo:**
+- `POST /auth/team-login` (@Public): valida `WELCOME_TEAM_CODE` (env var) + `memberId`, firma JWT con `scope: 'welcome_team'`.
+- `src/lib/api/auth.ts`: `teamLogin(teamCode, memberId)` → retorna token.
+- `src/hooks/use-auth.ts`: lee token de `sessionStorage`, redirige a `/` si ausente.
+- `src/lib/storage.ts`: token en `sessionStorage` (`ghw_token`), member en `localStorage` (`ghw_member_id`, `ghw_member_name`).
+
+**Registro de visitantes:**
+- `src/lib/api/prospects.ts`: `createProspect(token, payload)` → `POST /prospects` con `Authorization: Bearer`.
+- `src/components/login-form.tsx`: combobox buscable de miembros + código de equipo. Pre-carga identidad desde localStorage.
+- `src/components/register-form.tsx`: formulario de visitante + combobox "Agregado por" (no se resetea entre registros). Envía `addedBy: memberId`.
+- `src/components/session-list.tsx`: lista de visitantes de la sesión actual, ordenada por `registeredAt` descendente.
+- `src/app/register/page.tsx`: cliente — usa `useAuth()`, renderiza form + lista. Botón de logout limpia sesión.
+
+**Guard dual en backend:**
+- `AuthGuard` ahora acepta token desde cookie `auth` (admin) **o** `Authorization: Bearer` (PWA). El scope no restringe endpoints pero está disponible en el payload.
+
+#### Admin desktop — Módulo Nuevos Ingresos completo
+
+**Backend (grace-hub-service):**
+- `CreateProspectDto`: campo `addedBy?: number` (FK a `members`, nullable).
+- `ProspectResponseDto`: campos `addedBy?: number` y `addedByName?: string`.
+- `ProspectEntity`: columna `added_by INTEGER NULL`.
+- `ProspectRepositoryImpl`:
+  - `findFiltered()` y `findById()` usan LEFT JOIN a `members` para poblar `addedByName`.
+  - `updateFields()`: usa `findById()` (con JOIN) post-update para retornar `addedByName` completo.
+- `UpdateProspectFieldsDto`: nuevo DTO (`firstName?`, `lastName?`, `contact?`, `notes?`, `visitDate?`).
+- `UpdateProspectFieldsUseCase`: nuevo caso de uso. Valida existencia y estado `pending`.
+- `GET /prospects/:id`: nuevo endpoint (retorna prospect por id con `addedByName`).
+- `PATCH /prospects/:id`: nuevo endpoint (editar campos de un prospect pendiente).
+- `ProspectApplicationService`: expone `getProspectById()` y `updateProspectFields()`.
+
+**Frontend (grace-hub):**
+- `src/lib/types.ts`: `Prospect` ampliado con `addedByName?: string`.
+- `src/lib/api/types.ts`: `ApiProspectResponse` con `addedByName?`; nuevo `ApiUpdateProspectRequest`.
+- `src/lib/api/mappers/prospectMapper.ts`: mapea `addedByName`.
+- `src/lib/api/endpoints/prospectsEndpoint.ts`: `getById()` y `updateFields()`.
+- `src/lib/api/services/prospectsService.ts`: `getById()` y `updateFields()`.
+- `src/app/(protected)/actions/prospectActions.ts`: `getProspectByIdAction()` y `updateProspectAction()`.
+
+**Componentes — tabla unificada para los 3 tabs:**
+- `ProspectsTable` (pendientes): columnas Visitante | Teléfono | Fecha | Agregado por | Fuente | Acciones. Acciones: Integrar + Editar (✏️) + Archivar + Ver detalle (👁).
+- `IntegratedProspectsTable` (integrados): mismas columnas base + columna Miembro (link a directorio) + Ver detalle (👁). Diseño visual en verde.
+- `ArchivedProspectsTable` (archivados): mismas columnas base sin columna Miembro + Ver detalle (👁). Diseño visual atenuado (opacity).
+
+**Componentes — dialogs:**
+- `RegisterProspectDialog`: campo "Agregado por" con combobox buscable de miembros activos (requerido). Enriquece el objeto retornado con `addedByName` local para evitar re-fetch.
+- `EditProspectDialog`: dialog dual con prop `readOnly?: boolean`.
+  - Modo edición (pendientes): edita firstName, lastName, visitDate, contact, notes. Preserva `addedByName` local.
+  - Modo detalle (integrados/archivados): todos los campos en texto estático. `addedByName` + badge de fuente siempre visibles como metadata.
+
+**`ProspectsTabContent`:**
+- Estado `viewTarget` para el dialog de detalle en modo readOnly.
+- Tres tablas reciben sus handlers correctamente: `onEdit` → pendientes, `onView` → integrados y archivados.
+- Import de `updateProspectAction` incorporado.
+
+### 🐛 Bugs corregidos
+
+- **`addedByName` mostraba "—" al crear**: el mapper de respuesta del servidor no incluía el nombre porque `save()` no hace JOIN. Resuelto enriqueciendo el prospect con el `addedByName` del estado local del combobox antes de pasarlo al parent.
+- **`addedByName` se perdía al editar**: `updateFields()` en backend llamaba `findOneOrFail()` sin JOIN. Corregido para usar `findById()` (con LEFT JOIN a `members`).
+- **`onView is not a function`**: `ProspectsTabContent` no pasaba la prop `onView` a `IntegratedProspectsTable` ni `ArchivedProspectsTable`. Corregido.
+
+### 🏗️ Arquitectura
+
+- **`addedByName` como campo transient**: es un campo de lectura en el agregado de dominio (`public addedByName?: string`), no parte del estado inmutable. Se puebla por el repositorio via JOIN, no por la lógica de dominio.
+- **PWA auth**: el JWT de equipo usa `scope: 'welcome_team'` + `memberId`. El `AuthGuard` acepta tanto cookie como Bearer, permitiendo que ambas apps compartan el mismo backend sin conflicto.
+- **Sin fila clickeable**: por decisión de UX, la fila no es clickeable para evitar aperturas accidentales del dialog. La acción de detalle está exclusivamente en el botón 👁.
+
+---
+
 ## [2026-04-22] - Sistema de Autenticación JWT (cookie httpOnly)
 
 ### ✨ Nuevas Funcionalidades

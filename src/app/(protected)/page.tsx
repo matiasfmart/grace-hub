@@ -1,4 +1,6 @@
 import { parseISO } from "date-fns";
+import Link from "next/link";
+import { UserPlus } from "lucide-react";
 import GdiOverallAttendanceChart from "@/components/dashboard/GdiOverallAttendanceChart";
 import MemberRoleDistributionChart from "@/components/dashboard/MemberRoleDistributionChart";
 import MissedMeetingsTable from "@/components/dashboard/MissedMeetingsTable";
@@ -11,6 +13,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import {
 	getAllAttendanceRecords,
@@ -18,6 +21,7 @@ import {
 	getAllMeetingSeries,
 	getAllMeetings,
 	getAllMembersNonPaginated,
+	prospectsService,
 } from "@/lib/api/services";
 
 export const dynamic = "force-dynamic";
@@ -30,12 +34,14 @@ async function getDashboardData() {
 		allAttendanceData,
 		allSeriesData,
 		allGdisData,
+		pendingProspectsCount,
 	] = await Promise.all([
 		getAllMeetings(),
 		getAllMembersNonPaginated(),
 		getAllAttendanceRecords(),
 		getAllMeetingSeries(),
 		getAllGdis(),
+		prospectsService.countPending(),
 	]);
 
 	const gdiSeriesIds = new Set(
@@ -60,6 +66,7 @@ async function getDashboardData() {
 		generalMeetingsSorted,
 		allSeriesData,
 		allGdisData,
+		pendingProspectsCount,
 	};
 }
 
@@ -72,6 +79,7 @@ export default async function DashboardPage() {
 		generalMeetingsSorted,
 		allSeriesData,
 		allGdisData,
+		pendingProspectsCount,
 	} = await getDashboardData();
 
 	return (
@@ -80,6 +88,30 @@ export default async function DashboardPage() {
 				title="Dashboard"
 				description="Visión general de la actividad y participación de la iglesia."
 			/>
+
+			{/* Prospects pending banner — shown only when count > 0 */}
+			{pendingProspectsCount > 0 && (
+				<Card className="border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-900/10">
+					<CardContent className="p-4 flex items-center justify-between gap-4">
+						<div className="flex items-center gap-3">
+							<UserPlus className="h-6 w-6 text-amber-600 shrink-0" />
+							<div>
+								<p className="font-semibold text-sm">
+									{pendingProspectsCount} visitante{pendingProspectsCount > 1 ? "s" : ""} sin integrar
+								</p>
+								<p className="text-xs text-muted-foreground">
+									Cargados por el equipo de bienvenida
+								</p>
+							</div>
+						</div>
+						<Link href="/members?tab=nuevos">
+							<Button variant="outline" size="sm">
+								Ver lista →
+							</Button>
+						</Link>
+					</CardContent>
+				</Card>
+			)}
 
 			{/* KPI Cards Row */}
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

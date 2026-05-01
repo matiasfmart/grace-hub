@@ -9,8 +9,10 @@ import {
 	updateMemberAction,
 } from "@/app/(protected)/actions/memberActions";
 import MembersListView from "@/components/members/members-list-view";
+import MembersTabsHeader from "@/components/members/members-tabs-header";
+import BajasTabContent from "@/components/members/bajas-tab-content";
+import ProspectsTabContent from "@/components/prospects/prospects-tab-content";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/ui/page-header";
 import {
 	getAllAttendanceRecords,
 	getAllGdis,
@@ -20,6 +22,7 @@ import {
 	getAllMembersNonPaginated,
 	getAllMinistryAreas,
 	getAllRoleTypes,
+	prospectsService,
 } from "@/lib/api/services";
 
 export const dynamic = "force-dynamic";
@@ -197,6 +200,7 @@ async function getMembersPageData(
 
 interface MembersPageProps {
 	searchParams: Promise<{
+		tab?: string;
 		page?: string;
 		pageSize?: string;
 		search?: string;
@@ -243,7 +247,7 @@ interface MembersPageContentProps {
 	sortOrder: 'asc' | 'desc';
 }
 
-async function MembersPageContent({
+async function MembersListOnly({
 	currentPage,
 	pageSize,
 	searchTerm,
@@ -300,20 +304,7 @@ async function MembersPageContent({
 	} = removeSymbols(rawData);
 
 	return (
-		<div className="space-y-6">
-			<PageHeader
-				title="Miembros"
-				description="Gestiona la información de los miembros de la congregación."
-				actions={
-					<Button variant="outline" size="sm" asChild>
-						<Link href="/members/settings/role-types">
-							<Tag className="h-4 w-4 mr-2" />
-							Etiquetas
-						</Link>
-					</Button>
-				}
-			/>
-			<MembersListView
+		<MembersListView
 				key={viewKey}
 				initialMembers={members}
 				allMembersForDropdowns={allMembersForDropdowns}
@@ -325,9 +316,7 @@ async function MembersPageContent({
 				allRoleTypes={allRoleTypes}
 				addSingleMemberAction={addSingleMemberAction}
 				updateMemberAction={updateMemberAction}
-				deleteMemberAction={deleteMemberAction}
-				softDeleteMemberAction={softDeleteMemberAction}
-				restoreMemberAction={restoreMemberAction}
+			softDeleteMemberAction={softDeleteMemberAction}
 				currentPage={currentPage}
 				totalPages={totalPages}
 				pageSize={pageSize}
@@ -347,13 +336,76 @@ async function MembersPageContent({
 				currentSortBy={sortBy}
 				currentSortOrder={sortOrder}
 			/>
-		</div>
 	);
 }
 
-export default async function MembersPage({ searchParams }: MembersPageProps) {
+export default async function MembersPage({
+	searchParams,
+}: {
+	searchParams: Promise<Record<string, string>>;
+}) {
 	const resolvedParams = await searchParams;
+	const activeTab = resolvedParams.tab === "nuevos" || resolvedParams.tab === "bajas"
+		? resolvedParams.tab
+		: "miembros";
 
+	// ── Tab: Nuevos ingresos ──────────────────────────────────────────────────
+	if (activeTab === "nuevos") {
+		const [pendingProspects, allGDIsData, allMembersData, pendingCount] = await Promise.all([
+			prospectsService.getPending(),
+			getAllGdis(),
+			getAllMembersNonPaginated(),
+			prospectsService.countPending(),
+		]);
+		return (
+			<div className="space-y-6">
+				<div className="flex items-start justify-between gap-4">
+					<div className="space-y-1">
+						<h1 className="font-display text-xl font-bold tracking-tight text-foreground sm:text-2xl">Miembros</h1>
+						<p className="text-sm text-muted-foreground">Gestiona el ciclo de vida de los miembros de la congregación.</p>
+					</div>
+					<MembersTabsHeader activeTab="nuevos" pendingProspectsCount={pendingCount} />
+				</div>
+				<Suspense fallback={<div className="py-8 text-center"><p>Cargando...</p></div>}>
+					<ProspectsTabContent initialPending={pendingProspects} allGDIs={allGDIsData} allMembers={allMembersData} />
+				</Suspense>
+			</div>
+		);
+	}
+
+	// ── Tab: Dados de baja ───────────────────────────────────────────────────
+	if (activeTab === "bajas") {
+		const [allMembersData, allAttendanceData, allMeetingsData, allGDIsData, pendingCount] =
+			await Promise.all([
+				getAllMembersNonPaginated(),
+				getAllAttendanceRecords(),
+				getAllMeetings(),
+				getAllGdis(),
+				prospectsService.countPending(),
+			]);
+		const eliminadosMembers = allMembersData.filter((m) => m.status === "eliminado");
+		return (
+			<div className="space-y-6">
+				<div className="flex items-start justify-between gap-4">
+					<div className="space-y-1">
+						<h1 className="font-display text-xl font-bold tracking-tight text-foreground sm:text-2xl">Miembros</h1>
+						<p className="text-sm text-muted-foreground">Gestiona el ciclo de vida de los miembros de la congregación.</p>
+					</div>
+					<MembersTabsHeader activeTab="bajas" pendingProspectsCount={pendingCount} />
+				</div>
+				<BajasTabContent
+					eliminadosMembers={eliminadosMembers}
+					allAttendanceRecords={allAttendanceData}
+					allMeetings={allMeetingsData}
+					allGDIs={allGDIsData}
+					restoreMemberAction={restoreMemberAction}
+					deleteMemberAction={deleteMemberAction}
+				/>
+			</div>
+		);
+	}
+
+	// ── Tab: Miembros (default — existing behavior) ──────────────────────────
 	const currentPage = Number(resolvedParams.page) || 1;
 	const pageSize = Number(resolvedParams.pageSize) || 10;
 	const searchTerm = resolvedParams.search || "";
@@ -383,34 +435,56 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
 		? labelFilterString.split(',').map(Number).filter(n => !isNaN(n))
 		: [];
 
+	// Fetch pending count for the tab badge (lightweight endpoint)
+	const pendingCount = await prospectsService.countPending();
+
 	return (
-		<Suspense
-			fallback={
-				<div className="container mx-auto py-8 px-4 text-center">
-					<p>Cargando...</p>
+		<div className="space-y-6">
+			<div className="flex items-start justify-between gap-4">
+				<div className="space-y-1">
+					<h1 className="font-display text-xl font-bold tracking-tight text-foreground sm:text-2xl">Miembros</h1>
+					<p className="text-sm text-muted-foreground">Gestiona el ciclo de vida de los miembros de la congregación.</p>
 				</div>
-			}
-		>
-			<MembersPageContent
-				currentPage={currentPage}
-				pageSize={pageSize}
-				searchTerm={searchTerm}
-				memberStatusFilterString={memberStatusFilterString}
-				roleFilterString={roleFilterString}
-				guideFilterString={guideFilterString}
-				areaFilterString={areaFilterString}
-				joinPreset={joinPreset}
-				agePreset={agePreset}
-				customJoinFrom={customJoinFrom}
-				customJoinTo={customJoinTo}
-				customAgeMin={customAgeMin}
-				customAgeMax={customAgeMax}
-				currentMemberStatusFiltersArray={currentMemberStatusFiltersArray}
-				currentRoleFiltersArray={currentRoleFiltersArray}
-				currentGuideFiltersArray={currentGuideFiltersArray}
-				currentAreaFiltersArray={currentAreaFiltersArray}			currentLabelFiltersArray={currentLabelFiltersArray}				sortBy={sortBy}
-				sortOrder={sortOrder}
-			/>
-		</Suspense>
+				<div className="flex items-center gap-3 shrink-0">
+					<Button variant="outline" size="sm" asChild>
+						<Link href="/members/settings/role-types">
+							<Tag className="h-4 w-4 mr-2" />
+							Etiquetas
+						</Link>
+					</Button>
+					<MembersTabsHeader activeTab="miembros" pendingProspectsCount={pendingCount} />
+				</div>
+			</div>
+			<Suspense
+				fallback={
+					<div className="container mx-auto py-8 px-4 text-center">
+						<p>Cargando...</p>
+					</div>
+				}
+			>
+				<MembersListOnly
+					currentPage={currentPage}
+					pageSize={pageSize}
+					searchTerm={searchTerm}
+					memberStatusFilterString={memberStatusFilterString}
+					roleFilterString={roleFilterString}
+					guideFilterString={guideFilterString}
+					areaFilterString={areaFilterString}
+					joinPreset={joinPreset}
+					agePreset={agePreset}
+					customJoinFrom={customJoinFrom}
+					customJoinTo={customJoinTo}
+					customAgeMin={customAgeMin}
+					customAgeMax={customAgeMax}
+					currentMemberStatusFiltersArray={currentMemberStatusFiltersArray}
+					currentRoleFiltersArray={currentRoleFiltersArray}
+					currentGuideFiltersArray={currentGuideFiltersArray}
+					currentAreaFiltersArray={currentAreaFiltersArray}
+					currentLabelFiltersArray={currentLabelFiltersArray}
+					sortBy={sortBy}
+					sortOrder={sortOrder}
+				/>
+			</Suspense>
+		</div>
 	);
 }
