@@ -267,10 +267,13 @@ body {
    el fondo de la app. No se necesita ningún elemento divisorio.
    ================================================================= */
 
-[data-sidebar="sidebar"] {
+[data-sidebar="sidebar"],
+[data-sidebar="sidebar"] > *,
+[data-side="left"] {
 	border-right: none !important;
 	border: none !important;
 	box-shadow: none !important;
+	outline: none !important;
 }
 
 [data-sidebar="separator"] {
