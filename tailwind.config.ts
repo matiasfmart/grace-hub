@@ -10,31 +10,13 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['ui-sans-serif', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Helvetica', 'Arial', 'sans-serif'],
-        body: ['ui-sans-serif', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Helvetica', 'Arial', 'sans-serif'],
-        headline: ['ui-sans-serif', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Helvetica', 'Arial', 'sans-serif'],
-        display: ['ui-sans-serif', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Helvetica', 'Arial', 'sans-serif'],
+        sans: ['Inter', 'ui-sans-serif', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
+        body: ['Inter', 'ui-sans-serif', '-apple-system', 'sans-serif'],
+        headline: ['Inter', 'ui-sans-serif', '-apple-system', 'sans-serif'],
+        display: ['Inter', 'ui-sans-serif', '-apple-system', 'sans-serif'],
         code: ['monospace'],
       },
-      fontSize: {
-        // Grace Hub Typography Scale - PT Sans optimized
-        'display-lg': ['2.25rem', { lineHeight: '1.2', fontWeight: '700', letterSpacing: '-0.025em' }], // 36px - Bold, tight
-        'headline-md': ['1.5rem', { lineHeight: '1.3', fontWeight: '700' }], // 24px - Bold
-        'title-sm': ['1.25rem', { lineHeight: '1.4', fontWeight: '700' }], // 20px - Bold  
-        'body-std': ['0.875rem', { lineHeight: '1.6', fontWeight: '400' }], // 14px - Regular, relaxed
-        'micro': ['0.625rem', { lineHeight: '1', fontWeight: '700', letterSpacing: '0.1em' }], // 10px - Bold, Uppercase
-      },
       colors: {
-        // Azure Sanctuary Surface Hierarchy
-        surface: {
-          DEFAULT: 'hsl(var(--background))', // #f5faff - Base
-          low: 'hsl(207 100% 96%)', // #e9f5ff - Surface Container Low
-          lowest: 'hsl(0 0% 100%)', // #ffffff - Surface Container Lowest (cards)
-        },
-        'on-surface': {
-          DEFAULT: 'hsl(205 100% 10%)', // #001d32 - Primary text
-          variant: 'hsl(210 10% 28%)', // #404850 - Secondary text
-        },
         // Semantic colors
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',

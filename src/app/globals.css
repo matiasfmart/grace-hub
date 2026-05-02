@@ -1,9 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
-	font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+	font-family: 'Inter', ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	-webkit-font-smoothing: antialiased;
 }
 
 /* Grace Hub Design System - "La Cruz del Refugio" */
@@ -19,17 +22,17 @@ body {
 		--popover: 0 0% 100%;
 		--popover-foreground: 205 100% 10%;
 		
-		/* Primary Blue Palette - Gradient Brand Colors */
-		--primary: 207 89% 68%; /* #64B5F6 - Primary gradient start */
+		/* Primary — un solo azul en todo el sistema */
+		--primary: 221 83% 53%;            /* #2563eb */
 		--primary-foreground: 0 0% 100%;
-		--primary-light: 207 89% 68%; /* #64b5f6 - Light variant */
-		--primary-dark: 210 79% 51%; /* #1E88E5 - Gradient end */
+		--primary-light: 221 83% 95%;      /* #eff6ff — fondos de badges */
+		--primary-dark: 221 83% 43%;       /* hover de botón */
 		
 		/* Secondary & Muted */
-		--secondary: 207 100% 96%; /* #e9f5ff - Surface Container Low */
-		--secondary-foreground: 210 79% 51%;
-		--muted: 207 100% 96%; /* Surface Container Low */
-		--muted-foreground: 210 10% 28%; /* #404850 - On-surface-variant */
+		--secondary: 207 100% 96%;
+		--secondary-foreground: 221 83% 53%;
+		--muted: 207 100% 96%;
+		--muted-foreground: 215 16% 47%;   /* #64748b — gris neutro, texto secundario */
 		
 		/* Accent */
 		--accent: 207 100% 96%;
@@ -44,7 +47,7 @@ body {
 		--warning-foreground: 0 0% 20%;
 		
 		/* Borders & Inputs - "No-Line" Rule: Use background shifts */
-		--border: 207 60% 92%;
+		--border: 207 40% 86%;
 		--input: 207 100% 96%; /* Surface Container Low */
 		--ring: 207 89% 68%;
 		
@@ -62,15 +65,15 @@ body {
 		--radius-xl: 1.5rem;
 		--radius-2xl: 1rem; /* 16px - Logo container */
 		
-		/* Sidebar */
-		--sidebar-background: 0 0% 100%; /* Surface Container Lowest */
-		--sidebar-foreground: 205 100% 10%;
-		--sidebar-primary: 207 89% 68%;
-		--sidebar-primary-foreground: 0 0% 100%;
-		--sidebar-accent: 207 100% 96%;
-		--sidebar-accent-foreground: 210 79% 51%;
-		--sidebar-border: 207 60% 94%;
-		--sidebar-ring: 207 89% 68%;
+			/* Sidebar — mismo fondo que la app, sin separación explícita */
+			--sidebar-background: 210 69% 94%;     /* = --background */
+			--sidebar-foreground: 205 100% 10%;    /* = --foreground */
+			--sidebar-primary: 221 83% 53%;        /* item activo: pill primary */
+			--sidebar-primary-foreground: 0 0% 100%;
+			--sidebar-accent: 210 50% 88%;         /* hover: levemente más oscuro que bg */
+			--sidebar-accent-foreground: 205 100% 10%;
+			--sidebar-border: 210 69% 94%;         /* = bg, invisible */
+			--sidebar-ring: 221 83% 53%;
 	}
 	.dark {
 		/* Dark mode - Grace Hub (neutral gray with subtle cool tint) */
@@ -104,14 +107,14 @@ body {
 		--chart-3: 207 60% 55%;
 		--chart-4: 210 80% 60%;
 		--chart-5: 207 100% 75%;
-		--sidebar-background: 220 13% 7%;
-		--sidebar-foreground: 215 15% 88%;
-		--sidebar-primary: 207 89% 68%;
-		--sidebar-primary-foreground: 220 15% 8%;
-		--sidebar-accent: 220 8% 15%;
-		--sidebar-accent-foreground: 207 89% 68%;
-		--sidebar-border: 220 8% 17%;
-		--sidebar-ring: 207 89% 68%;
+			--sidebar-background: 220 12% 9%;      /* = --background dark */
+			--sidebar-foreground: 215 15% 88%;
+			--sidebar-primary: 207 89% 68%;
+			--sidebar-primary-foreground: 220 15% 8%;
+			--sidebar-accent: 220 8% 15%;
+			--sidebar-accent-foreground: 215 15% 88%;
+			--sidebar-border: 220 12% 9%;          /* = bg, invisible */
+			--sidebar-ring: 207 89% 68%;
 	}
 }
 
@@ -122,22 +125,31 @@ body {
 	body {
 		@apply bg-background text-foreground antialiased;
 	}
-	/* Typography Hierarchy - PT Sans */
+	/* Tipografía — jerarquía por peso, colores semánticos */
 	h1 {
-		@apply text-3xl md:text-4xl font-bold tracking-tight text-slate-800;
+		@apply text-2xl font-bold tracking-tight;
+		color: hsl(var(--foreground));
 	}
 	h2 {
-		@apply text-xl font-semibold tracking-tight text-slate-800;
+		@apply text-lg font-semibold;
 		letter-spacing: -0.015em;
+		color: hsl(var(--foreground));
 	}
 	h3 {
-		@apply text-lg font-semibold text-slate-800;
+		@apply text-base font-semibold;
+		color: hsl(var(--foreground));
 	}
 	p {
-		@apply text-base leading-relaxed;
+		@apply text-sm leading-relaxed;
+		color: hsl(var(--muted-foreground));
+	}
+	label {
+		@apply text-xs font-medium;
+		color: hsl(var(--muted-foreground));
 	}
 	.text-secondary {
-		@apply text-sm text-slate-500;
+		@apply text-xs;
+		color: hsl(var(--muted-foreground));
 	}
 }
 
@@ -248,4 +260,197 @@ body {
 	#attendance-print-section tr {
 		page-break-inside: avoid; /* Try to keep table rows together */
 	}
+}
+/* =================================================================
+   SIDEBAR — mismo fondo que la app · sin bordes · aire generoso
+   La separación con el contenido la dan las cards blancas sobre
+   el fondo de la app. No se necesita ningún elemento divisorio.
+   ================================================================= */
+
+[data-sidebar="sidebar"] {
+	border-right: none !important;
+	border: none !important;
+	box-shadow: none !important;
+}
+
+[data-sidebar="separator"] {
+	background-color: transparent !important;
+	border: none !important;
+	height: 0 !important;
+}
+
+/* Header — logo anclado arriba con aire moderado */
+[data-sidebar="header"] {
+	padding: 24px 20px 16px !important;
+	border: none !important;
+}
+
+/* Group — márgenes laterales; el nav queda anclado al top del content */
+[data-sidebar="group"] {
+	padding: 0 14px !important;
+}
+
+/* Menú: el group maneja el lateral; el gap entre items da el aire */
+[data-sidebar="menu"] {
+	padding: 0 !important;
+	gap: 8px !important;
+}
+
+/* Items base — padding cómodo, color atenuado */
+[data-sidebar="menu-button"] {
+	color: hsl(var(--sidebar-foreground) / 0.55) !important;
+	border-radius: 10px !important;
+	padding: 12px 12px !important;
+	gap: 12px !important;
+	font-size: 0.875rem !important;
+	font-weight: 400 !important;
+	height: auto !important;
+	min-height: 48px !important;
+	transition: color 0.12s ease, background-color 0.12s ease !important;
+	background-image: none !important;
+	background-color: transparent !important;
+}
+
+/* Hover — color completo, fondo sutil */
+[data-sidebar="menu-button"]:not([data-active="true"]):hover {
+	background-color: hsl(var(--sidebar-accent)) !important;
+	background-image: none !important;
+	color: hsl(var(--sidebar-accent-foreground)) !important;
+}
+
+/* Item activo — background-color explícito porque el base tiene transparent !important
+   que gana sobre las utilidades Tailwind fuera de @layer. Pill shape explícito
+   porque el base tiene border-radius: 10px !important que aplasta rounded-full. */
+[data-sidebar="menu-button"][data-active="true"] {
+	background-color: hsl(var(--sidebar-primary)) !important;
+	background-image: none !important;
+	color: hsl(var(--sidebar-primary-foreground)) !important;
+	font-weight: 600 !important;
+	border-radius: 9999px !important;
+}
+
+[data-sidebar="menu-button"] svg {
+	flex-shrink: 0;
+}
+
+/* Footer — compacto, user anclado al fondo */
+[data-sidebar="footer"] {
+	padding: 12px 14px 24px !important;
+	border: none !important;
+}
+
+/* Footer: fila horizontal — UserMenu (flex-1 izq) + CollapseToggle (ícono der) */
+[data-sidebar="footer"] button {
+	color: hsl(var(--sidebar-foreground) / 0.55) !important;
+	border-radius: 10px !important;
+	transition: color 0.12s ease, background-color 0.12s ease, opacity 0.12s ease,
+	            width 0.2s ease-linear, height 0.2s ease-linear, padding 0.2s ease-linear !important;
+}
+
+/* UserMenu trigger — ocupa el ancho disponible en la fila */
+[data-sidebar="footer"] button:first-child {
+	width: 100% !important;
+	padding: 10px 12px !important;
+	height: auto !important;
+	min-height: 48px !important;
+	justify-content: flex-start !important;
+	gap: 12px !important;
+	font-size: 0.875rem !important;
+}
+
+/* CollapseToggle — ícono cuadrado fijo a la derecha */
+[data-sidebar="footer"] button:last-child {
+	width: 36px !important;
+	height: 36px !important;
+	min-height: 36px !important;
+	padding: 0 !important;
+	flex-shrink: 0 !important;
+	justify-content: center !important;
+	align-items: center !important;
+	opacity: 0.45 !important;
+}
+
+[data-sidebar="footer"] button:hover,
+[data-sidebar="footer"] button:first-child:hover,
+[data-sidebar="footer"] button:last-child:hover {
+	opacity: 1 !important;
+	color: hsl(var(--sidebar-foreground)) !important;
+	background-color: hsl(var(--sidebar-accent)) !important;
+}
+
+/* User info div — transición suave al colapsar */
+[data-sidebar="footer"] button > div {
+	overflow: hidden !important;
+	max-width: 160px !important;
+	opacity: 1 !important;
+	transition: opacity 0.15s ease, max-width 0.2s ease-linear !important;
+}
+
+/* =================================================================
+   ESTADO COLAPSADO — [data-collapsible="icon"]
+   Este atributo se activa en el contenedor raíz cuando el sidebar
+   mide 3.5rem (56px). Cada regla anula su contraparte del estado
+   expandido. Proporción base: 56px − 2×8px padding = 40px de contenido.
+   ================================================================= */
+
+/* Header colapsado: sin padding lateral — ícono centrado */
+[data-collapsible="icon"] [data-sidebar="header"] {
+	padding: 24px 0 16px !important;
+	align-items: center !important;
+}
+
+/* Group: padding mínimo — 56px − 2×8px = 40px para los botones */
+[data-collapsible="icon"] [data-sidebar="group"] {
+	padding: 0 8px !important;
+}
+
+/* Menu buttons: 40×40px, gap a 0, contenido centrado */
+[data-collapsible="icon"] [data-sidebar="menu-button"] {
+	padding: 8px !important;
+	height: 40px !important;
+	width: 40px !important;
+	min-height: 0 !important;
+	gap: 0 !important;
+	justify-content: center !important;
+}
+
+/* Ocultar el texto del item — opacity-0 mantiene el elemento en el flujo flex
+   (desplaza el ícono), display:none lo elimina por completo del layout. */
+[data-collapsible="icon"] [data-sidebar="menu-button"] span {
+	display: none !important;
+}
+
+/* Footer colapsado: sin padding lateral, centrado */
+[data-collapsible="icon"] [data-sidebar="footer"] {
+	padding: 12px 0 24px !important;
+	align-items: center !important;
+}
+
+/* Footer div colapsado: column-reverse → CollapseToggle (último en DOM) queda encima */
+[data-collapsible="icon"] [data-sidebar="footer"] > div {
+	flex-direction: column-reverse !important;
+	align-items: center !important;
+	gap: 4px !important;
+}
+
+/* Footer buttons colapsados: 40×40px, centrados con margin auto */
+[data-collapsible="icon"] [data-sidebar="footer"] button,
+[data-collapsible="icon"] [data-sidebar="footer"] button:first-child,
+[data-collapsible="icon"] [data-sidebar="footer"] button:last-child {
+	width: 40px !important;
+	padding: 0 !important;
+	height: 40px !important;
+	min-height: 40px !important;
+	justify-content: center !important;
+	align-items: center !important;
+	gap: 0 !important;
+	opacity: 1 !important;
+	flex-shrink: 0 !important;
+	margin-left: auto !important;
+	margin-right: auto !important;
+}
+
+/* User info — ocultar en colapsado */
+[data-collapsible="icon"] [data-sidebar="footer"] button > div {
+	display: none !important;
 }

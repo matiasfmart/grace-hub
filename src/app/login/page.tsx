@@ -84,9 +84,9 @@ function LoginForm() {
 				{/* Brand */}
 				<div className="flex flex-col items-center space-y-3">
 					<GraceHubIcon className="h-14 w-14" />
-					<div className="text-center space-y-0.5">
-						<h1 className="text-2xl font-bold tracking-tight">Grace Hub</h1>
-						<p className="text-xs font-medium text-primary/80">Church Management</p>
+				<div className="flex flex-col items-center space-y-1">
+					<h1 className="text-2xl font-bold tracking-tight">grace hub</h1>
+					<p className="text-xs font-medium text-muted-foreground">Church Management</p>
 					</div>
 					<p className="text-sm text-muted-foreground">Inicia sesión para continuar</p>
 				</div>

@@ -186,7 +186,7 @@ const roleDisplayMap: Record<MemberRoleType, string> = {
 
 // Role badge colors for visual distinction
 const roleBadgeColors: Record<MemberRoleType, string> = {
-	GdiGuide: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700/40",
+	GdiGuide: "bg-primary/10 text-primary border-primary/20",
 	GdiMentor: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-700/40",
 	AreaLeader: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700/40",
 	AreaMentor: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-700/40",
@@ -251,9 +251,9 @@ const operativeLevelConfig: Record<OperativeLevel, {
 	},
 	3: {
 		label: "Líder",
-		badgeClass: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300",
-		dotClass: "bg-blue-500",
-		avatarClass: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
+		badgeClass: "bg-primary/10 text-primary border-primary/20",
+		dotClass: "bg-primary",
+		avatarClass: "bg-primary/10 text-primary",
 	},
 	2: {
 		label: "Obrero",
@@ -263,9 +263,9 @@ const operativeLevelConfig: Record<OperativeLevel, {
 	},
 	1: {
 		label: "Miembro",
-		badgeClass: "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400",
-		dotClass: "bg-gray-400",
-		avatarClass: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+		badgeClass: "bg-muted text-muted-foreground border-border",
+		dotClass: "bg-muted-foreground/50",
+		avatarClass: "bg-muted text-muted-foreground",
 	},
 	0: {
 		label: "No integrado",
@@ -457,7 +457,7 @@ export default function MembersListView({
 	const getAttendanceStatus = useCallback((memberId: string) => {
 		const attendance = memberLastAttendance.get(memberId);
 		if (!attendance) {
-			return { label: "Sin registro", color: "text-gray-400 dark:text-gray-500", bgColor: "bg-gray-100 dark:bg-gray-800/50", daysAgo: -1 };
+			return { label: "Sin registro", color: "text-muted-foreground/60", bgColor: "bg-muted", daysAgo: -1 };
 		}
 		const { daysAgo, date } = attendance;
 		const dateStr = date.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
@@ -1558,7 +1558,7 @@ export default function MembersListView({
 													</div>
 													{member.ecclesiasticalRoles && member.ecclesiasticalRoles.length > 0 && (
 														<div className="flex items-center gap-1 pl-3.5">
-															<Badge variant="outline" className="text-xs border border-gray-200 text-gray-500">
+															<Badge variant="outline" className="text-xs border-border text-muted-foreground">
 																{member.ecclesiasticalRoles[0].name}
 															</Badge>
 															{member.ecclesiasticalRoles.length > 1 && (

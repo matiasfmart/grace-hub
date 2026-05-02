@@ -1,16 +1,17 @@
 "use client";
 
 import {
-	CalendarDays,
-	ChevronLeft,
-	HandCoins,
-	Home,
+	BadgeCheck,
+	Calendar,
+	LayoutDashboard,
 	LogOut,
 	Moon,
+	PanelLeftClose,
+	PanelLeftOpen,
 	Sun,
 	Tag,
+	UserRound,
 	Users,
-	UsersRound,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -34,7 +35,7 @@ import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
-	SidebarSeparator,
+
 	useSidebar,
 } from "@/components/ui/sidebar";
 import { GraceHubIcon, GraceHubLogo } from "@/components/icons/logo";
@@ -43,17 +44,15 @@ import { useUser } from "@/lib/contexts/user-context";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-	{ href: "/", label: "Dashboard", icon: Home },
-	{ href: "/members", label: "Miembros", icon: Users },
-	{ href: "/groups", label: "Grupos", icon: UsersRound },
-	{ href: "/events", label: "Eventos", icon: CalendarDays },
-	{ href: "/tithes", label: "Diezmos", icon: HandCoins },
+	{ href: "/",        label: "Panel",    icon: LayoutDashboard },
+	{ href: "/members", label: "Miembros", icon: UserRound },
+	{ href: "/groups",  label: "Grupos",   icon: Users },
+	{ href: "/events",  label: "Eventos",  icon: Calendar },
+	{ href: "/tithes",  label: "Diezmos",  icon: BadgeCheck },
 ];
 
 function NavMenu() {
 	const pathname = usePathname();
-	const { state } = useSidebar();
-	const isCollapsed = state === "collapsed";
 
 	return (
 		<SidebarMenu>
@@ -71,15 +70,8 @@ function NavMenu() {
 							tooltip={item.label}
 						>
 							<Link href={item.href}>
-								<item.icon className="h-5 w-5" />
-								<span
-									className={cn(
-										"transition-opacity duration-200",
-										isCollapsed && "opacity-0"
-									)}
-								>
-									{item.label}
-								</span>
+								<item.icon className="h-[18px] w-[18px] shrink-0" />
+								<span>{item.label}</span>
 							</Link>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
@@ -89,35 +81,9 @@ function NavMenu() {
 	);
 }
 
-function ThemeToggle() {
-	const { resolvedTheme, toggleTheme } = useTheme();
-	const { state } = useSidebar();
-	const isCollapsed = state === "collapsed";
-
-	return (
-		<Button
-			variant="ghost"
-			size="icon"
-			onClick={toggleTheme}
-			className={cn(
-				"h-10 transition-all duration-200",
-				isCollapsed ? "w-10 mx-auto" : "w-full justify-start gap-3 px-2.5"
-			)}
-		>
-			{resolvedTheme === "dark" ? (
-				<Sun className="h-5 w-5 shrink-0" />
-			) : (
-				<Moon className="h-5 w-5 shrink-0" />
-			)}
-			{!isCollapsed && (
-				<span className="truncate">{resolvedTheme === "dark" ? "Modo Claro" : "Modo Oscuro"}</span>
-			)}
-		</Button>
-	);
-}
-
 function UserMenu() {
 	const { user, logout } = useUser();
+	const { resolvedTheme, toggleTheme } = useTheme();
 	const { state } = useSidebar();
 	const isCollapsed = state === "collapsed";
 
@@ -135,35 +101,33 @@ function UserMenu() {
 			<DropdownMenuTrigger asChild>
 				<Button
 					variant="ghost"
-					className={cn(
-						"h-12 transition-all duration-200",
-						isCollapsed 
-							? "w-10 mx-auto p-0 justify-center" 
-							: "w-full justify-start gap-3 px-2.5"
-					)}
+					className="transition-all duration-200"
 				>
 					<Avatar className="h-8 w-8 shrink-0">
 						<AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
 							{initials}
 						</AvatarFallback>
 					</Avatar>
-					{!isCollapsed && (
-						<div className="flex flex-col items-start text-left">
-							<span className="text-base font-medium truncate max-w-[140px]">
-								{user.displayName}
-							</span>
-							<span className="text-xs text-muted-foreground capitalize">
-								{user.role}
-							</span>
-						</div>
-					)}
+					<div className="flex flex-col items-start text-left overflow-hidden">
+						<span className="text-sm font-medium truncate max-w-[140px]">
+							{user.displayName}
+						</span>
+						<span className="text-xs text-muted-foreground capitalize">
+							{user.role}
+						</span>
+					</div>
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="w-56">
 				<DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
 				<DropdownMenuSeparator />
-				<DropdownMenuItem disabled>
-					Perfil (próximamente)
+				<DropdownMenuItem onClick={toggleTheme} className="cursor-pointer">
+					{resolvedTheme === "dark" ? (
+						<Sun className="h-4 w-4" />
+					) : (
+						<Moon className="h-4 w-4" />
+					)}
+					{resolvedTheme === "dark" ? "Modo Claro" : "Modo Oscuro"}
 				</DropdownMenuItem>
 				<DropdownMenuItem asChild>
 					<Link href="/members/settings/role-types" className="flex items-center gap-2">
@@ -191,19 +155,16 @@ function CollapseToggle() {
 	return (
 		<Button
 			variant="ghost"
-			size="icon"
 			onClick={toggleSidebar}
-			className="h-7 w-7 absolute -right-3 top-6 z-50 rounded-full border bg-background shadow-md hover:bg-accent"
+			title={isCollapsed ? "Expandir" : "Colapsar"}
+			className="opacity-50 hover:opacity-100 transition-all duration-200"
 		>
-			<ChevronLeft
-				className={cn(
-					"h-4 w-4 transition-transform duration-200",
-					isCollapsed && "rotate-180"
-				)}
-			/>
-			<span className="sr-only">
-				{isCollapsed ? "Expandir" : "Colapsar"} sidebar
-			</span>
+			{isCollapsed ? (
+				<PanelLeftOpen className="h-5 w-5 shrink-0" />
+			) : (
+				<PanelLeftClose className="h-5 w-5 shrink-0" />
+			)}
+			<span className="sr-only">{isCollapsed ? "Expandir" : "Colapsar"} sidebar</span>
 		</Button>
 	);
 }
@@ -213,18 +174,10 @@ export function AppSidebar() {
 	const isCollapsed = state === "collapsed";
 
 	return (
-		<Sidebar collapsible="icon" className="border-r-0">
-			{/* Collapse toggle button */}
-			<CollapseToggle />
-
+		<Sidebar collapsible="icon" className="border-r-0 border-0">
 			{/* Header with Logo */}
-			<SidebarHeader className="relative">
-				<div
-					className={cn(
-						"flex items-center py-4 transition-all duration-200",
-						isCollapsed ? "justify-center px-0" : "px-2.5"
-					)}
-				>
+			<SidebarHeader>
+				<div className={cn("flex items-center", isCollapsed ? "justify-center" : "justify-start")}>
 					{isCollapsed ? (
 						<GraceHubIcon className="h-7 w-7" />
 					) : (
@@ -232,8 +185,6 @@ export function AppSidebar() {
 					)}
 				</div>
 			</SidebarHeader>
-
-			<SidebarSeparator />
 
 			{/* Navigation */}
 			<SidebarContent>
@@ -244,12 +195,12 @@ export function AppSidebar() {
 				</SidebarGroup>
 			</SidebarContent>
 
-			<SidebarSeparator />
-
-			{/* Footer with Theme Toggle and User */}
-			<SidebarFooter className={cn("gap-2 px-4", isCollapsed && "px-2")}>
-				<ThemeToggle />
-				<UserMenu />
+			{/* Footer — empujado al fondo con aire */}
+			<SidebarFooter>
+				<div className="flex flex-row items-center gap-1 w-full">
+					<UserMenu />
+					<CollapseToggle />
+				</div>
 			</SidebarFooter>
 		</Sidebar>
 	);

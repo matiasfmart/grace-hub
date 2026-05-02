@@ -518,11 +518,11 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 						</div>
 					</CardContent>
 				</Card>
-				<Card className="border-l-4 border-l-blue-500">
+				<Card className="border-l-4 border-l-primary">
 					<CardContent className="p-4">
 						<div className="flex items-center gap-3">
-						<div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-							<CalendarCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+						<div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+							<CalendarCheck className="h-5 w-5 text-primary" />
 							</div>
 							<div>
 								<p className="text-2xl font-bold">{totalInstances}</p>

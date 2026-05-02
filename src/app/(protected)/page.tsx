@@ -91,7 +91,7 @@ export default async function DashboardPage() {
 
 			{/* Prospects pending banner — shown only when count > 0 */}
 			{pendingProspectsCount > 0 && (
-				<Card className="border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-900/10">
+				<Card className="border-l-4 border-l-warning bg-warning/5">
 					<CardContent className="p-4 flex items-center justify-between gap-4">
 						<div className="flex items-center gap-3">
 							<UserPlus className="h-6 w-6 text-amber-600 shrink-0" />
