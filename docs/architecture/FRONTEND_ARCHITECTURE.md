@@ -109,7 +109,7 @@ src/
 │   │
 │   ├── layout/                       # Layout components
 │   │   ├── app-sidebar.tsx
-│   │   └── header.tsx
+│   │   └── main-layout.tsx
 │   │
 │   ├── members/                      # Components de Members
 │   │   ├── member-form.tsx
@@ -119,6 +119,7 @@ src/
 │   ├── events/                       # Components de Events
 │   ├── groups/                       # Components de Groups
 │   ├── tithes/                       # Components de Tithes
+│   ├── prospects/                    # Components de Nuevos Ingresos
 │   └── dashboard/                    # Components del Dashboard
 │
 ├── lib/                              # Utilities & Core
@@ -136,20 +137,26 @@ src/
 │       │   ├── membersEndpoint.ts
 │       │   ├── gdisEndpoint.ts
 │       │   ├── meetingsEndpoint.ts
+│       │   ├── meetingSeriesEndpoint.ts
 │       │   ├── attendanceEndpoint.ts
 │       │   ├── areasEndpoint.ts
 │       │   ├── tithesEndpoint.ts
-│       │   └── rolesEndpoint.ts
+│       │   ├── prospectsEndpoint.ts
+│       │   ├── rolesEndpoint.ts
+│       │   └── roleTypesEndpoint.ts
 │       │
 │       ├── mappers/                  # Traducción de tipos
 │       │   ├── index.ts
 │       │   ├── memberMapper.ts
 │       │   ├── gdiMapper.ts
 │       │   ├── meetingMapper.ts
+│       │   ├── meetingSeriesMapper.ts
 │       │   ├── attendanceMapper.ts
 │       │   ├── areaMapper.ts
 │       │   ├── titheMapper.ts
-│       │   └── roleMapper.ts
+│       │   ├── prospectMapper.ts
+│       │   ├── roleMapper.ts
+│       │   └── roleTypesMapper.ts
 │       │
 │       └── services/                 # Orquestación
 │           ├── index.ts              # Exporta todo
@@ -158,8 +165,11 @@ src/
 │           ├── meetingsService.ts
 │           ├── attendanceService.ts
 │           ├── areasService.ts
+│           ├── groupMeetingsService.ts
 │           ├── tithesService.ts
-│           └── rolesService.ts
+│           ├── prospectsService.ts
+│           ├── rolesService.ts
+│           └── roleTypesService.ts
 │
 └── hooks/                            # Custom React Hooks
     ├── use-mobile.tsx

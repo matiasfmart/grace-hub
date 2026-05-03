@@ -43,13 +43,13 @@ Grace Hub es un sistema de gestión de membresía y asistencia para iglesias, di
 
 | Rol | Color | Hex |
 |-----|-------|-----|
-| Primary | Calming blue | `#64B5F6` |
+| Primary | Calming blue | `#2563eb` |
 | Background | Light desaturated blue | `#E3F2FD` |
 | Accent | Warm yellow | `#FFCA28` |
 
 ### Tipografía
 
-- **Body & Headlines:** 'PT Sans' (sans-serif)
+- **Body & Headlines:** 'Inter' (sans-serif)
 - Énfasis en legibilidad y estilo moderno
 
 ### Iconografía
@@ -70,7 +70,8 @@ Grace Hub es un sistema de gestión de membresía y asistencia para iglesias, di
 ```
 src/
 ├── app/                 # Páginas (Next.js App Router)
-│   ├── actions/         # Server Actions
+│   ├── (protected)/
+│   │   └── actions/     # Server Actions
 │   └── [route]/         # Páginas por ruta
 ├── components/
 │   ├── ui/              # Componentes base (shadcn/ui)
@@ -93,5 +94,5 @@ src/
 | Arquitectura Frontend | [FRONTEND_ARCHITECTURE.md](./architecture/FRONTEND_ARCHITECTURE.md) |
 | Reglas de Arquitectura | [ARCHITECTURE_RULES.md](./architecture/ARCHITECTURE_RULES.md) |
 | Prompts para IA | [prompts.md](./prompts/prompts.md) |
-| Reglas de Negocio | [/docs-grace-hub/REGLAS_DE_NEGOCIO.md](../../docs-grace-hub/REGLAS_DE_NEGOCIO.md) |
-| Schema de BD | [/docs-grace-hub/DATABASE_SCHEMA.md](../../docs-grace-hub/DATABASE_SCHEMA.md) |
+| Reglas de Negocio | `/docs-grace-hub/REGLAS_DE_NEGOCIO.md` *(directorio raíz del proyecto, externo a este workspace)* |
+| Schema de BD | `/docs-grace-hub/DATABASE_SCHEMA.md` *(directorio raíz del proyecto, externo a este workspace)* |
