@@ -15,6 +15,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { ExportButton } from "@/components/ui/export-button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { AttendanceRecord, Meeting, MeetingInstanceFormValues, MeetingSeries } from "@/lib/types";
@@ -79,6 +80,60 @@ const formatDateDisplay = (dateString: string) => {
 	}
 };
 
+// ─── Export helpers ────────────────────────────────────────────────────────
+
+async function handleExportPdf(
+	meetingInstance: Meeting,
+	seriesName: string,
+	attendees: Array<{ id: string; firstName: string; lastName: string }>,
+	currentAttendance: AttendanceRecord[],
+) {
+	const { generateAttendanceListPdf } = await import(
+		"@/lib/print/templates/attendance-list.template"
+	);
+	generateAttendanceListPdf({
+		meetingName: meetingInstance.name,
+		seriesName,
+		date: meetingInstance.date,
+		time: meetingInstance.time,
+		location: meetingInstance.location,
+		attendees: attendees.map((a) => {
+			const record = currentAttendance.find((r) => r.memberId === a.id);
+			return {
+				firstName: a.firstName,
+				lastName: a.lastName,
+				attended: record ? record.attended : undefined,
+			};
+		}),
+	});
+}
+
+async function handleExportExcel(
+	meetingInstance: Meeting,
+	seriesName: string,
+	attendees: Array<{ id: string; firstName: string; lastName: string }>,
+	currentAttendance: AttendanceRecord[],
+) {
+	const { generateAttendanceListExcel } = await import(
+		"@/lib/print/templates/attendance-list.template"
+	);
+	generateAttendanceListExcel({
+		meetingName: meetingInstance.name,
+		seriesName,
+		date: meetingInstance.date,
+		time: meetingInstance.time,
+		location: meetingInstance.location,
+		attendees: attendees.map((a) => {
+			const record = currentAttendance.find((r) => r.memberId === a.id);
+			return {
+				firstName: a.firstName,
+				lastName: a.lastName,
+				attended: record ? record.attended : undefined,
+			};
+		}),
+	});
+}
+
 /**
  * Shared component for meeting attendance page content.
  * 
@@ -141,6 +196,12 @@ export default function MeetingAttendancePageContent({
 							{meetingDateTime} - {meetingLocation}
 						</CardDescription>
 					</div>
+				<div className="flex flex-wrap gap-2">
+					<ExportButton
+						label="Imprimir lista"
+						onPdf={() => handleExportPdf(meetingInstance, seriesName, attendees, currentAttendance)}
+						onExcel={() => handleExportExcel(meetingInstance, seriesName, attendees, currentAttendance)}
+					/>
 					<ManageMeetingInstanceDialog
 						instance={meetingInstance}
 						series={meetingSeries}
@@ -153,6 +214,7 @@ export default function MeetingAttendancePageContent({
 							</Button>
 						}
 					/>
+				</div>
 				</CardHeader>
 				{meetingInstance.description && (
 					<CardContent>

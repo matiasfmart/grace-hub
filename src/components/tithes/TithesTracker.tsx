@@ -81,6 +81,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Member, TitheRecord } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { batchUpdateTithesAction } from "@/app/(protected)/actions/tithesActions";
+import { ExportButton } from "@/components/ui/export-button";
 import { Label } from "../ui/label";
 import TitheProgressionChart from "./TitheProgressionChart";
 import TitheSummaryCards from "./TitheSummaryCards";
@@ -640,6 +641,85 @@ export function TithesTracker({
 							<Search className="h-4 w-4 mr-2" />
 							Buscar
 						</Button>
+
+						{/* Export Button */}
+						<ExportButton
+							size="sm"
+							onPdf={async () => {
+								const { generateTithesSummaryPdf } = await import(
+									"@/lib/print/templates/tithes-summary.template"
+								);
+								const periodLabel =
+									startDate && endDate
+										? `${format(startDate, "MMMM yyyy", { locale: es })} — ${format(endDate, "MMMM yyyy", { locale: es })}`
+										: "Todo el período";
+								generateTithesSummaryPdf({
+									title: "Registro de Diezmos",
+									periodLabel,
+									exportDate: new Date().toLocaleDateString("es-AR"),
+									months: months.map(m => ({
+										year: m.getFullYear(),
+										month: m.getMonth() + 1,
+										label: format(m, "MMM yy", { locale: es }),
+									})),
+									rows: allFilteredMembers.map(member => {
+										const titheByMonth: Record<string, boolean> = {};
+										let totalPaid = 0;
+										for (const m of months) {
+											const y = m.getFullYear();
+											const mo = m.getMonth() + 1;
+											const key = `${y}-${String(mo).padStart(2, "0")}`;
+											const paid = titheRecords.some(r => r.memberId === member.id && r.year === y && r.month === mo);
+											titheByMonth[key] = paid;
+											if (paid) totalPaid++;
+										}
+										return {
+											memberName: `${member.firstName} ${member.lastName}`,
+											titheByMonth,
+											totalMonths: months.length,
+											totalPaid,
+										};
+									}),
+								});
+							}}
+							onExcel={async () => {
+								const { generateTithesSummaryExcel } = await import(
+									"@/lib/print/templates/tithes-summary.template"
+								);
+								const periodLabel =
+									startDate && endDate
+										? `${format(startDate, "MMMM yyyy", { locale: es })} — ${format(endDate, "MMMM yyyy", { locale: es })}`
+										: "Todo el período";
+								generateTithesSummaryExcel({
+									title: "Registro de Diezmos",
+									periodLabel,
+									exportDate: new Date().toLocaleDateString("es-AR"),
+									months: months.map(m => ({
+										year: m.getFullYear(),
+										month: m.getMonth() + 1,
+										label: format(m, "MMM yy", { locale: es }),
+									})),
+									rows: allFilteredMembers.map(member => {
+										const titheByMonth: Record<string, boolean> = {};
+										let totalPaid = 0;
+										for (const m of months) {
+											const y = m.getFullYear();
+											const mo = m.getMonth() + 1;
+											const key = `${y}-${String(mo).padStart(2, "0")}`;
+											const paid = titheRecords.some(r => r.memberId === member.id && r.year === y && r.month === mo);
+											titheByMonth[key] = paid;
+											if (paid) totalPaid++;
+										}
+										return {
+											memberName: `${member.firstName} ${member.lastName}`,
+											titheByMonth,
+											totalMonths: months.length,
+											totalPaid,
+										};
+									}),
+								});
+							}}
+						/>
 
 						{/* Clear All */}
 						{hasActiveMemberFilters && (

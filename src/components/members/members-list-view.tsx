@@ -113,6 +113,7 @@ import {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { toApiDateString } from "@/lib/utils/date";
+import { ExportButton } from "@/components/ui/export-button";
 import AddMemberForm from "./add-member-form";
 import MemberDetailsDialog from "./member-details-dialog";
 
@@ -156,6 +157,8 @@ interface MembersListViewProps {
 	absoluteTotalMembers: number;
 	currentSortBy?: SortKey;
 	currentSortOrder?: SortOrder;
+	/** Filtro de estado activo (ej: ["vigente"]). Default: ["vigente"] */
+	currentMemberStatusFilters?: string[];
 }
 
 type SortKey =
@@ -353,6 +356,119 @@ function formatMonthYear(ym: string): string {
 	return m ? `${m.label.substring(0, 3)} ${year}` : ym;
 }
 
+// ─── Client-side filter helper (mirrors server-side logic) ──────────────────
+// Applies the same filters that the server uses when paginating, but over the
+// full non-paginated list so that exports are never limited by current page.
+function applyMemberFilters(
+	allMembers: Member[],
+	opts: {
+		statusFilters?: string[];
+		searchTerm?: string;
+		roleFilters?: string[];
+		guideIdFilters?: string[];
+		areaFilters?: string[];
+		labelFilters?: number[];
+		joinPreset?: string;
+		joinFrom?: string; // YYYY-MM
+		joinTo?: string;   // YYYY-MM
+		agePreset?: string;
+		ageMin?: number;
+		ageMax?: number;
+	},
+): Member[] {
+	const now = new Date();
+	return allMembers.filter((m) => {
+		// Status
+		if (opts.statusFilters?.length && !opts.statusFilters.includes(m.status)) return false;
+
+		// Full-text search
+		if (opts.searchTerm) {
+			const term = opts.searchTerm.toLowerCase();
+			const fullName = `${m.firstName} ${m.lastName}`.toLowerCase();
+			if (!fullName.includes(term) && !m.email?.toLowerCase().includes(term)) return false;
+		}
+
+		// Role filter
+		if (opts.roleFilters?.length) {
+			const hasRole = opts.roleFilters.some((r) => m.roles?.includes(r as MemberRoleType));
+			if (!hasRole) return false;
+		}
+
+		// GDI guide filter
+		if (opts.guideIdFilters?.length) {
+			if (!m.assignedGDIId || !opts.guideIdFilters.includes(m.assignedGDIId)) return false;
+		}
+
+		// Area filter
+		if (opts.areaFilters?.length) {
+			const hasArea = opts.areaFilters.some((aId) => m.assignedAreaIds?.includes(aId));
+			if (!hasArea) return false;
+		}
+
+		// Operative level (label) filter
+		if (opts.labelFilters?.length) {
+			const level = calculateOperativeLevel(m);
+			if (!opts.labelFilters.includes(level)) return false;
+		}
+
+		// Join date filter
+		const hasJoinFilter = opts.joinPreset || (opts.joinFrom && opts.joinTo);
+		if (hasJoinFilter) {
+			if (!m.churchJoinDate) return false;
+			const joinDate = new Date(m.churchJoinDate);
+			let fromDate: Date | null = null;
+			let toDate: Date | null = null;
+			if (opts.joinPreset === "month") {
+				fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+				toDate = now;
+			} else if (opts.joinPreset === "3m") {
+				fromDate = new Date(now); fromDate.setMonth(fromDate.getMonth() - 3);
+				toDate = now;
+			} else if (opts.joinPreset === "6m") {
+				fromDate = new Date(now); fromDate.setMonth(fromDate.getMonth() - 6);
+				toDate = now;
+			} else if (opts.joinPreset === "year") {
+				fromDate = new Date(now.getFullYear(), 0, 1);
+				toDate = now;
+			} else if (opts.joinPreset === "custom" && opts.joinFrom && opts.joinTo) {
+				fromDate = new Date(`${opts.joinFrom}-01`);
+				const [toYear, toMonth] = opts.joinTo.split("-").map(Number);
+				const lastDay = new Date(toYear, toMonth, 0).getDate();
+				toDate = new Date(`${opts.joinTo}-${String(lastDay).padStart(2, "0")}`);
+			}
+			if (fromDate && joinDate < fromDate) return false;
+			if (toDate && joinDate > toDate) return false;
+		}
+
+		// Age filter
+		const hasAgeFilter =
+			opts.agePreset ||
+			opts.ageMin !== undefined ||
+			opts.ageMax !== undefined;
+		if (hasAgeFilter) {
+			if (!m.birthDate) return false;
+			const birthDate = new Date(m.birthDate);
+			let age = now.getFullYear() - birthDate.getFullYear();
+			const monthDiff = now.getMonth() - birthDate.getMonth();
+			if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birthDate.getDate())) age--;
+
+			let minAge: number | undefined;
+			let maxAge: number | undefined;
+			if (opts.agePreset === "kids")        { minAge = 0;  maxAge = 12; }
+			else if (opts.agePreset === "teen")   { minAge = 13; maxAge = 17; }
+			else if (opts.agePreset === "youth")  { minAge = 18; maxAge = 29; }
+			else if (opts.agePreset === "adult")  { minAge = 30; maxAge = 59; }
+			else if (opts.agePreset === "senior") { minAge = 60; }
+			else { minAge = opts.ageMin; maxAge = opts.ageMax; }
+
+			if (minAge !== undefined && age < minAge) return false;
+			if (maxAge !== undefined && age > maxAge) return false;
+		}
+
+		return true;
+	});
+}
+
 export default function MembersListView({
 	initialMembers,
 	allMembersForDropdowns,
@@ -383,6 +499,7 @@ export default function MembersListView({
 	absoluteTotalMembers,
 	currentSortBy,
 	currentSortOrder,
+	currentMemberStatusFilters = ["vigente"],
 }: MembersListViewProps) {
 	const [members, setMembers] = useState<Member[]>(initialMembers);
 	const [searchInput, setSearchInput] = useState(currentSearchTerm);
@@ -913,7 +1030,165 @@ export default function MembersListView({
 						</form>
 					</div>
 					{/* Unified Add Button with Dropdown */}
-					<DropdownMenu>
+					<div className="flex items-center gap-2">
+						<ExportButton
+							label="Exportar"
+							filteredLabel={`Filtrados (${totalMembers})`}
+							allLabel={`Todos (${absoluteTotalMembers})`}
+							onPdf={async () => {
+								const { generateMemberDirectoryPdf } = await import(
+									"@/lib/print/templates/member-directory.template"
+								);
+								const gdiMap = new Map(allGDIs.map(g => [g.id, g.name]));
+								const areaMap = new Map(allMinistryAreas.map(a => [a.id, a.name]));
+								const activeFilters: string[] = [];
+								if (currentSearchTerm) activeFilters.push(`Búsqueda: "${currentSearchTerm}"`);
+								if (currentRoleFilters?.length) activeFilters.push(`Rol: ${currentRoleFilters.join(", ")}`);
+								if (currentGuideIdFilters?.length) {
+									const names = currentGuideIdFilters.map(id => gdiMap.get(id) ?? id);
+									activeFilters.push(`GDI: ${names.join(", ")}`);
+								}
+								if (currentAreaFilters?.length) {
+									const names = currentAreaFilters.map(id => areaMap.get(id) ?? id);
+									activeFilters.push(`Área: ${names.join(", ")}`);
+								}
+								const filtered = applyMemberFilters(allMembersForDropdowns, {
+									statusFilters: currentMemberStatusFilters,
+									searchTerm: currentSearchTerm,
+									roleFilters: currentRoleFilters,
+									guideIdFilters: currentGuideIdFilters,
+									areaFilters: currentAreaFilters,
+									labelFilters: currentLabelFilters,
+									joinPreset: currentJoinPreset,
+									joinFrom: currentJoinFrom,
+									joinTo: currentJoinTo,
+									agePreset: currentAgePreset,
+									ageMin: currentAgeMin,
+									ageMax: currentAgeMax,
+								});
+								generateMemberDirectoryPdf({
+									title: "Directorio de Miembros",
+									filters: activeFilters,
+									exportDate: new Date().toLocaleDateString("es-AR"),
+									members: filtered.map(m => ({
+										firstName: m.firstName,
+										lastName: m.lastName,
+										phone: m.phone,
+										email: m.email,
+										gdiName: m.assignedGDIId ? gdiMap.get(m.assignedGDIId) : undefined,
+										areaNames: m.assignedAreaIds?.map(id => areaMap.get(id) ?? id),
+										roles: m.roles?.map(r => roleDisplayMap[r] ?? r),
+										status: m.status,
+										churchJoinDate: m.churchJoinDate,
+										baptismDate: m.baptismDate,
+										birthDate: m.birthDate,
+									})),
+								});
+							}}
+							onExcel={async () => {
+								const { generateMemberDirectoryExcel } = await import(
+									"@/lib/print/templates/member-directory.template"
+								);
+								const gdiMap = new Map(allGDIs.map(g => [g.id, g.name]));
+								const areaMap = new Map(allMinistryAreas.map(a => [a.id, a.name]));
+								const activeFilters: string[] = [];
+								if (currentSearchTerm) activeFilters.push(`Búsqueda: "${currentSearchTerm}"`);
+								if (currentRoleFilters?.length) activeFilters.push(`Rol: ${currentRoleFilters.join(", ")}`);
+								if (currentGuideIdFilters?.length) {
+									const names = currentGuideIdFilters.map(id => gdiMap.get(id) ?? id);
+									activeFilters.push(`GDI: ${names.join(", ")}`);
+								}
+								if (currentAreaFilters?.length) {
+									const names = currentAreaFilters.map(id => areaMap.get(id) ?? id);
+									activeFilters.push(`Área: ${names.join(", ")}`);
+								}
+								const filtered = applyMemberFilters(allMembersForDropdowns, {
+									statusFilters: currentMemberStatusFilters,
+									searchTerm: currentSearchTerm,
+									roleFilters: currentRoleFilters,
+									guideIdFilters: currentGuideIdFilters,
+									areaFilters: currentAreaFilters,
+									labelFilters: currentLabelFilters,
+									joinPreset: currentJoinPreset,
+									joinFrom: currentJoinFrom,
+									joinTo: currentJoinTo,
+									agePreset: currentAgePreset,
+									ageMin: currentAgeMin,
+									ageMax: currentAgeMax,
+								});
+								generateMemberDirectoryExcel({
+									title: "Directorio de Miembros",
+									filters: activeFilters,
+									exportDate: new Date().toLocaleDateString("es-AR"),
+									members: filtered.map(m => ({
+										firstName: m.firstName,
+										lastName: m.lastName,
+										phone: m.phone,
+										email: m.email,
+										gdiName: m.assignedGDIId ? gdiMap.get(m.assignedGDIId) : undefined,
+										areaNames: m.assignedAreaIds?.map(id => areaMap.get(id) ?? id),
+										roles: m.roles?.map(r => roleDisplayMap[r] ?? r),
+										status: m.status,
+										churchJoinDate: m.churchJoinDate,
+										baptismDate: m.baptismDate,
+										birthDate: m.birthDate,
+									})),
+								});
+							}}
+							onPdfAll={async () => {
+								const { generateMemberDirectoryPdf } = await import(
+									"@/lib/print/templates/member-directory.template"
+								);
+								const gdiMap = new Map(allGDIs.map(g => [g.id, g.name]));
+								const areaMap = new Map(allMinistryAreas.map(a => [a.id, a.name]));
+								const allVigente = allMembersForDropdowns.filter(m => m.status === "vigente");
+								generateMemberDirectoryPdf({
+									title: "Directorio de Miembros — Completo",
+									filters: [],
+									exportDate: new Date().toLocaleDateString("es-AR"),
+									members: allVigente.map(m => ({
+										firstName: m.firstName,
+										lastName: m.lastName,
+										phone: m.phone,
+										email: m.email,
+										gdiName: m.assignedGDIId ? gdiMap.get(m.assignedGDIId) : undefined,
+										areaNames: m.assignedAreaIds?.map(id => areaMap.get(id) ?? id),
+										roles: m.roles?.map(r => roleDisplayMap[r] ?? r),
+										status: m.status,
+										churchJoinDate: m.churchJoinDate,
+										baptismDate: m.baptismDate,
+										birthDate: m.birthDate,
+									})),
+								});
+							}}
+							onExcelAll={async () => {
+								const { generateMemberDirectoryExcel } = await import(
+									"@/lib/print/templates/member-directory.template"
+								);
+								const gdiMap = new Map(allGDIs.map(g => [g.id, g.name]));
+								const areaMap = new Map(allMinistryAreas.map(a => [a.id, a.name]));
+								const allVigente = allMembersForDropdowns.filter(m => m.status === "vigente");
+								generateMemberDirectoryExcel({
+									title: "Directorio de Miembros — Completo",
+									filters: [],
+									exportDate: new Date().toLocaleDateString("es-AR"),
+									members: allVigente.map(m => ({
+										firstName: m.firstName,
+										lastName: m.lastName,
+										phone: m.phone,
+										email: m.email,
+										gdiName: m.assignedGDIId ? gdiMap.get(m.assignedGDIId) : undefined,
+										areaNames: m.assignedAreaIds?.map(id => areaMap.get(id) ?? id),
+										roles: m.roles?.map(r => roleDisplayMap[r] ?? r),
+										status: m.status,
+										churchJoinDate: m.churchJoinDate,
+										baptismDate: m.baptismDate,
+										birthDate: m.birthDate,
+									})),
+								});
+							}}
+						/>
+						<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button disabled={isProcessingMember}>
 								<UserPlus className="mr-2 h-4 w-4" /> Agregar Miembro
@@ -933,6 +1208,7 @@ export default function MembersListView({
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
+					</div>
 				</div>
 
 				<div className="flex flex-wrap items-center gap-x-2 gap-y-2 py-2">

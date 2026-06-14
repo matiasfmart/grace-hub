@@ -23,10 +23,12 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { ExportButton } from "@/components/ui/export-button";
 import type { Member } from "@/lib/types";
 
 interface GroupAdminMembersTabProps {
 	groupType: "gdi" | "area";
+	groupName: string;
 	leaderId: string;
 	leaderLabel: string; // "Guía" or "Líder"
 	mentorId?: string;
@@ -53,6 +55,7 @@ const statusColorMap: Record<string, string> = {
 
 export default function GroupAdminMembersTab({
 	groupType,
+	groupName,
 	leaderId,
 	leaderLabel,
 	mentorId,
@@ -86,6 +89,19 @@ export default function GroupAdminMembersTab({
 				return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
 			});
 	}, [leaderId, memberIds, mentorId, allMembers, searchTerm]);
+
+	// Lista sin filtro de búsqueda — para export completo del padrón
+	const exportMembers = useMemo(() => {
+		const memberOnlyIds = new Set([leaderId, ...memberIds]);
+		memberOnlyIds.delete(mentorId ?? "");
+		return allMembers
+			.filter(m => memberOnlyIds.has(m.id))
+			.sort((a, b) => {
+				if (a.id === leaderId) return -1;
+				if (b.id === leaderId) return 1;
+				return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+			});
+	}, [leaderId, memberIds, mentorId, allMembers]);
 
 	// Objeto mentor para sección de Supervisión
 	const mentorMember = useMemo(() => {
@@ -128,6 +144,68 @@ export default function GroupAdminMembersTab({
 		return null;
 	};
 
+	// ─── Export handlers ────────────────────────────────────────────────────
+
+	const handleExportPdf = async () => {
+		const { generateGroupRosterPdf } = await import(
+			"@/lib/print/templates/group-roster.template"
+		);
+		const leaderMember = allMembers.find(m => m.id === leaderId);
+		const leaderName = leaderMember
+			? `${leaderMember.firstName} ${leaderMember.lastName}`
+			: "—";
+		const mentorName = mentorMember
+			? `${mentorMember.firstName} ${mentorMember.lastName}`
+			: undefined;
+		generateGroupRosterPdf({
+			groupName: groupName,
+			groupType: groupType === "gdi" ? "GDI" : "Área Ministerial",
+			leaderLabel,
+			leaderName,
+			mentorName,
+			members: exportMembers.map(m => ({
+				firstName: m.firstName,
+				lastName: m.lastName,
+				phone: m.phone,
+				email: m.email,
+				churchJoinDate: m.churchJoinDate,
+				birthDate: m.birthDate,
+				address: m.address,
+			})),
+			exportDate: new Date().toLocaleDateString("es-AR"),
+		});
+	};
+
+	const handleExportExcel = async () => {
+		const { generateGroupRosterExcel } = await import(
+			"@/lib/print/templates/group-roster.template"
+		);
+		const leaderMember = allMembers.find(m => m.id === leaderId);
+		const leaderName = leaderMember
+			? `${leaderMember.firstName} ${leaderMember.lastName}`
+			: "—";
+		const mentorName = mentorMember
+			? `${mentorMember.firstName} ${mentorMember.lastName}`
+			: undefined;
+		generateGroupRosterExcel({
+			groupName: groupName,
+			groupType: groupType === "gdi" ? "GDI" : "Área Ministerial",
+			leaderLabel,
+			leaderName,
+			mentorName,
+			members: exportMembers.map(m => ({
+				firstName: m.firstName,
+				lastName: m.lastName,
+				phone: m.phone,
+				email: m.email,
+				churchJoinDate: m.churchJoinDate,
+				birthDate: m.birthDate,
+				address: m.address,
+			})),
+			exportDate: new Date().toLocaleDateString("es-AR"),
+		});
+	};
+
 	return (
 		<div className="space-y-4">
 			{/* Header with search and add button */}
@@ -141,7 +219,13 @@ export default function GroupAdminMembersTab({
 						className="pl-9"
 					/>
 				</div>
-				<Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+				<div className="flex gap-2">
+					<ExportButton
+						label="Exportar padrón"
+						onPdf={handleExportPdf}
+						onExcel={handleExportExcel}
+					/>
+					<Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
 					<DialogTrigger asChild>
 						<Button>
 							<UserPlus className="mr-2 h-4 w-4" />
@@ -218,6 +302,7 @@ export default function GroupAdminMembersTab({
 						</div>
 					</DialogContent>
 				</Dialog>
+				</div>
 			</div>
 
 			{/* Members list */}

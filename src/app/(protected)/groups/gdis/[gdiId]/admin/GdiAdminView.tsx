@@ -197,6 +197,7 @@ export function GdiAdminView({
 				<TabsContent value="members">
 					<GroupAdminMembersTab
 						groupType="gdi"
+						groupName={gdi.name}
 						leaderId={gdi.guideId}
 						leaderLabel="Guía"
 						mentorId={gdi.mentorId}
@@ -213,6 +214,7 @@ export function GdiAdminView({
 					<GroupAdminMeetingsTab
 						groupId={gdi.id}
 						groupType="gdi"
+						groupName={gdi.name}
 						meetingSeries={groupMeetingSeries}
 						allMeetings={allMeetings}
 						allAttendanceRecords={allAttendanceRecords}

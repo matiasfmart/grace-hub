@@ -42,10 +42,12 @@ import {
 } from "@/components/ui/tooltip";
 import type { AttendanceRecord, Meeting, Member } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { ExportButton } from "@/components/ui/export-button";
 
 interface GroupAttendanceTableProps {
 	groupId: string;
 	groupType: "gdi" | "ministryArea";
+	groupName: string;
 	members: Member[];
 	meetings: Meeting[];
 	attendanceRecords: AttendanceRecord[];
@@ -118,6 +120,7 @@ const formatDaysAgo = (daysAgo: number): { text: string; color: string } => {
 export default function GroupAttendanceTable({
 	groupId,
 	groupType,
+	groupName,
 	members,
 	meetings,
 	attendanceRecords,
@@ -207,6 +210,62 @@ export default function GroupAttendanceTable({
 			: `/groups/ministry-areas/${groupId}/meetings/${meetingId}/attendance`;
 	};
 
+	// ─── Export handlers ────────────────────────────────────────────────────
+
+	const buildHistoryData = () => {
+		const allGroupAvg =
+			sortedMembers.length > 0
+				? Math.round(
+						sortedMembers.reduce((sum, m) => {
+							const stats = calculateMemberStats(m.id);
+							return sum + stats.rate;
+						}, 0) / sortedMembers.length,
+					)
+				: 0;
+
+		return {
+			groupName,
+			groupType: groupType === "gdi" ? "GDI" as const : "Área Ministerial" as const,
+			exportDate: new Date().toLocaleDateString("es-AR"),
+			meetings: sortedMeetings.map(m => ({ id: m.id, date: m.date, name: m.name })),
+			rows: sortedMembers.map(m => {
+				const stats = calculateMemberStats(m.id);
+				const attendanceByMeeting: Record<string, boolean | null> = {};
+				for (const meeting of sortedMeetings) {
+					const isExpected = meeting.attendeeUids?.includes(m.id) ?? true;
+					if (!isExpected) {
+						attendanceByMeeting[meeting.id] = null;
+					} else {
+						const record = attendanceRecords.find(r => r.memberId === m.id && r.meetingId === meeting.id);
+						attendanceByMeeting[meeting.id] = record ? record.attended : null;
+					}
+				}
+				return {
+					memberName: `${m.firstName} ${m.lastName}`,
+					attendanceByMeeting,
+					totalPresent: stats.present,
+					totalExpected: stats.expected,
+					pct: stats.rate,
+				};
+			}),
+			groupAvgPct: allGroupAvg,
+		};
+	};
+
+	const handleExportPdf = async () => {
+		const { generateAttendanceHistoryPdf } = await import(
+			"@/lib/print/templates/attendance-history.template"
+		);
+		generateAttendanceHistoryPdf(buildHistoryData());
+	};
+
+	const handleExportExcel = async () => {
+		const { generateAttendanceHistoryExcel } = await import(
+			"@/lib/print/templates/attendance-history.template"
+		);
+		generateAttendanceHistoryExcel(buildHistoryData());
+	};
+
 	if (sortedMeetings.length === 0) {
 		return (
 			<div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-xl bg-card">
@@ -226,6 +285,11 @@ export default function GroupAttendanceTable({
 							{paginatedMembers.length} de {totalMembers} integrantes
 						</div>
 						<div className="flex items-center gap-2">
+							<ExportButton
+								label="Exportar historial"
+								onPdf={handleExportPdf}
+								onExcel={handleExportExcel}
+							/>
 							<span className="text-sm text-muted-foreground">Mostrar:</span>
 							<Select
 								value={pageSize.toString()}

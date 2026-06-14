@@ -335,6 +335,7 @@ async function MembersListOnly({
 				absoluteTotalMembers={absoluteTotalMembers}
 				currentSortBy={sortBy}
 				currentSortOrder={sortOrder}
+				currentMemberStatusFilters={currentMemberStatusFiltersArray}
 			/>
 	);
 }

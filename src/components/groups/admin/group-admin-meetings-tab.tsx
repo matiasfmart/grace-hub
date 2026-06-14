@@ -59,6 +59,7 @@ import { cn } from "@/lib/utils";
 interface GroupAdminMeetingsTabProps {
 	groupId: string;
 	groupType: "gdi" | "ministryArea";
+	groupName: string;
 	meetingSeries: MeetingSeries[];
 	allMeetings: Meeting[];
 	allAttendanceRecords: AttendanceRecord[];
@@ -86,6 +87,7 @@ const frequencyStyles: Record<string, string> = {
 export default function GroupAdminMeetingsTab({
 	groupId,
 	groupType,
+	groupName,
 	meetingSeries,
 	allMeetings,
 	allAttendanceRecords,
@@ -309,6 +311,7 @@ export default function GroupAdminMeetingsTab({
 				<GroupAttendanceTable
 					groupId={groupId}
 					groupType={groupType}
+					groupName={groupName}
 					members={members}
 					meetings={selectedSeriesMeetings}
 					attendanceRecords={allAttendanceRecords}

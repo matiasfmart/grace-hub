@@ -205,6 +205,7 @@ export function MinistryAreaAdminView({
 				<TabsContent value="members">
 					<GroupAdminMembersTab
 						groupType="area"
+						groupName={ministryArea.name}
 						leaderId={ministryArea.leaderId}
 						leaderLabel="Líder"
 						mentorId={ministryArea.mentorId}
@@ -221,6 +222,7 @@ export function MinistryAreaAdminView({
 					<GroupAdminMeetingsTab
 						groupId={ministryArea.id}
 						groupType="ministryArea"
+						groupName={ministryArea.name}
 						meetingSeries={groupMeetingSeries}
 						allMeetings={allMeetings}
 						allAttendanceRecords={allAttendanceRecords}
