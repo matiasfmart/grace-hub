@@ -4,7 +4,7 @@
  * Translates API responses to frontend domain types.
  */
 
-import type { ApiMeetingResponse, ApiCreateMeetingRequest, ApiUpdateMeetingRequest, ApiExpectedAttendeeResponse } from '../types';
+import type { ApiMeetingResponse, ApiMeetingsCountBySeriesResponse, ApiCreateMeetingRequest, ApiUpdateMeetingRequest, ApiExpectedAttendeeResponse } from '../types';
 import type { Meeting, MeetingWriteData, ExpectedAttendee } from '@/lib/types';
 
 /**
@@ -75,4 +75,14 @@ export function mapApiExpectedAttendeeToExpectedAttendee(api: ApiExpectedAttende
  */
 export function mapApiExpectedAttendeesToExpectedAttendees(apiAttendees: ApiExpectedAttendeeResponse[]): ExpectedAttendee[] {
   return apiAttendees.map(mapApiExpectedAttendeeToExpectedAttendee);
+}
+
+/**
+ * Maps API meetings count-by-series array to a Record<seriesId, count>.
+ * Keyed by seriesId string for O(1) lookup in components.
+ */
+export function mapApiMeetingsCountBySeries(
+  data: ApiMeetingsCountBySeriesResponse[]
+): Record<string, number> {
+  return Object.fromEntries(data.map((d) => [String(d.seriesId), d.count]));
 }

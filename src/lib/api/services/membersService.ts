@@ -12,8 +12,10 @@ import {
   mapApiMembersToMembers,
   mapMemberToApiCreateRequest,
   mapMemberToApiUpdateRequest,
+  mapApiMemberCount,
+  mapApiMemberRoleSummary,
 } from '../mappers';
-import type { Member, MemberWriteData } from '@/lib/types';
+import type { Member, MemberWriteData, MemberRoleSummary } from '@/lib/types';
 
 export const membersService = {
   /**
@@ -84,6 +86,22 @@ export const membersService = {
    */
   async removeRoleType(memberId: string, roleTypeId: number): Promise<void> {
     await membersEndpoint.removeRoleType(Number(memberId), roleTypeId);
+  },
+
+  /**
+   * Get total count of active members.
+   */
+  async getMemberCount(): Promise<number> {
+    const data = await membersEndpoint.getCount();
+    return mapApiMemberCount(data);
+  },
+
+  /**
+   * Get role summary (gdi guides/mentors, area leaders/mentors).
+   */
+  async getMemberRoleSummary(): Promise<MemberRoleSummary> {
+    const data = await membersEndpoint.getRoleSummary();
+    return mapApiMemberRoleSummary(data);
   },
 };
 
@@ -193,3 +211,16 @@ export async function getAllMembers(
 }
 
 export default membersService;
+/**
+ * Get total count of active members.
+ */
+export async function getMemberCount(): Promise<number> {
+  return membersService.getMemberCount();
+}
+
+/**
+ * Get role summary (gdi guides/mentors, area leaders/mentors).
+ */
+export async function getMemberRoleSummary(): Promise<MemberRoleSummary> {
+  return membersService.getMemberRoleSummary();
+}

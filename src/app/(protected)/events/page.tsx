@@ -45,13 +45,13 @@ import {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
-	getAllAttendanceRecords,
-	getAllGdis,
-	getAllMeetings,
-	getAllMeetingSeries,
+	getCachedAllAttendanceRecords,
+	getCachedAllGdis,
+	getCachedAllMeetings,
+	getCachedAllMeetingSeries,
 	getFilteredMeetingInstances,
-	getAllMembersNonPaginated,
-	getAllMinistryAreas,
+	getCachedAllMembersNonPaginated,
+	getCachedAllMinistryAreas,
 } from "@/lib/api/services";
 
 export const dynamic = "force-dynamic";
@@ -231,12 +231,12 @@ async function getEventsPageData(
 		allAttendanceRecordsData,
 		allMeetingsData,
 	] = await Promise.all([
-		getAllMeetingSeries(),
-		getAllMembersNonPaginated(),
-		getAllGdis(),
-		getAllMinistryAreas(),
-		getAllAttendanceRecords(),
-		getAllMeetings(),
+		getCachedAllMeetingSeries(),
+		getCachedAllMembersNonPaginated(),
+		getCachedAllGdis(),
+		getCachedAllMinistryAreas(),
+		getCachedAllAttendanceRecords(),
+		getCachedAllMeetings(),
 	]);
 
 	// Calculate meetings count by series

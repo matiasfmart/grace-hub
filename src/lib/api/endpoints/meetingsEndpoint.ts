@@ -7,6 +7,7 @@
 import { apiClient } from '../client';
 import type {
   ApiMeetingResponse,
+  ApiMeetingsCountBySeriesResponse,
   ApiCreateMeetingRequest,
   ApiUpdateMeetingRequest,
   ApiExpectedAttendeeResponse,
@@ -80,5 +81,13 @@ export const meetingsEndpoint = {
    */
   async getExpectedAttendees(meetingId: number): Promise<ApiExpectedAttendeeResponse[]> {
     return apiClient.get<ApiExpectedAttendeeResponse[]>(`${ENDPOINT}/${meetingId}/expected-attendees`);
+  },
+
+  /**
+   * Get meeting count grouped by series.
+   * Uses GET /meetings/count-by-series
+   */
+  async getCountBySeries(): Promise<ApiMeetingsCountBySeriesResponse[]> {
+    return apiClient.get<ApiMeetingsCountBySeriesResponse[]>(`${ENDPOINT}/count-by-series`);
   },
 };

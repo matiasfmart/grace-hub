@@ -2,11 +2,11 @@ export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
 import {
-	getAllAttendanceRecords,
-	getAllGdis,
+	getCachedAllAttendanceRecords,
+	getCachedAllGdis,
 	getGdiById,
 	getSeriesForGroup,
-	getAllMembersNonPaginated,
+	getCachedAllMembersNonPaginated,
 	getMeetingsForGroupWithAttendees,
 } from "@/lib/api/services";
 import { GdiAdminView } from "./GdiAdminView";
@@ -28,9 +28,9 @@ export default async function GdiAdminPage({ params }: PageProps) {
 		groupSeriesData,
 		gdiMeetingsData,
 	] = await Promise.all([
-		getAllMembersNonPaginated(),
-		getAllGdis(),
-		getAllAttendanceRecords(),
+		getCachedAllMembersNonPaginated(),
+		getCachedAllGdis(),
+		getCachedAllAttendanceRecords(),
 		getSeriesForGroup("gdi", gdiId),
 		getMeetingsForGroupWithAttendees("gdi", gdiId),
 	]);

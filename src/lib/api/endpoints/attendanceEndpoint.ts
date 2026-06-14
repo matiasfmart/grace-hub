@@ -7,6 +7,7 @@
 import { apiClient } from '../client';
 import type {
   ApiAttendanceResponse,
+  ApiAttendanceStatsResponse,
   ApiCreateAttendanceRequest,
   ApiUpdateAttendanceRequest,
 } from '../types';
@@ -74,6 +75,17 @@ export const attendanceEndpoint = {
     return apiClient.post<ApiAttendanceResponse[]>(
       `${ENDPOINT}/meeting/${meetingId}`,
       { attendances }
+    );
+  },
+
+  /**
+   * Get attendance stats (present/absent/total) for a list of meetings.
+   * Uses GET /attendance/stats?meetingIds=1,2,3
+   */
+  async getStats(meetingIds: number[]): Promise<ApiAttendanceStatsResponse[]> {
+    const param = meetingIds.join(',');
+    return apiClient.get<ApiAttendanceStatsResponse[]>(
+      `${ENDPOINT}/stats?meetingIds=${param}`
     );
   },
 };

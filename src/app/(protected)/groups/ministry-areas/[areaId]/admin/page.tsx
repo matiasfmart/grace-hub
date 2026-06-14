@@ -2,11 +2,11 @@ export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
 import {
-	getAllAttendanceRecords,
+	getCachedAllAttendanceRecords,
 	getSeriesForGroup,
-	getAllMembersNonPaginated,
+	getCachedAllMembersNonPaginated,
 	getMinistryAreaById,
-	getAllMinistryAreas,
+	getCachedAllMinistryAreas,
 	getMeetingsForGroupWithAttendees,
 } from "@/lib/api/services";
 import { MinistryAreaAdminView } from "./MinistryAreaAdminView";
@@ -23,10 +23,10 @@ export default async function MinistryAreaAdminPage({ params }: PageProps) {
 
 	const [allMembersData, allAttendanceRecordsData, groupSeriesData, allAreasData, areaMeetingsData] =
 		await Promise.all([
-			getAllMembersNonPaginated(),
-			getAllAttendanceRecords(),
+			getCachedAllMembersNonPaginated(),
+			getCachedAllAttendanceRecords(),
 			getSeriesForGroup("ministryArea", areaId),
-			getAllMinistryAreas(),
+			getCachedAllMinistryAreas(),
 			getMeetingsForGroupWithAttendees("ministryArea", areaId),
 		]);
 

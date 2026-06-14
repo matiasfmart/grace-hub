@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { invalidateCacheByTag } from "@/lib/api/services";
 import type { Member, MemberWriteData } from "@/lib/types";
 import type { RoleType } from "@/lib/api/mappers";
 import {
@@ -38,6 +39,7 @@ export async function addSingleMemberAction(
 
 		revalidatePath("/members");
 		revalidatePath("/groups");
+		invalidateCacheByTag("members");
 		if (newMember.assignedAreaIds) {
 			newMember.assignedAreaIds.forEach((areaId) => {
 				revalidatePath(`/groups/ministry-areas/${areaId}/manage`);
@@ -117,6 +119,7 @@ export async function updateMemberAction(
 
 		revalidatePath("/members");
 		revalidatePath("/groups");
+		invalidateCacheByTag("members");
 		const allPotentiallyAffectedAreaIds = new Set([
 			...(originalMemberData.assignedAreaIds || []),
 			...(memberToUpdate.assignedAreaIds || []),
@@ -158,6 +161,7 @@ export async function softDeleteMemberAction(
 		const member = await updateMember(memberId, { status: "eliminado" });
 		revalidatePath("/members");
 		revalidatePath("/groups");
+		invalidateCacheByTag("members");
 		return {
 			success: true,
 			message: `${member.firstName} ${member.lastName} fue dado de baja.`,
@@ -178,6 +182,7 @@ export async function restoreMemberAction(
 		const member = await updateMember(memberId, { status: "vigente" });
 		revalidatePath("/members");
 		revalidatePath("/groups");
+		invalidateCacheByTag("members");
 		return {
 			success: true,
 			message: `${member.firstName} ${member.lastName} fue restaurado exitosamente.`,
@@ -208,6 +213,7 @@ export async function deleteMemberAction(
 
 		revalidatePath("/members");
 		revalidatePath("/groups");
+		invalidateCacheByTag("members");
 		if (deletedMember.assignedGDIId)
 			revalidatePath(`/groups/gdis/${deletedMember.assignedGDIId}/admin`);
 		deletedMember.assignedAreaIds?.forEach((areaId) =>
@@ -255,6 +261,7 @@ export async function addBulkMembersAction(
 		revalidatePath("/members");
 		revalidatePath("/members/bulk-add");
 		revalidatePath("/groups");
+		invalidateCacheByTag("members");
 
 		return {
 			success: true,
@@ -280,6 +287,7 @@ export async function assignEcclesiasticalRoleAction(
 	try {
 		await membersService.assignRoleType(memberId, roleTypeId);
 		revalidatePath("/members");
+		invalidateCacheByTag("members");
 		return { success: true, message: "Etiqueta asignada." };
 	} catch (error: any) {
 		return { success: false, message: `Error al asignar etiqueta: ${error.message}` };
@@ -297,6 +305,7 @@ export async function removeEcclesiasticalRoleAction(
 	try {
 		await membersService.removeRoleType(memberId, roleTypeId);
 		revalidatePath("/members");
+		invalidateCacheByTag("members");
 		return { success: true, message: "Etiqueta quitada." };
 	} catch (error: any) {
 		return { success: false, message: `Error al quitar etiqueta: ${error.message}` };

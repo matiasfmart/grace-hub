@@ -16,11 +16,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import {
-	getAllAttendanceRecords,
-	getAllGdis,
-	getAllMeetingSeries,
-	getAllMeetings,
-	getAllMembersNonPaginated,
+	getCachedAllMeetings,
+	getCachedAllMeetingSeries,
+	getCachedAllMembersNonPaginated,
+	getCachedAllGdis,
+	getCachedAllAttendanceRecords,
 	prospectsService,
 } from "@/lib/api/services";
 
@@ -36,11 +36,11 @@ async function getDashboardData() {
 		allGdisData,
 		pendingProspectsCount,
 	] = await Promise.all([
-		getAllMeetings(),
-		getAllMembersNonPaginated(),
-		getAllAttendanceRecords(),
-		getAllMeetingSeries(),
-		getAllGdis(),
+		getCachedAllMeetings(),
+		getCachedAllMembersNonPaginated(),
+		getCachedAllAttendanceRecords(),
+		getCachedAllMeetingSeries(),
+		getCachedAllGdis(),
 		prospectsService.countPending(),
 	]);
 

@@ -6,10 +6,10 @@ import {
 	NO_ROLE_FILTER_VALUE,
 } from "@/lib/types";
 import {
-	getAllGdis,
+	getCachedAllGdis,
 	getAllMembers,
-	getAllMembersNonPaginated,
-	getAllMinistryAreas,
+	getCachedAllMembersNonPaginated,
+	getCachedAllMinistryAreas,
 	getAllTitheRecords,
 } from "@/lib/api/services";
 import { PageHeader } from "@/components/ui/page-header";
@@ -95,9 +95,9 @@ async function getTithesPageData(searchParams: {
 			currentGdiFiltersArray,
 			currentAreaFiltersArray,
 		),
-		getAllMembersNonPaginated(),
-		getAllGdis(),
-		getAllMinistryAreas(),
+		getCachedAllMembersNonPaginated(),
+		getCachedAllGdis(),
+		getCachedAllMinistryAreas(),
 		getAllTitheRecords(),
 	]);
 

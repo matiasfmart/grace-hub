@@ -6,8 +6,8 @@
  * If backend changes, only this file needs to update.
  */
 
-import type { ApiMemberResponse, ApiCreateMemberRequest, ApiUpdateMemberRequest, ApiMemberRoleType } from '../types';
-import type { Member, MemberWriteData, MemberRoleType, EcclesiasticalRole } from '@/lib/types';
+import type { ApiMemberResponse, ApiMemberCountResponse, ApiMemberRoleSummaryResponse, ApiCreateMemberRequest, ApiUpdateMemberRequest, ApiMemberRoleType } from '../types';
+import type { Member, MemberWriteData, MemberRoleType, EcclesiasticalRole, MemberRoleSummary } from '@/lib/types';
 
 /**
  * Maps backend role types to frontend role types
@@ -119,4 +119,24 @@ export function mapMemberToApiUpdateRequest(member: Partial<MemberWriteData>): A
   if (member.address !== undefined) request.address = member.address;
 
   return request;
+}
+
+
+/**
+ * Maps API member count response to a plain number.
+ */
+export function mapApiMemberCount(data: ApiMemberCountResponse): number {
+  return data.total;
+}
+
+/**
+ * Maps API member role summary response to frontend MemberRoleSummary.
+ */
+export function mapApiMemberRoleSummary(data: ApiMemberRoleSummaryResponse): MemberRoleSummary {
+  return {
+    gdiGuides: data.gdiGuides,
+    gdiMentors: data.gdiMentors,
+    areaLeaders: data.areaLeaders,
+    areaMentors: data.areaMentors,
+  };
 }

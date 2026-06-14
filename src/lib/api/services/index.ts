@@ -29,6 +29,8 @@ export {
   updateMember,
   deleteMember,
   addMember,
+  getMemberCount,
+  getMemberRoleSummary,
 } from './membersService';
 
 // GDIs
@@ -69,6 +71,7 @@ export {
   getExpectedAttendees,
   cancelSeriesDate,
   restoreSeriesDate,
+  getMeetingsCountBySeries,
 } from './meetingsService';
 
 // Attendance
@@ -77,6 +80,7 @@ export {
   getAttendanceForMeeting,
   saveAttendanceForMeeting,
   saveMeetingAttendance,
+  getStatsByMeetings,
 } from './attendanceService';
 
 // Tithes
@@ -106,3 +110,22 @@ export {
   deleteMeetingInstanceForGroup,
   getMeetingsForGroupWithAttendees,
 } from './groupMeetingsService';
+
+// ==============================================
+// CACHED SERVICES (unstable_cache wrappers)
+// Immune to force-dynamic — cache at Node.js process level.
+// Use these in Server Components for automatic caching + tag-based invalidation.
+// ==============================================
+export {
+  getCachedAllMeetings,
+  getCachedAllMeetingSeries,
+  getCachedMeetingsCountBySeries,
+  getCachedAllMembersNonPaginated,
+  getCachedMemberCount,
+  getCachedMemberRoleSummary,
+  getCachedAllGdis,
+  getCachedAllMinistryAreas,
+  getCachedAllAttendanceRecords,
+  getCachedAttendanceStatsByMeetings,
+  invalidateCacheByTag,
+} from './cached-services';

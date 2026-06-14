@@ -10,8 +10,9 @@ import {
   mapApiAttendancesToAttendanceRecords,
   mapAttendanceRecordToApiCreateRequest,
   mapAttendanceRecordToApiUpdateRequest,
+  mapApiAttendanceStats,
 } from '../mappers';
-import type { AttendanceRecord, AttendanceRecordWriteData } from '@/lib/types';
+import type { AttendanceRecord, AttendanceRecordWriteData, AttendanceMeetingStats } from '@/lib/types';
 
 export const attendanceService = {
   /**
@@ -119,6 +120,16 @@ export const attendanceService = {
 
     return { total, present, absent, rate };
   },
+
+  /**
+   * Get attendance stats (present/absent/total) for a list of meeting IDs.
+   * More efficient than fetching full attendance records.
+   */
+  async getStatsByMeetings(meetingIds: string[]): Promise<AttendanceMeetingStats[]> {
+    const ids = meetingIds.map(Number);
+    const apiStats = await attendanceEndpoint.getStats(ids);
+    return mapApiAttendanceStats(apiStats);
+  },
 };
 
 // ==============================================
@@ -157,6 +168,13 @@ export async function saveMeetingAttendance(
   memberAttendances: Array<{ memberId: string; attended: boolean; notes?: string }>
 ): Promise<void> {
   await attendanceService.bulkCreate(meetingId, memberAttendances);
+}
+
+/**
+ * Get attendance stats for a list of meeting IDs.
+ */
+export async function getStatsByMeetings(meetingIds: string[]): Promise<AttendanceMeetingStats[]> {
+  return attendanceService.getStatsByMeetings(meetingIds);
 }
 
 export default attendanceService;

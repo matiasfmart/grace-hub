@@ -11,6 +11,8 @@ export {
   mapApiMembersToMembers,
   mapMemberToApiCreateRequest,
   mapMemberToApiUpdateRequest,
+  mapApiMemberCount,
+  mapApiMemberRoleSummary,
 } from './memberMapper';
 
 // GDI mappers
@@ -43,6 +45,7 @@ export {
   mapMeetingToApiUpdateRequest,
   mapApiExpectedAttendeeToExpectedAttendee,
   mapApiExpectedAttendeesToExpectedAttendees,
+  mapApiMeetingsCountBySeries,
 } from './meetingMapper';
 
 // Attendance mappers
@@ -52,6 +55,7 @@ export {
   mapAttendanceRecordToApiCreateRequest,
   mapAttendanceRecordToApiUpdateRequest,
   mapBulkAttendanceToApiRequests,
+  mapApiAttendanceStats,
 } from './attendanceMapper';
 
 // Tithe mappers

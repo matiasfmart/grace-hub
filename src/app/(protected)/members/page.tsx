@@ -14,13 +14,13 @@ import BajasTabContent from "@/components/members/bajas-tab-content";
 import ProspectsTabContent from "@/components/prospects/prospects-tab-content";
 import { Button } from "@/components/ui/button";
 import {
-	getAllAttendanceRecords,
-	getAllGdis,
-	getAllMeetingSeries,
-	getAllMeetings,
+	getCachedAllAttendanceRecords,
+	getCachedAllGdis,
+	getCachedAllMeetingSeries,
+	getCachedAllMeetings,
+	getCachedAllMembersNonPaginated,
+	getCachedAllMinistryAreas,
 	getAllMembers,
-	getAllMembersNonPaginated,
-	getAllMinistryAreas,
 	getAllRoleTypes,
 	prospectsService,
 } from "@/lib/api/services";
@@ -173,12 +173,12 @@ async function getMembersPageData(
 			sortOrder,
 			ecclesiasticalRoleTypeIds,
 		),
-		getAllMembersNonPaginated(),
-		getAllGdis(),
-		getAllMinistryAreas(),
-		getAllMeetings(),
-		getAllMeetingSeries(),
-		getAllAttendanceRecords(),
+		getCachedAllMembersNonPaginated(),
+		getCachedAllGdis(),
+		getCachedAllMinistryAreas(),
+		getCachedAllMeetings(),
+		getCachedAllMeetingSeries(),
+		getCachedAllAttendanceRecords(),
 		getAllRoleTypes(),
 	]);
 	const absoluteTotalMembers = allMembersForDropdowns.length;
@@ -353,8 +353,8 @@ export default async function MembersPage({
 	if (activeTab === "nuevos") {
 		const [pendingProspects, allGDIsData, allMembersData, pendingCount] = await Promise.all([
 			prospectsService.getPending(),
-			getAllGdis(),
-			getAllMembersNonPaginated(),
+			getCachedAllGdis(),
+			getCachedAllMembersNonPaginated(),
 			prospectsService.countPending(),
 		]);
 		return (
@@ -377,10 +377,10 @@ export default async function MembersPage({
 	if (activeTab === "bajas") {
 		const [allMembersData, allAttendanceData, allMeetingsData, allGDIsData, pendingCount] =
 			await Promise.all([
-				getAllMembersNonPaginated(),
-				getAllAttendanceRecords(),
-				getAllMeetings(),
-				getAllGdis(),
+				getCachedAllMembersNonPaginated(),
+				getCachedAllAttendanceRecords(),
+				getCachedAllMeetings(),
+				getCachedAllGdis(),
 				prospectsService.countPending(),
 			]);
 		const eliminadosMembers = allMembersData.filter((m) => m.status === "eliminado");

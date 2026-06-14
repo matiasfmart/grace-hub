@@ -506,3 +506,29 @@ export interface Prospect {
 	createdAt: string;
 	updatedAt: string;
 }
+
+// ============================================
+// AGGREGATION TYPES (performance endpoints)
+// ============================================
+
+/**
+ * Aggregated attendance stats for a single meeting.
+ * Returned by GET /attendance/stats — avoids fetching full attendance table.
+ */
+export interface AttendanceMeetingStats {
+  meetingId: string;
+  presentCount: number;
+  absentCount: number;
+  totalExpected: number;
+}
+
+/**
+ * Role-based member count summary for dashboard charts.
+ * Returned by GET /members/role-summary.
+ */
+export interface MemberRoleSummary {
+  gdiGuides: number;
+  gdiMentors: number;
+  areaLeaders: number;
+  areaMentors: number;
+}

@@ -508,6 +508,33 @@ export interface ApiProspectCountResponse {
 }
 
 // ==============================================
+// API AGGREGATION RESPONSES (performance endpoints)
+// ==============================================
+
+export interface ApiAttendanceStatsResponse {
+  meetingId: number;
+  presentCount: number;
+  absentCount: number;
+  totalExpected: number;
+}
+
+export interface ApiMeetingsCountBySeriesResponse {
+  seriesId: number;
+  count: number;
+}
+
+export interface ApiMemberCountResponse {
+  total: number;
+}
+
+export interface ApiMemberRoleSummaryResponse {
+  gdiGuides: number;
+  gdiMentors: number;
+  areaLeaders: number;
+  areaMentors: number;
+}
+
+// ==============================================
 // API ERROR RESPONSE
 // ==============================================
 

@@ -8,9 +8,9 @@ import ManageGroupsTabs from "@/components/groups/manage-groups-tabs";
 import { PageHeader } from "@/components/ui/page-header";
 import type { GDI, Member, MinistryArea } from "@/lib/types";
 import {
-	getAllGdis,
-	getAllMembersNonPaginated,
-	getAllMinistryAreas,
+	getCachedAllGdis,
+	getCachedAllMembersNonPaginated,
+	getCachedAllMinistryAreas,
 } from "@/lib/api/services";
 
 export const dynamic = "force-dynamic";
@@ -22,9 +22,9 @@ async function getGroupsData(): Promise<{
 	members: Member[];
 }> {
 	const [ministryAreas, gdis, members] = await Promise.all([
-		getAllMinistryAreas(),
-		getAllGdis(),
-		getAllMembersNonPaginated(),
+		getCachedAllMinistryAreas(),
+		getCachedAllGdis(),
+		getCachedAllMembersNonPaginated(),
 	]);
 	return { ministryAreas, gdis, members };
 }

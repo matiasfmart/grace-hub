@@ -16,6 +16,7 @@ import {
   mapMeetingSeriesFormToApiCreateRequest,
   mapMeetingSeriesToApiUpdateRequest,
   mapApiExpectedAttendeesToExpectedAttendees,
+  mapApiMeetingsCountBySeries,
 } from '../mappers';
 import type { Meeting, MeetingWriteData, MeetingSeriesType, MeetingSeries, MeetingSeriesWriteData, AudienceType, AudienceConfig, ExpectedAttendee } from '@/lib/types';
 
@@ -132,6 +133,15 @@ export const meetingsService = {
   async restoreSeriesDate(seriesId: string, date: string): Promise<MeetingSeries> {
     const apiSeries = await meetingSeriesEndpoint.restoreDate(Number(seriesId), date);
     return mapApiMeetingSeriesToMeetingSeries(apiSeries);
+  },
+
+  /**
+   * Get meeting count grouped by series.
+   * Returns a Record<seriesId, count> for O(1) lookup.
+   */
+  async getMeetingsCountBySeries(): Promise<Record<string, number>> {
+    const data = await meetingsEndpoint.getCountBySeries();
+    return mapApiMeetingsCountBySeries(data);
   },
 };
 
@@ -338,6 +348,13 @@ export async function cancelSeriesDate(seriesId: string, date: string): Promise<
  */
 export async function restoreSeriesDate(seriesId: string, date: string): Promise<MeetingSeries> {
   return meetingsService.restoreSeriesDate(seriesId, date);
+}
+
+/**
+ * Get meeting count grouped by series (Record<seriesId, count>).
+ */
+export async function getMeetingsCountBySeries(): Promise<Record<string, number>> {
+  return meetingsService.getMeetingsCountBySeries();
 }
 
 export default meetingsService;

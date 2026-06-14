@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { invalidateCacheByTag } from "@/lib/api/services";
 import type {
 	GDI,
 	GDIWriteData,
@@ -38,6 +39,8 @@ export async function addMinistryAreaActionSvc(
 
 		revalidatePath("/groups");
 		revalidatePath(`/members`);
+		invalidateCacheByTag("ministry-areas");
+		invalidateCacheByTag("members");
 		return {
 			success: true,
 			message: `Área Ministerial "${newArea.name}" agregada exitosamente. Roles actualizados.`,
@@ -71,6 +74,8 @@ export async function addGdiActionSvc(
 
 		revalidatePath("/groups");
 		revalidatePath(`/members`);
+		invalidateCacheByTag("gdis");
+		invalidateCacheByTag("members");
 		return {
 			success: true,
 			message: `GDI "${newGdi.name}" agregado exitosamente. Roles actualizados.`,
@@ -89,6 +94,8 @@ export async function deleteGdiActionSvc(
 		await deleteGdiService(gdiId);
 		revalidatePath("/groups");
 		revalidatePath("/members");
+		invalidateCacheByTag("gdis");
+		invalidateCacheByTag("members");
 		const allGdis = await getAllGdis();
 		allGdis.forEach((gdi) => revalidatePath(`/groups/gdis/${gdi.id}/admin`));
 
@@ -112,6 +119,8 @@ export async function deleteMinistryAreaActionSvc(
 		await deleteMinistryAreaService(areaId);
 		revalidatePath("/groups");
 		revalidatePath("/members");
+		invalidateCacheByTag("ministry-areas");
+		invalidateCacheByTag("members");
 		const allAreas = await getAllMinistryAreas();
 		allAreas.forEach((area) =>
 			revalidatePath(`/groups/ministry-areas/${area.id}/admin`),

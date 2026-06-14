@@ -8,6 +8,8 @@
 import { apiClient } from '../client';
 import type {
   ApiMemberResponse,
+  ApiMemberCountResponse,
+  ApiMemberRoleSummaryResponse,
   ApiCreateMemberRequest,
   ApiUpdateMemberRequest,
   ApiPaginatedMembersResponse,
@@ -98,6 +100,22 @@ export const membersEndpoint = {
    */
   async removeRoleType(memberId: number, roleTypeId: number): Promise<void> {
     return apiClient.delete(`${ENDPOINT}/${memberId}/role-types/${roleTypeId}`);
+  },
+
+  /**
+   * Get total count of active members.
+   * Uses GET /members/count
+   */
+  async getCount(): Promise<ApiMemberCountResponse> {
+    return apiClient.get<ApiMemberCountResponse>(`${ENDPOINT}/count`);
+  },
+
+  /**
+   * Get role summary (gdi guides/mentors, area leaders/mentors).
+   * Uses GET /members/role-summary
+   */
+  async getRoleSummary(): Promise<ApiMemberRoleSummaryResponse> {
+    return apiClient.get<ApiMemberRoleSummaryResponse>(`${ENDPOINT}/role-summary`);
   },
 };
 

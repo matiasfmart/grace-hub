@@ -4,8 +4,8 @@
  * Translates API responses to frontend domain types.
  */
 
-import type { ApiAttendanceResponse, ApiCreateAttendanceRequest, ApiUpdateAttendanceRequest } from '../types';
-import type { AttendanceRecord, AttendanceRecordWriteData } from '@/lib/types';
+import type { ApiAttendanceResponse, ApiAttendanceStatsResponse, ApiCreateAttendanceRequest, ApiUpdateAttendanceRequest } from '../types';
+import type { AttendanceRecord, AttendanceRecordWriteData, AttendanceMeetingStats } from '@/lib/types';
 
 /**
  * Maps API Attendance response to frontend AttendanceRecord type
@@ -60,5 +60,19 @@ export function mapBulkAttendanceToApiRequests(
     meetingId: Number(meetingId),
     memberId: Number(memberId),
     wasPresent: attended,
+  }));
+}
+
+/**
+ * Maps API attendance stats array to frontend AttendanceMeetingStats array.
+ */
+export function mapApiAttendanceStats(
+  stats: ApiAttendanceStatsResponse[]
+): AttendanceMeetingStats[] {
+  return stats.map((s) => ({
+    meetingId: String(s.meetingId),
+    presentCount: s.presentCount,
+    absentCount: s.absentCount,
+    totalExpected: s.totalExpected,
   }));
 }

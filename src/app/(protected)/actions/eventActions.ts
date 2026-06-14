@@ -3,6 +3,7 @@
 import { format, isValid, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { revalidatePath } from "next/cache";
+import { invalidateCacheByTag } from "@/lib/api/services";
 import type {
 	AddOccasionalMeetingFormValues,
 	DefineMeetingSeriesFormValues,
@@ -45,6 +46,8 @@ export async function defineMeetingSeriesAction(
 		const result = await addMeetingSeries(dataForService);
 
 		revalidatePath("/events");
+		invalidateCacheByTag("meeting-series");
+		invalidateCacheByTag("meetings");
 		let message = `Serie de reuniones "${result.series.name}" agregada exitosamente.`;
 		if (result.newInstances && result.newInstances.length > 0) {
 			message += ` ${result.newInstances.length} instancia(s) inicial(es) creada(s).`;
@@ -110,6 +113,8 @@ export async function updateMeetingSeriesAction(
 		};
 		const result = await updateMeetingSeries(seriesId, seriesToWrite);
 		revalidatePath("/events");
+		invalidateCacheByTag("meeting-series");
+		invalidateCacheByTag("meetings");
 		let message = `Serie de reuniones "${result.updatedSeries.name}" actualizada exitosamente.`;
 		if (
 			result.newlyGeneratedInstances &&
@@ -138,6 +143,9 @@ export async function deleteMeetingSeriesAction(
 	try {
 		await deleteMeetingSeries(seriesId);
 		revalidatePath("/events");
+		invalidateCacheByTag("meeting-series");
+		invalidateCacheByTag("meetings");
+		invalidateCacheByTag("attendance");
 		return {
 			success: true,
 			message:
@@ -165,6 +173,7 @@ export async function addOccasionalMeetingAction(
 			description: formData.description,
 		});
 		revalidatePath("/events");
+		invalidateCacheByTag("meetings");
 		return {
 			success: true,
 			message: `Instancia ocasional "${newInstance.name}" agregada exitosamente.`,
