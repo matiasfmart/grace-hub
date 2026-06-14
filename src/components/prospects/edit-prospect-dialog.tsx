@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Eye, Pencil, Phone, CalendarDays, StickyNote, User } from "lucide-react";
+import { Eye, Pencil, Phone, CalendarDays, StickyNote, User, BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,9 +14,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { updateProspectAction } from "@/app/(protected)/actions/prospectActions";
-import type { Prospect } from "@/lib/types";
+import { updateProspectAction, getMeetingSeriesForProspectAction } from "@/app/(protected)/actions/prospectActions";
+import { nowLocalISO, formatProspectVisitDate } from "@/lib/utils/date";
+import type { MeetingSeries, Prospect } from "@/lib/types";
 
 interface EditProspectDialogProps {
 	prospect: Prospect | null;
@@ -26,25 +34,6 @@ interface EditProspectDialogProps {
 	onUpdated?: (updated: Prospect) => void;
 	/** When true the dialog is a read-only detail view (no save). */
 	readOnly?: boolean;
-}
-
-function todayISO(): string {
-	const now = new Date();
-	const y = now.getFullYear();
-	const m = String(now.getMonth() + 1).padStart(2, "0");
-	const d = String(now.getDate()).padStart(2, "0");
-	return `${y}-${m}-${d}`;
-}
-
-function formatVisitDate(dateStr: string): string {
-	const [year, month, day] = dateStr.split("-").map(Number);
-	const date = new Date(year, month - 1, day);
-	return date.toLocaleDateString("es-ES", {
-		weekday: "long",
-		day: "numeric",
-		month: "long",
-		year: "numeric",
-	});
 }
 
 export default function EditProspectDialog({
@@ -69,13 +58,31 @@ export default function EditProspectDialog({
 		visitDate?: string;
 	}>({});
 
+	// Meeting series state
+	const [meetingSeriesId, setMeetingSeriesId] = useState<string>("");
+	const [allSeries, setAllSeries] = useState<MeetingSeries[]>([]);
+	const [seriesLoaded, setSeriesLoaded] = useState(false);
+
+	// Load series on first open (only once)
+	useEffect(() => {
+		if (!isOpen || readOnly || seriesLoaded) return;
+		getMeetingSeriesForProspectAction().then((res) => {
+			if (res.success) setAllSeries(res.series ?? []);
+			setSeriesLoaded(true);
+		}).catch(() => setSeriesLoaded(true));
+	}, [isOpen, readOnly, seriesLoaded]);
+
 	useEffect(() => {
 		if (isOpen && prospect) {
 			setFirstName(prospect.firstName);
 			setLastName(prospect.lastName);
-			setVisitDate(prospect.visitDate);
+			// Convert legacy YYYY-MM-DD to datetime-local format for the input
+			const rawDate = prospect.visitDate ?? "";
+			const isPlain = /^\d{4}-\d{2}-\d{2}$/.test(rawDate);
+			setVisitDate(isPlain ? `${rawDate}T00:00` : rawDate.slice(0, 16));
 			setContact(prospect.contact ?? "");
 			setNotes(prospect.notes ?? "");
+			setMeetingSeriesId(prospect.meetingSeriesId ?? "");
 			setErrors({});
 			if (!readOnly) setTimeout(() => firstNameRef.current?.focus(), 80);
 		}
@@ -101,6 +108,7 @@ export default function EditProspectDialog({
 				visitDate,
 				contact: contact.trim() || undefined,
 				notes: notes.trim() || undefined,
+				meetingSeriesId: meetingSeriesId || undefined,
 			});
 
 			if (result.success && result.prospect) {
@@ -220,21 +228,26 @@ export default function EditProspectDialog({
 					<div className="space-y-1.5">
 						<Label htmlFor="ep-visitDate" className="text-sm font-medium flex items-center gap-1.5">
 							<CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-							Fecha de visita {!readOnly && <span className="text-destructive">*</span>}
+							Fecha y hora de visita {!readOnly && <span className="text-destructive">*</span>}
 						</Label>
 						{readOnly ? (
-							<p className="text-sm px-1 py-1.5">{visitDate ? formatVisitDate(visitDate) : "—"}</p>
+							<div className="flex flex-col gap-0.5 px-1 py-1.5">
+								<p className="text-sm">{visitDate ? formatProspectVisitDate(prospect?.visitDate ?? "") : "—"}</p>
+								{prospect?.meetingSeriesName && (
+									<p className="text-xs text-muted-foreground">{prospect.meetingSeriesName}</p>
+								)}
+							</div>
 						) : (
 							<>
 								<Input
 									id="ep-visitDate"
-									type="date"
+									type="datetime-local"
 									value={visitDate}
 									onChange={(e) => {
 										setVisitDate(e.target.value);
 										if (errors.visitDate) setErrors((p) => ({ ...p, visitDate: undefined }));
 									}}
-									max={todayISO()}
+									max={nowLocalISO()}
 									disabled={isPending}
 									className={errors.visitDate ? "border-destructive focus-visible:ring-destructive" : ""}
 								/>
@@ -242,6 +255,30 @@ export default function EditProspectDialog({
 							</>
 						)}
 					</div>
+
+					{/* Serie de reunión */}
+					{!readOnly && (
+						<div className="space-y-1.5">
+							<Label className="text-sm font-medium flex items-center gap-1.5">
+								<BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
+								Reunión
+								<span className="text-xs text-muted-foreground font-normal">(opcional)</span>
+							</Label>
+							<Select value={meetingSeriesId} onValueChange={setMeetingSeriesId} disabled={isPending}>
+								<SelectTrigger>
+									<SelectValue placeholder="Sin especificar" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="">Sin especificar</SelectItem>
+									{allSeries.map((s) => (
+										<SelectItem key={s.id} value={s.id}>
+											{s.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					)}
 
 					{/* Contacto */}
 					<div className="space-y-1.5">

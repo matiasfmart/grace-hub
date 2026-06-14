@@ -2,15 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { prospectsService } from "@/lib/api/services";
-import type { Prospect } from "@/lib/types";
+import { getAllMeetingSeries } from "@/lib/api/services/meetingsService";
+import type { MeetingSeries, Prospect } from "@/lib/types";
 
 export interface CreateProspectInput {
 	firstName: string;
 	lastName: string;
-	visitDate: string; // YYYY-MM-DD
+	visitDate: string; // ISO 8601 datetime
 	contact?: string;
 	notes?: string;
 	addedBy?: number;
+	meetingSeriesId?: string;
 }
 
 export interface UpdateProspectInput {
@@ -19,6 +21,7 @@ export interface UpdateProspectInput {
 	contact?: string;
 	notes?: string;
 	visitDate?: string;
+	meetingSeriesId?: string;
 }
 
 export async function createProspectAction(
@@ -33,6 +36,7 @@ export async function createProspectAction(
 			notes: data.notes?.trim() || undefined,
 			source: "manual",
 			addedBy: data.addedBy,
+			meetingSeriesId: data.meetingSeriesId ? Number(data.meetingSeriesId) : undefined,
 		});
 		revalidatePath("/members");
 		return { success: true, message: "Visitante registrado exitosamente.", prospect };
@@ -79,8 +83,7 @@ export async function updateProspectAction(
 			lastName: data.lastName?.trim(),
 			contact: data.contact?.trim() || undefined,
 			notes: data.notes?.trim() || undefined,
-			visitDate: data.visitDate,
-		});
+			visitDate: data.visitDate,				meetingSeriesId: data.meetingSeriesId ? Number(data.meetingSeriesId) : undefined,		});
 		revalidatePath("/members");
 		return { success: true, message: "Visitante actualizado.", prospect };
 	} catch (error: unknown) {
@@ -115,5 +118,23 @@ export async function archiveProspectAction(
 	} catch (error: unknown) {
 		const msg = error instanceof Error ? error.message : "Error desconocido";
 		return { success: false, message: `Error: ${msg}` };
+	}
+}
+
+/**
+ * Load meeting series for the prospect registration/edit dialogs.
+ * Called on-demand when the dialog opens — not during page render (Regla P-2).
+ */
+export async function getMeetingSeriesForProspectAction(): Promise<{
+	success: boolean;
+	series: MeetingSeries[];
+	message?: string;
+}> {
+	try {
+		const series = await getAllMeetingSeries();
+		return { success: true, series };
+	} catch (error: unknown) {
+		const msg = error instanceof Error ? error.message : "Error al cargar series";
+		return { success: false, series: [], message: msg };
 	}
 }

@@ -1,6 +1,6 @@
 # Grace Hub Frontend - Documentación
 
-> **Última actualización:** 2026-05-01
+> **Última actualización:** 2026-05-03
 
 ## Índice
 
@@ -13,6 +13,9 @@
 ### Arquitectura
 - [FRONTEND_ARCHITECTURE.md](./architecture/FRONTEND_ARCHITECTURE.md) - Arquitectura completa del frontend (incluye sección de autenticación)
 - [ARCHITECTURE_RULES.md](./architecture/ARCHITECTURE_RULES.md) - Reglas por capa
+
+### Propuestas aprobadas
+- [PROPOSAL-001 — Fecha/hora de visita + serie de reunión en Prospectos](./proposals/PROPOSAL-001-visit-datetime-and-meeting-series.md) — Migración `visit_date DATE` → `visit_at TIMESTAMPTZ` + FK opcional `meeting_series_id`
 
 ### Prompts
 - [prompts.md](./prompts/prompts.md) - Prompts para desarrollo con IA

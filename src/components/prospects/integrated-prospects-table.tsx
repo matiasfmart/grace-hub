@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { Eye, UserCheck } from "lucide-react";
 import type { Prospect } from "@/lib/types";
+import { formatProspectVisitDate } from "@/lib/utils/date";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,17 +25,6 @@ import {
 interface IntegratedProspectsTableProps {
 	prospects: Prospect[];
 	onView: (prospect: Prospect) => void;
-}
-
-function formatVisitDate(dateStr: string): string {
-	const [year, month, day] = dateStr.split("-").map(Number);
-	const date = new Date(year, month - 1, day);
-	return date.toLocaleDateString("es-ES", {
-		weekday: "short",
-		day: "numeric",
-		month: "short",
-		year: date.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
-	});
 }
 
 export default function IntegratedProspectsTable({ prospects, onView }: IntegratedProspectsTableProps) {
@@ -110,7 +100,14 @@ export default function IntegratedProspectsTable({ prospects, onView }: Integrat
 
 							{/* Fecha */}
 							<TableCell className="text-sm">
-								{formatVisitDate(prospect.visitDate)}
+								<div className="flex flex-col gap-0.5">
+									<span>{formatProspectVisitDate(prospect.visitDate)}</span>
+									{prospect.meetingSeriesName && (
+										<span className="text-xs text-muted-foreground truncate max-w-[160px]">
+											{prospect.meetingSeriesName}
+										</span>
+									)}
+								</div>
 							</TableCell>
 
 							{/* Agregado por */}

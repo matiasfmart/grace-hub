@@ -122,3 +122,72 @@ export function toApiTimestampString(date: Date | undefined | null): string | un
 export function isValidDate(date: Date | undefined | null): date is Date {
   return date instanceof Date && !isNaN(date.getTime());
 }
+
+/**
+ * Returns the current datetime as a string suitable for <input type="datetime-local">.
+ * Format: "YYYY-MM-DDTHH:MM"
+ */
+export function nowLocalISO(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const mo = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const h = String(now.getHours()).padStart(2, '0');
+  const mi = String(now.getMinutes()).padStart(2, '0');
+  return `${y}-${mo}-${d}T${h}:${mi}`;
+}
+
+/**
+ * Formats a prospect visitDate (ISO 8601 datetime string) for display.
+ *
+ * - New records (with a real timestamp): shows date + time.
+ * - Legacy/migrated records (stored as T00:00:00.000Z or plain YYYY-MM-DD):
+ *   shows only the date — the time is not reliable.
+ *
+ * @param dateStr - ISO 8601 string from the API
+ * @param locale  - Locale for formatting (default: 'es-ES')
+ */
+export function formatProspectVisitDate(dateStr: string, locale = 'es-ES'): string {
+  if (!dateStr) return '—';
+
+  // Legacy plain date string e.g. "2025-04-10"
+  const isPlainDate = /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
+  if (isPlainDate) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString(locale, {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    });
+  }
+
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+
+  // Migrated record: stored as midnight UTC — no reliable time available
+  const isMidnightUTC =
+    date.getUTCHours() === 0 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0;
+
+  if (isMidnightUTC) {
+    return date.toLocaleDateString(locale, {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+      timeZone: 'UTC',
+    });
+  }
+
+  // New record — show date and time in the user's local timezone
+  return date.toLocaleString(locale, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+  });
+}

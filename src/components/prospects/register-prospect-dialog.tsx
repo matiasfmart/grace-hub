@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { UserPlus, Phone, CalendarDays, StickyNote, User } from "lucide-react";
+import { UserPlus, Phone, CalendarDays, StickyNote, User, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -13,9 +13,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { createProspectAction } from "@/app/(protected)/actions/prospectActions";
-import type { Member, Prospect } from "@/lib/types";
+import { createProspectAction, getMeetingSeriesForProspectAction } from "@/app/(protected)/actions/prospectActions";
+import { nowLocalISO } from "@/lib/utils/date";
+import type { Member, MeetingSeries, Prospect } from "@/lib/types";
 
 interface RegisterProspectDialogProps {
 	isOpen: boolean;
@@ -25,11 +33,7 @@ interface RegisterProspectDialogProps {
 }
 
 function todayISO(): string {
-	const now = new Date();
-	const y = now.getFullYear();
-	const m = String(now.getMonth() + 1).padStart(2, "0");
-	const d = String(now.getDate()).padStart(2, "0");
-	return `${y}-${m}-${d}`;
+	return nowLocalISO();
 }
 
 export default function RegisterProspectDialog({
@@ -44,7 +48,7 @@ export default function RegisterProspectDialog({
 
 	const [firstName, setFirstName] = useState("");
 	const [lastName, setLastName] = useState("");
-	const [visitDate, setVisitDate] = useState(todayISO);
+	const [visitDate, setVisitDate] = useState(nowLocalISO);
 	const [contact, setContact] = useState("");
 	const [notes, setNotes] = useState("");
 	const [addedBy, setAddedBy] = useState<string>("");
@@ -52,12 +56,43 @@ export default function RegisterProspectDialog({
 	const [memberSearch, setMemberSearch] = useState<string>("");
 	const [showMemberDropdown, setShowMemberDropdown] = useState(false);
 	const [errors, setErrors] = useState<{ firstName?: string; lastName?: string; visitDate?: string; addedBy?: string }>({});
-	// Reset form when dialog opens
+
+	// Meeting series state — persists across submissions
+	const [meetingSeriesId, setMeetingSeriesId] = useState<string>("");
+	const [allSeries, setAllSeries] = useState<MeetingSeries[]>([]);
+	const [seriesLoaded, setSeriesLoaded] = useState(false);
+
+	// Restore series from localStorage on mount
+	useEffect(() => {
+		try {
+			const savedId = localStorage.getItem("ghw_meeting_series_id");
+			if (savedId) setMeetingSeriesId(savedId);
+		} catch { /* ignore SSR / private mode */ }
+	}, []);
+
+	// Load series on first open
+	useEffect(() => {
+		if (!isOpen || seriesLoaded) return;
+		getMeetingSeriesForProspectAction().then((res) => {
+			if (res.success) setAllSeries(res.series ?? []);
+			setSeriesLoaded(true);
+		}).catch(() => setSeriesLoaded(true));
+	}, [isOpen, seriesLoaded]);
+
+	// Persist series selection to localStorage
+	const handleSeriesChange = (value: string) => {
+		setMeetingSeriesId(value);
+		try {
+			if (value) localStorage.setItem("ghw_meeting_series_id", value);
+			else localStorage.removeItem("ghw_meeting_series_id");
+		} catch { /* ignore */ }
+	};
+	// Reset form when dialog opens (series intentionally NOT reset)
 	useEffect(() => {
 		if (isOpen) {
 			setFirstName("");
 			setLastName("");
-			setVisitDate(todayISO());
+			setVisitDate(nowLocalISO());
 			setContact("");
 			setNotes("");
 			setAddedBy("");
@@ -92,6 +127,7 @@ export default function RegisterProspectDialog({
 				contact: contact.trim() || undefined,
 				notes: notes.trim() || undefined,
 				addedBy: addedBy ? Number(addedBy) : undefined,
+				meetingSeriesId: meetingSeriesId || undefined,
 			// addedByName is display-only, not sent to server
 			});
 
@@ -166,24 +202,42 @@ export default function RegisterProspectDialog({
 					<div className="space-y-1.5">
 						<Label htmlFor="rp-visitDate" className="text-sm font-medium flex items-center gap-1.5">
 							<CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-							Fecha de visita <span className="text-destructive">*</span>
-						</Label>
-						<Input
-							id="rp-visitDate"
-							type="date"
-							value={visitDate}
-							onChange={(e) => { setVisitDate(e.target.value); if (errors.visitDate) setErrors(prev => ({ ...prev, visitDate: undefined })); }}
-							max={todayISO()}
-							disabled={isPending}
-							className={errors.visitDate ? "border-destructive focus-visible:ring-destructive" : ""}
-						/>
-						{errors.visitDate && (
-							<p className="text-xs text-destructive">{errors.visitDate}</p>
-						)}
-					</div>
+						Fecha y hora de visita <span className="text-destructive">*</span>
+					</Label>
+					<Input
+						id="rp-visitDate"
+						type="datetime-local"
+						value={visitDate}
+						onChange={(e) => { setVisitDate(e.target.value); if (errors.visitDate) setErrors(prev => ({ ...prev, visitDate: undefined })); }}
+						max={nowLocalISO()}
+						disabled={isPending}
+						className={errors.visitDate ? "border-destructive focus-visible:ring-destructive" : ""}
+					/>
+					{errors.visitDate && (
+						<p className="text-xs text-destructive">{errors.visitDate}</p>
+					)}
+				</div>
 
-					{/* Contacto */}
-					<div className="space-y-1.5">
+				{/* Serie de reunión */}
+				<div className="space-y-1.5">
+					<Label className="text-sm font-medium flex items-center gap-1.5">
+						<BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
+						Reunión
+						<span className="text-xs text-muted-foreground font-normal">(opcional)</span>
+					</Label>
+					<Select value={meetingSeriesId} onValueChange={handleSeriesChange} disabled={isPending}>
+						<SelectTrigger>
+							<SelectValue placeholder="Sin especificar" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="">Sin especificar</SelectItem>
+							{allSeries.map((s) => (
+								<SelectItem key={s.id} value={s.id}>
+									{s.name}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 						<Label htmlFor="rp-contact" className="text-sm font-medium flex items-center gap-1.5">
 							<Phone className="h-3.5 w-3.5 text-muted-foreground" />
 							Teléfono / Contacto

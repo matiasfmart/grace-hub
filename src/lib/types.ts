@@ -497,7 +497,9 @@ export interface Prospect {
 	source: ProspectSource;
 	addedBy?: number;
 	addedByName?: string;
-	visitDate: string; // YYYY-MM-DD
+	visitDate: string; // ISO 8601 datetime (e.g. "2025-04-27T18:00:00.000Z")
+	meetingSeriesId?: string; // string — consistent with all IDs in the frontend domain
+	meetingSeriesName?: string;
 	notes?: string;
 	status: ProspectStatus;
 	memberId?: string; // present only when status = 'integrated'

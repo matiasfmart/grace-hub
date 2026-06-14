@@ -469,7 +469,9 @@ export interface ApiProspectResponse {
   source: ApiProspectSource;
   addedBy?: number;
   addedByName?: string;
-  visitDate: string; // YYYY-MM-DD
+  visitDate: string; // ISO 8601 datetime (e.g. "2025-04-27T18:00:00.000Z")
+  meetingSeriesId?: number;
+  meetingSeriesName?: string;
   notes?: string;
   status: ApiProspectStatus;
   memberId?: number;
@@ -480,11 +482,12 @@ export interface ApiProspectResponse {
 export interface ApiCreateProspectRequest {
   firstName: string;
   lastName: string;
-  visitDate: string;
+  visitDate: string; // ISO 8601 datetime or YYYY-MM-DD
   contact?: string;
   source?: ApiProspectSource;
   notes?: string;
   addedBy?: number;
+  meetingSeriesId?: number;
 }
 
 export interface ApiUpdateProspectRequest {
@@ -493,6 +496,7 @@ export interface ApiUpdateProspectRequest {
   contact?: string;
   notes?: string;
   visitDate?: string;
+  meetingSeriesId?: number;
 }
 
 export interface ApiIntegrateProspectRequest {

@@ -12,6 +12,8 @@ export function mapApiProspectToProspect(api: ApiProspectResponse): Prospect {
     addedBy: api.addedBy,
     addedByName: api.addedByName,
     visitDate: api.visitDate,
+    meetingSeriesId: api.meetingSeriesId !== undefined ? String(api.meetingSeriesId) : undefined,
+    meetingSeriesName: api.meetingSeriesName,
     notes: api.notes,
     status: api.status,
     memberId: api.memberId !== undefined ? String(api.memberId) : undefined,
