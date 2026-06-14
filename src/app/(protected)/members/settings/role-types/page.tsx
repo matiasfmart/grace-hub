@@ -1,5 +1,3 @@
-export const dynamic = "force-dynamic";
-
 import { roleTypesService } from "@/lib/api/services";
 import { RoleTypesView } from "./RoleTypesView";
 

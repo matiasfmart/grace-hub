@@ -54,8 +54,7 @@ import {
 	getAllMinistryAreas,
 } from "@/lib/api/services";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+
 
 /**
  * Derives the expected member rows for the attendance table based on the series' audienceType.

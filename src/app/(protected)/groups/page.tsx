@@ -13,9 +13,6 @@ import {
 	getAllMinistryAreas,
 } from "@/lib/api/services";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 async function getGroupsData(): Promise<{
 	ministryAreas: MinistryArea[];
 	gdis: GDI[];

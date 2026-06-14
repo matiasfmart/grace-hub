@@ -148,6 +148,7 @@ export const apiClient = {
         ...(authCookie ? { Cookie: authCookie } : {}),
       },
       credentials: 'include',
+      next: { revalidate: 60 },
     });
     
     return handleResponse<T>(response);
