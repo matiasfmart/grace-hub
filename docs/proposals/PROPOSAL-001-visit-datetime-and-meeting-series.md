@@ -1,6 +1,6 @@
 # PROPOSAL-001 — Fecha y hora de visita + vínculo a serie de reunión en Prospectos
 
-> **Estado:** Aprobada — pendiente de implementación  
+> **Estado:** ⏳ Aprobada — **pendiente de implementación**  
 > **Fecha:** 2026-05-03  
 > **Ámbito:** `grace-hub-service/` + `grace-hub/` + `grace-hub-welcome/`  
 > **Prioridad:** Alta — problema operativo activo: la iglesia tiene múltiples reuniones por día y sin hora ni serie es imposible saber en cuál estuvo el visitante.

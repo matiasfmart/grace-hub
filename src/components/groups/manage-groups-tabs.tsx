@@ -89,10 +89,15 @@ export default function ManageGroupsTabs({
 		const areasWithMentor = initialMinistryAreas.filter(a => !!a.mentorId).length;
 
 		// Miembros sin GDI — viola RN-001
-		const allGdiGuideIds = new Set(initialGdis.map(g => g.guideId).filter(Boolean));
-		const allGdiMemberIds = new Set(initialGdis.flatMap(g => g.memberIds));
+		// Criterio: no aparece como guía, integrante ni mentor de ningún GDI.
+		// Las áreas son de servicio; el GDI es la unidad de contención (base obligatoria).
+		const allGdiPersonIds = new Set([
+			...initialGdis.map(g => g.guideId).filter(Boolean) as string[],
+			...initialGdis.flatMap(g => g.memberIds),
+			...initialGdis.map(g => g.mentorId).filter(Boolean) as string[],
+		]);
 		const membersWithoutGdi = activeMembers.filter(
-			m => !allGdiGuideIds.has(m.id) && !allGdiMemberIds.has(m.id)
+			m => !allGdiPersonIds.has(m.id)
 		).length;
 
 		return {

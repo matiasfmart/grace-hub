@@ -1,6 +1,6 @@
 # Grace Hub - Product Blueprint
 
-> **Última actualización:** 2026-05-01
+> **Última actualización:** 2026-06-14
 
 ## Visión del Producto
 
@@ -14,26 +14,36 @@ Grace Hub es un sistema de gestión de membresía y asistencia para iglesias, di
 
 | Feature | Descripción | Estado |
 |---------|-------------|--------|
-| **Member Directory** | Directorio de miembros con búsqueda, filtros y paginación | ✅ Completo |
+| **Member Directory** | Directorio de miembros con búsqueda, filtros, paginación, KPIs y nivel operativo | ✅ Completo |
 | **Groups Management** | Gestión de GDIs y Áreas Ministeriales con asignación de miembros | ✅ Completo |
 | **Mentor Assignment** | Asignación de Mentores a GDIs/Áreas via formulario | ✅ Completo |
 | **Meeting Series** | Definición de series de reuniones con recurrencia configurable | ✅ Completo |
 | **Audience Type Selector** | Selección de tipo de audiencia al crear/editar una serie (GDI, Área, todos, por nivel, por etiqueta) | ✅ Completo |
 | **Attendance Tracking** | Registro de asistencia por reunión con asistentes esperados | ✅ Completo |
-| **Tithe Tracking** | Seguimiento mensual de diezmos por miembro | ✅ Completo |
+| **Tithe Tracking** | Seguimiento mensual de diezmos por miembro con KPIs y filtros avanzados | ✅ Completo |
 | **Dashboard** | Vista general con gráficos de asistencia y distribución | ✅ Completo |
 | **Ecclesiastical Labels** | Etiquetas eclesiales configurables (Pastor, Diácono, etc.) con CRUD y asignación por miembro | ✅ Completo |
 | **Authentication** | Login con JWT en cookie httpOnly, guard global en backend, middleware en frontend | ✅ Completo |
 | **Prospects / Nuevos Ingresos** | Registro de visitantes desde admin desktop y PWA, flujo de integración como miembro, edición, historial de integrados y archivados | ✅ Completo |
 | **PWA Equipo de Bienvenida** | App web progresiva (`grace-hub-welcome`) para registrar visitantes desde celular. Auth por código de equipo + identidad voluntaria. | ✅ Completo |
+| **Performance Cache** | Cache TTL en memoria (module-level Map) para evitar fetches duplicados en SSR. Invalida por tags via `invalidateCacheByTag()`. Resuelve conflicto `force-dynamic` + cookie auth. | ✅ Completo |
+| **Reports Export (PDF + Excel)** | Exportación de 6 reportes: Lista de Asistencia, Padrón de Grupo (GDI/Área), Directorio de Miembros, Historial de Asistencia, Resumen de Diezmos. PDF con estilo de marca, Excel (.xlsx). Librerías cargadas on-demand (0 impacto en bundle inicial). La exportación de miembros soporta "filtrados" y "todos" independientemente de la paginación. | ✅ Completo |
 
-### ❌ No Implementado
+### ⏳ Propuesto — pendiente de implementación
+
+| Feature | Descripción | Referencia |
+|---------|-------------|-----------|
+| **Fecha/hora de visita en Prospects** | Migrar `visit_date DATE` → `visit_at TIMESTAMPTZ` + FK opcional `meeting_series_id`. Permite saber a qué culto/reunión asistió el visitante. | [PROPOSAL-001](./proposals/PROPOSAL-001-visit-datetime-and-meeting-series.md) |
+
+### ❌ No implementado / Baja prioridad
 
 | Feature | Descripción | Prioridad |
 |---------|-------------|-----------|
-| **Resources Section** | Recursos, artículos y anuncios | Baja |
+| **Resources Section** | Recursos, artículos y anuncios en `/resources` | Baja |
 | **Notifications** | Alertas y recordatorios | Baja |
-| **Reports Export** | Exportación a Excel/PDF | Media |
+| **DELETE /tithes/:id** | Eliminar registro de diezmo individual | Media |
+| **GET /tithes?memberId=:id** | Ver historial de diezmos de un miembro | Media |
+| **PUT /role-types/:id** | Editar nombre de etiqueta eclesiástica | Baja |
 
 ---
 

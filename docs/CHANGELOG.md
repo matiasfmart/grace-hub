@@ -4,6 +4,56 @@
 
 ---
 
+## [2026-06-14] - Exportación PDF + Excel (6 reportes) + Mejora de rendimiento
+
+### ✨ Nuevas Funcionalidades
+
+#### Sistema de exportación PDF + Excel
+
+Nueva capa de utilidades puras en `src/lib/print/`:
+
+**Infraestructura base:**
+- `src/lib/print/pdf.ts`: wrapper de `jspdf` con estilo de marca. Expone `createPdfDoc()`, `drawDocHeader()`, `drawTable()`, `drawSummary()`, `downloadPdf()`.
+- `src/lib/print/excel.ts`: wrapper de SheetJS `xlsx`. Expone `generateExcel(config, columns, rows, filename)`.
+- `src/lib/print/index.ts`: re-exports de todos los templates.
+- `src/components/ui/export-button.tsx`: componente `ExportButton` con dropdown PDF/Excel. Soporta opcionalmente `onPdfAll`/`onExcelAll` para mostrar dos secciones ("Filtrados" / "Todos") cuando hay paginación.
+
+**6 reportes implementados:**
+
+| Reporte | Template | Integración |
+|---------|----------|-------------|
+| R1 — Lista de Asistencia | `attendance-list.template.ts` | `meeting-attendance-page-content.tsx` |
+| R2 — Padrón GDI | `group-roster.template.ts` | `group-admin-members-tab.tsx` |
+| R3 — Padrón Área Ministerial | `group-roster.template.ts` | `group-admin-members-tab.tsx` |
+| R4 — Directorio de Miembros | `member-directory.template.ts` | `members-list-view.tsx` |
+| R5 — Historial de Asistencia | `attendance-history.template.ts` | `group-attendance-table.tsx` |
+| R6 — Resumen de Diezmos | `tithes-summary.template.ts` | `TithesTracker.tsx` |
+
+**Comportamiento de R4 (Directorio de Miembros):**
+- El dropdown tiene dos secciones: "Filtrados (N)" y "Todos (N)".
+- "Filtrados" aplica todos los filtros activos (búsqueda, rol, GDI, área, nivel operativo, fecha de ingreso, rango de edad) sobre la lista completa **no paginada** `allMembersForDropdowns` — nunca limitada por la página visible.
+- "Todos" exporta absolutamente todos los miembros vigentes sin filtros.
+- Función `applyMemberFilters()` en `members-list-view.tsx` replica client-side la lógica de filtrado del servidor.
+
+**Padrón de grupo (R2/R3):**
+- Export usa `exportMembers` (sin filtro de búsqueda local) — la barra de búsqueda dentro del tab no afecta el contenido exportado.
+
+**Librerías:** `jspdf` + `jspdf-autotable` + `xlsx`. Importadas con `await import()` on-demand dentro de callbacks — impacto en bundle inicial = 0.
+
+#### Capa de performance cache (`cached-services.ts`)
+
+- `src/lib/api/services/cached-services.ts` reescrito: elimina `unstable_cache` (incompatible con `cookies()` en contexto de request) y usa un `Map<string, CacheEntry>` module-level con TTL de 5 minutos.
+- `invalidateCacheByTag(tag: string)`: invalida todas las entradas asociadas a un tag. Llamado desde Server Actions después de mutaciones.
+- Todos los Server Actions (`eventActions.ts`, `groupActions.ts`, `memberActions.ts`) reemplazaron `revalidateTag()` por `invalidateCacheByTag()`.
+- **Fix de bug crítico:** `unstable_cache` ejecutaba los fetches fuera del contexto de request → `cookies()` lanzaba error → no se enviaba cookie de auth → backend retornaba 401. El nuevo cache corre dentro del ciclo de request y propaga correctamente las cookies.
+
+### 🏗️ Arquitectura
+- `lib/print/` es una capa de utilidades puras: no hace fetch, no usa hooks, no importa React. Recibe tipos frontend definidos en `lib/types.ts`, genera y descarga el archivo.
+- `ExportButton` solo recibe callbacks, no datos — respeta la regla de separación de responsabilidades.
+- Los handlers de export son funciones async que usan `await import()` para cargar el template solo cuando el usuario hace click.
+
+---
+
 ## [2026-05-01] - Módulo Nuevos Ingresos (Prospects) — Full Stack completo
 
 ### ✨ Nuevas Funcionalidades

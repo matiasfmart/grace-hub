@@ -1,6 +1,6 @@
 # Grace Hub Frontend - Documentación
 
-> **Última actualización:** 2026-05-03
+> **Última actualización:** 2026-06-14
 
 ## Índice
 
@@ -14,8 +14,11 @@
 - [FRONTEND_ARCHITECTURE.md](./architecture/FRONTEND_ARCHITECTURE.md) - Arquitectura completa del frontend (incluye sección de autenticación)
 - [ARCHITECTURE_RULES.md](./architecture/ARCHITECTURE_RULES.md) - Reglas por capa
 
-### Propuestas aprobadas
-- [PROPOSAL-001 — Fecha/hora de visita + serie de reunión en Prospectos](./proposals/PROPOSAL-001-visit-datetime-and-meeting-series.md) — Migración `visit_date DATE` → `visit_at TIMESTAMPTZ` + FK opcional `meeting_series_id`
+### Propuestas
+- [PROPOSAL-001 — Fecha/hora de visita + serie de reunión en Prospectos](./proposals/PROPOSAL-001-visit-datetime-and-meeting-series.md) — **⏳ Pendiente de implementación.** Migración `visit_date DATE` → `visit_at TIMESTAMPTZ` + FK opcional `meeting_series_id`
+
+### Implementación
+- [PRINT_EXPORT_IMPLEMENTATION.md](./PRINT_EXPORT_IMPLEMENTATION.md) — Plan y estado de implementación del sistema de exportación PDF/Excel (✅ implementado)
 
 ### Prompts
 - [prompts.md](./prompts/prompts.md) - Prompts para desarrollo con IA
@@ -37,20 +40,20 @@ Para documentación funcional y de negocio, ver:
 
 ## Vistas Implementadas
 
-| Ruta | Página | Estado | Notas UX |
-|------|--------|--------|----------|
-| `/` | Dashboard | ✅ Completa | Gráficos de asistencia |
+| Ruta | Página | Estado | Notas |
+|------|--------|--------|-------|
+| `/` | Dashboard | ✅ Completa | Gráficos de asistencia y distribución |
 | `/login` | Login | ✅ Completa | Sin sidebar, cookie httpOnly |
-| `/members` | Directorio de Miembros | ✅ Completa | Paginación, filtros |
+| `/members` | Directorio de Miembros | ✅ Completa | Paginación, filtros, KPIs, exportar PDF/Excel (filtrados + todos) |
 | `/members/bulk-add` | Agregar Múltiples | ✅ Completa | Staging flow, edición antes de guardar, breadcrumb |
 | `/members/settings/role-types` | Administración de Etiquetas Eclesiásticas | ✅ Completa | CRUD de `role_types` |
 | `/events` | Gestión de Eventos | ✅ Completa | |
-| `/events/[meetingId]/attendance` | Tomar Asistencia | ✅ Completa | |
+| `/events/[meetingId]/attendance` | Tomar Asistencia | ✅ Completa | Exportar lista PDF/Excel |
 | `/groups` | Gestión de Grupos | ✅ Completa | |
-| `/groups/gdis/[gdiId]/admin` | Admin GDI | ✅ Completa | |
-| `/groups/ministry-areas/[areaId]/admin` | Admin Área | ✅ Completa | |
-| `/tithes` | Tracker de Diezmos | ✅ Completa | KPIs con color, filtros avanzados, menús contextuales |
-| `/members` (tab Nuevos Ingresos) | Gestión de Prospects | ✅ Completa | 3 subtabs: Pendientes / Integrados / Archivados; edición; detalle; fuente PWA/Manual |
+| `/groups/gdis/[gdiId]/admin` | Admin GDI | ✅ Completa | Exportar padrón + historial de asistencia PDF/Excel |
+| `/groups/ministry-areas/[areaId]/admin` | Admin Área | ✅ Completa | Exportar padrón + historial de asistencia PDF/Excel |
+| `/tithes` | Tracker de Diezmos | ✅ Completa | KPIs con color, filtros avanzados, exportar resumen PDF/Excel |
+| `/members` (tab Nuevos Ingresos) | Gestión de Prospects | ✅ Completa | 3 subtabs: Pendientes / Integrados / Archivados |
 | `/resources` | Recursos | 🚧 Placeholder | |
 | `/about` | About | ⚪ Estática | |
 

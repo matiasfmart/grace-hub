@@ -536,7 +536,15 @@ export default function MembersListView({
 	// KPI Stats calculation — based on vigente members only
 	const stats = useMemo(() => {
 		const activeMembers = allMembersForDropdowns.filter(m => m.status === "vigente");
-		const withoutGdi = activeMembers.filter(m => calculateOperativeLevel(m) === 0);
+		// Sin GDI: no aparece como guía, integrante ni mentor de ningún GDI (RN-001).
+		// No se usa calculateOperativeLevel porque ese criterio mezcla área con GDI;
+		// el área es de servicio y no sustituye la contención que da el GDI.
+		const allGdiPersonIds = new Set([
+			...allGDIs.map(g => g.guideId).filter(Boolean) as string[],
+			...allGDIs.flatMap(g => g.memberIds),
+			...allGDIs.map(g => g.mentorId).filter(Boolean) as string[],
+		]);
+		const withoutGdi = activeMembers.filter(m => !allGdiPersonIds.has(m.id));
 		const withoutArea = activeMembers.filter(m => !m.assignedAreaIds || m.assignedAreaIds.length === 0);
 		return {
 			total: absoluteTotalMembers,
@@ -544,7 +552,7 @@ export default function MembersListView({
 			withoutGdi: withoutGdi.length,
 			withoutArea: withoutArea.length,
 		};
-	}, [allMembersForDropdowns, absoluteTotalMembers]);
+	}, [allMembersForDropdowns, absoluteTotalMembers, allGDIs]);
 
 	// Calculate last attendance date for each member
 	const memberLastAttendance = useMemo(() => {
