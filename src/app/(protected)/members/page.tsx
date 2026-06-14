@@ -25,6 +25,9 @@ import {
 	prospectsService,
 } from "@/lib/api/services";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 // ---- Preset conversion helpers (server-side) ----
 function toDateStr(d: Date): string {
 	return d.toISOString().split("T")[0];

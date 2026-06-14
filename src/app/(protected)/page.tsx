@@ -24,6 +24,9 @@ import {
 	prospectsService,
 } from "@/lib/api/services";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 async function getDashboardData() {
 	const [
 		allMeetingsData,

@@ -14,6 +14,9 @@ import {
 } from "@/lib/api/services";
 import { PageHeader } from "@/components/ui/page-header";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import { TithesTracker } from "@/components/tithes/TithesTracker";
 
 const roleDisplayMap: Record<MemberRoleType, string> = {
