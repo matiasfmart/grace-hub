@@ -48,7 +48,7 @@ export default function RegisterProspectDialog({
 
 	const [firstName, setFirstName] = useState("");
 	const [lastName, setLastName] = useState("");
-	const [visitDate, setVisitDate] = useState(nowLocalISO);
+	const [visitDate, setVisitDate] = useState("");
 	const [contact, setContact] = useState("");
 	const [notes, setNotes] = useState("");
 	const [addedBy, setAddedBy] = useState<string>("");
@@ -209,7 +209,7 @@ export default function RegisterProspectDialog({
 						type="datetime-local"
 						value={visitDate}
 						onChange={(e) => { setVisitDate(e.target.value); if (errors.visitDate) setErrors(prev => ({ ...prev, visitDate: undefined })); }}
-						max={nowLocalISO()}
+
 						disabled={isPending}
 						className={errors.visitDate ? "border-destructive focus-visible:ring-destructive" : ""}
 					/>

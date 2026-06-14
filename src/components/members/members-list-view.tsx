@@ -1454,9 +1454,9 @@ export default function MembersListView({
 									Miembro <SortIcon columnKey="fullName" />
 								</div>
 							</TableHead>
-							{/* Columna Teléfono - Oculta temporalmente. Descomentar para reactivar:
+							{/* Columna Teléfono - Oculta temporalmente. Descomentar para reactivar: */}
 							<TableHead>Teléfono</TableHead>
-							*/}
+							
 							<TableHead>GDI</TableHead>
 							<TableHead>Áreas</TableHead>
 							<TableHead>Nivel</TableHead>
@@ -1493,9 +1493,9 @@ export default function MembersListView({
 											</span>
 										</div>
 									</TableCell>
-									{/* Columna Teléfono - Oculta temporalmente. Descomentar para reactivar:
+									{/* Columna Teléfono - Oculta temporalmente. Descomentar para reactivar: */}
 									<TableCell>{member.phone}</TableCell>
-									*/}
+									
 									<TableCell>
 										<span className={cn(
 											"text-sm",

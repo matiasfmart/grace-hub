@@ -236,8 +236,8 @@ export default function GroupAdminMembersTab({
 										idx % 2 === 1 ? "bg-muted/20" : ""
 									} ${isLeader ? "bg-primary/5" : ""}`}
 								>
-									<div className="flex items-center gap-3">
-										<div className={`h-9 w-9 rounded-full flex items-center justify-center ${
+									<div className="flex items-center gap-3 min-w-0">
+										<div className={`h-9 w-9 shrink-0 rounded-full flex items-center justify-center ${
 										isLeader ? "bg-primary/20" : isMentor ? "bg-blue-100 dark:bg-blue-900/30" : "bg-primary/10"
 									}`}>
 										<span className={`text-sm font-medium ${
@@ -246,22 +246,32 @@ export default function GroupAdminMembersTab({
 												{member.firstName[0]}{member.lastName[0]}
 											</span>
 										</div>
-										<div>
-											<div className="flex items-center gap-2">
-												<span className="font-medium">
-													{member.firstName} {member.lastName}
-												</span>
-												{role && (
-													<Badge variant="secondary" className="text-xs">
-														{role === leaderLabel && <UserCheck className="h-3 w-3 mr-1" />}
-														{role}
-													</Badge>
-												)}
-											</div>
-											{member.email && (
-												<p className="text-xs text-muted-foreground">{member.email}</p>
+										{/* Nombre + badge */}
+										<div className="flex items-center gap-2 shrink-0">
+											<span className="font-medium">
+												{member.firstName} {member.lastName}
+											</span>
+											{role && (
+												<Badge variant="secondary" className="text-xs">
+													{role === leaderLabel && <UserCheck className="h-3 w-3 mr-1" />}
+													{role}
+												</Badge>
 											)}
 										</div>
+										{/* Teléfono y email inline */}
+										{(member.phone || member.email) && (
+											<div className="flex items-center gap-3 text-xs text-muted-foreground min-w-0">
+												{member.phone && (
+													<span className="truncate">{member.phone}</span>
+												)}
+												{member.phone && member.email && (
+													<span className="text-border">·</span>
+												)}
+												{member.email && (
+													<span className="truncate">{member.email}</span>
+												)}
+											</div>
+										)}
 									</div>
 									<div className="flex items-center gap-2">
 										<Badge 

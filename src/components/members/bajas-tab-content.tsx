@@ -215,8 +215,7 @@ export default function BajasTabContent({
 				<Table>
 					<TableHeader>
 						<TableRow className="bg-muted/20">
-							<TableHead>Miembro</TableHead>
-							<TableHead>Último GDI</TableHead>
+							<TableHead>Miembro</TableHead>						<TableHead>Teléfono</TableHead>							<TableHead>Último GDI</TableHead>
 							<TableHead>Última asistencia</TableHead>
 							<TableHead className="w-[120px]">
 								<span className="sr-only">Acciones</span>
@@ -241,6 +240,11 @@ export default function BajasTabContent({
 												{member.firstName} {member.lastName}
 											</span>
 										</div>
+									</TableCell>
+									<TableCell>
+										<span className="text-sm text-muted-foreground">
+											{member.phone || "—"}
+										</span>
 									</TableCell>
 									<TableCell>
 										<span className="text-sm text-muted-foreground">
