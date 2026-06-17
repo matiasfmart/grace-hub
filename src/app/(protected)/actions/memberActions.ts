@@ -40,6 +40,7 @@ export async function addSingleMemberAction(
 		revalidatePath("/members");
 		revalidatePath("/groups");
 		invalidateCacheByTag("members");
+		invalidateCacheByTag("gdis");
 		if (newMember.assignedAreaIds) {
 			newMember.assignedAreaIds.forEach((areaId) => {
 				revalidatePath(`/groups/ministry-areas/${areaId}/manage`);
@@ -120,6 +121,7 @@ export async function updateMemberAction(
 		revalidatePath("/members");
 		revalidatePath("/groups");
 		invalidateCacheByTag("members");
+		invalidateCacheByTag("gdis");
 		const allPotentiallyAffectedAreaIds = new Set([
 			...(originalMemberData.assignedAreaIds || []),
 			...(memberToUpdate.assignedAreaIds || []),
@@ -214,6 +216,7 @@ export async function deleteMemberAction(
 		revalidatePath("/members");
 		revalidatePath("/groups");
 		invalidateCacheByTag("members");
+		invalidateCacheByTag("gdis");
 		if (deletedMember.assignedGDIId)
 			revalidatePath(`/groups/gdis/${deletedMember.assignedGDIId}/admin`);
 		deletedMember.assignedAreaIds?.forEach((areaId) =>
@@ -262,6 +265,7 @@ export async function addBulkMembersAction(
 		revalidatePath("/members/bulk-add");
 		revalidatePath("/groups");
 		invalidateCacheByTag("members");
+		invalidateCacheByTag("gdis");
 
 		return {
 			success: true,
